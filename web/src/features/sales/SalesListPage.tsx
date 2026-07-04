@@ -10,18 +10,11 @@ import {
   type SalesFilter,
 } from '../../types/sales'
 import { deleteSale, listSales, summarizeSales } from './salesStore'
-import {
-  addSalesCategory,
-  removeSalesCategory,
-  useSalesCategories,
-} from './salesCategoryStore'
+import { useSalesCategories } from './salesCategoryStore'
 import SalesRegisterModal from './SalesRegisterModal'
 import SalesDetailDrawer from './SalesDetailDrawer'
-import DailyReportModal from './DailyReportModal'
-import { getReportEmails, parseEmails, setReportEmails } from './reportStore'
 
 type Tab = 'card' | 'textbook'
-const TODAY = '2026-07-04' // 시스템 기준일
 
 export default function SalesListPage() {
   const categories = useSalesCategories()
@@ -30,24 +23,7 @@ export default function SalesListPage() {
   const [applied, setApplied] = useState<SalesFilter>(EMPTY_SALES_FILTER)
   const [registerOpen, setRegisterOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
-  const [reportOpen, setReportOpen] = useState(false)
   const [refresh, setRefresh] = useState(0)
-
-  // 일일보고 수신 이메일 (편집 드래프트, 저장 시 영속화)
-  const [emailDraft, setEmailDraft] = useState(getReportEmails())
-  // 분류 추가 입력
-  const [newCat, setNewCat] = useState('')
-  const [newMax, setNewMax] = useState(10)
-
-  const saveEmails = () => {
-    const valid = parseEmails(emailDraft)
-    if (valid.length === 0) {
-      alert('유효한 이메일 주소를 1개 이상 입력하세요.')
-      return
-    }
-    setReportEmails(emailDraft)
-    alert(`일일보고 수신 이메일 ${valid.length}건이 저장되었습니다.`)
-  }
 
   const rows = useMemo(() => listSales(applied), [applied, refresh])
   const sum = useMemo(
@@ -103,85 +79,6 @@ export default function SalesListPage() {
                 className="h-10 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110"
               >
                 ＋ 매출 등록
-              </button>
-            </div>
-          </div>
-
-          {/* 일일보고 수신 이메일 (매일 22:00 매출 양식 자동 발송 대상) */}
-          <div className="rounded-[14px] border border-border bg-card p-3 mb-4 flex items-center gap-3">
-            <span className="text-[12px] font-bold text-[#94a3b8] whitespace-nowrap">
-              ✉ 일일보고 수신 이메일
-            </span>
-            <input
-              value={emailDraft}
-              onChange={(e) => setEmailDraft(e.target.value)}
-              placeholder="쉼표로 구분 (예: a@x.com, b@y.com)"
-              className="h-9 flex-1 rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary"
-            />
-            <button
-              onClick={() => setReportOpen(true)}
-              className="h-9 rounded-[8px] border border-border px-4 text-[13px] font-bold text-[#c2cde0] hover:bg-hover"
-            >
-              일일보고 미리보기
-            </button>
-            <button
-              onClick={saveEmails}
-              className="h-9 rounded-[8px] bg-indigo px-4 text-[13px] font-bold text-white hover:brightness-110"
-            >
-              💾 저장
-            </button>
-          </div>
-
-          {/* 카드결제 분류 관리 */}
-          <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
-            <div className="mb-2.5 text-[13px] font-bold text-text-strong">
-              🏷 카드결제 분류 관리{' '}
-              <span className="text-[11.5px] font-semibold text-[#64748b]">
-                — 어드민이 등록한 분류가 매출등록 페이지의 드롭다운에 노출됩니다
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {categories.map((c) => (
-                <span
-                  key={c.name}
-                  className="inline-flex items-center gap-1.5 rounded-[8px] border border-border bg-input px-2.5 py-1.5 text-[12.5px]"
-                >
-                  <b className="text-[#e2e8f0]">{c.name}</b>
-                  <span className="text-[#64748b]">(max {c.max})</span>
-                  <button
-                    onClick={() => removeSalesCategory(c.name)}
-                    className="text-danger"
-                    title="삭제"
-                  >
-                    🗑
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <input
-                value={newCat}
-                onChange={(e) => setNewCat(e.target.value)}
-                placeholder="새 분류 이름 (예: LAS On 파트장)"
-                className="h-9 flex-1 rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary"
-              />
-              <label className="flex items-center gap-1.5 text-[12px] text-[#94a3b8]">
-                최대 매수
-                <input
-                  type="number"
-                  min={1}
-                  value={newMax}
-                  onChange={(e) => setNewMax(Number(e.target.value) || 1)}
-                  className="h-9 w-16 rounded-[8px] bg-input border border-border px-2 text-[13px] text-input-text outline-none focus:border-primary"
-                />
-              </label>
-              <button
-                onClick={() => {
-                  if (addSalesCategory(newCat, newMax)) setNewCat('')
-                }}
-                className="h-9 rounded-[8px] bg-primary px-4 text-[13px] font-bold text-white hover:brightness-110"
-              >
-                ＋ 추가
               </button>
             </div>
           </div>
@@ -305,9 +202,6 @@ export default function SalesListPage() {
       )}
       {detailId && (
         <SalesDetailDrawer saleId={detailId} onClose={() => setDetailId(null)} />
-      )}
-      {reportOpen && (
-        <DailyReportModal defaultDate={TODAY} onClose={() => setReportOpen(false)} />
       )}
     </AppLayout>
   )

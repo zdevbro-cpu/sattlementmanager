@@ -27,7 +27,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: '정산 & 회계',
     items: [
       { to: '/settlement', label: '정산센터', glyph: '∑' },
-      { to: '/payment', label: '지급관리', glyph: '₩' },
+      { to: '/payment', label: '지급관리', glyph: '₩', enabled: true },
       { to: '/accounting', label: '회계관리', glyph: '▥' },
     ],
   },

@@ -1,16 +1,23 @@
+import { useMemo, useState } from 'react'
 import Badge from '../../components/ui/Badge'
 import { dateText, won } from '../../lib/format'
 import { appointmentStatusTone } from '../../types/appointment'
-import { getAppointment } from './appointmentStore'
+import { getAppointment, setAppointmentDocuments } from './appointmentStore'
+import AppointmentEditForm from './AppointmentEditForm'
+import DocUploadList from './DocUploadList'
 
 export default function AppointmentDetailDrawer({
   appointmentId,
   onClose,
+  onChanged,
 }: {
   appointmentId: string
   onClose: () => void
+  onChanged?: () => void
 }) {
-  const a = getAppointment(appointmentId)
+  const [editOpen, setEditOpen] = useState(false)
+  const [tick, setTick] = useState(0)
+  const a = useMemo(() => getAppointment(appointmentId), [appointmentId, tick])
   if (!a) return null
 
   const info: [string, string][] = [
@@ -42,18 +49,105 @@ export default function AppointmentDetailDrawer({
             <Badge tone={appointmentStatusTone(a.status)}>{a.status}</Badge>
             <span className="text-[12px] text-[#64748b]">{a.contractNo}</span>
           </div>
-          <button onClick={onClose} className="text-[#94a3b8] hover:text-white">✕</button>
-        </div>
-        <div className="px-6 py-5">
-          <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">임용계약 정보</h3>
-          <div className="rounded-[10px] border border-border p-3 grid grid-cols-2 gap-x-6 gap-y-2">
-            {info.map(([k, v]) => (
-              <div key={k} className="flex justify-between text-[12.5px]">
-                <span className="text-[#64748b]">{k}</span>
-                <span className="text-[#e2e8f0] tabular">{v || '-'}</span>
-              </div>
-            ))}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setEditOpen((v) => !v)}
+              className="h-9 rounded-[8px] bg-indigo px-3 text-[13px] font-bold text-white hover:brightness-110"
+            >
+              {editOpen ? '수정 취소' : '✎ 수정'}
+            </button>
+            <button onClick={onClose} className="text-[#94a3b8] hover:text-white">✕</button>
           </div>
+        </div>
+        <div className="px-6 py-5 space-y-6">
+          {/* 수정 폼 */}
+          {editOpen && (
+            <section>
+              <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">임용계약 수정</h3>
+              <AppointmentEditForm
+                base={a}
+                onCancel={() => setEditOpen(false)}
+                onSaved={() => {
+                  setEditOpen(false)
+                  setTick((n) => n + 1)
+                  onChanged?.()
+                }}
+              />
+            </section>
+          )}
+
+          {/* 임용계약 정보 */}
+          <section>
+            <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">임용계약 정보</h3>
+            <div className="rounded-[10px] border border-border p-3 grid grid-cols-2 gap-x-6 gap-y-2">
+              {info.map(([k, v]) => (
+                <div key={k} className="flex justify-between text-[12.5px]">
+                  <span className="text-[#64748b]">{k}</span>
+                  <span className="text-[#e2e8f0] tabular">{v || '-'}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* 제출서류 */}
+          <section>
+            <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">
+              제출서류{' '}
+              <span className="text-[#64748b] font-semibold">
+                ({a.documents?.length ?? 0})
+              </span>
+            </h3>
+            <DocUploadList
+              refId={a.contractNo}
+              value={a.documents ?? []}
+              onChange={(docs) => {
+                setAppointmentDocuments(a.id, docs)
+                setTick((n) => n + 1)
+                onChanged?.()
+              }}
+              uploadedAt="2026-07-04"
+            />
+          </section>
+
+          {/* 변경 이력 */}
+          <section>
+            <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">
+              변경 이력{' '}
+              <span className="text-[#64748b] font-semibold">
+                ({a.history?.length ?? 0})
+              </span>
+            </h3>
+            {a.history && a.history.length > 0 ? (
+              <div className="space-y-2">
+                {a.history.map((h) => (
+                  <div key={h.historyId} className="rounded-[10px] border border-border p-3">
+                    <div className="flex items-center gap-2.5 mb-1.5">
+                      <span className="text-[13px] tabular font-bold text-[#c2cde0]">
+                        {dateText(h.editedAt)}
+                      </span>
+                      {h.memo && (
+                        <span className="text-[12px] text-[#64748b]">· {h.memo}</span>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      {h.changes.map((c, i) => (
+                        <div key={i} className="flex items-center gap-2 text-[12px]">
+                          <span className="text-[#94a3b8] min-w-[72px]">{c.label}</span>
+                          <span className="text-[#64748b] line-through tabular">{c.before || '-'}</span>
+                          <span className="text-[#64748b]">→</span>
+                          <span className="text-[#e2e8f0] font-semibold tabular">{c.after || '-'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-[8px] border border-dashed border-border px-3 py-4 text-center text-[12px] text-[#64748b]">
+                변경 이력이 없습니다.
+              </div>
+            )}
+          </section>
         </div>
       </div>
     </div>

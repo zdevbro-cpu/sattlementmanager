@@ -1,0 +1,152 @@
+import { useState } from 'react'
+import {
+  APPOINTMENT_STATUSES,
+  type Appointment,
+  type AppointmentStatus,
+} from '../../types/appointment'
+import { updateAppointment } from './appointmentStore'
+import InstitutionSelect from './InstitutionSelect'
+
+const TODAY = '2026-07-04'
+const inputCls =
+  'h-9 w-full rounded-[8px] bg-input border border-border px-2.5 text-[13px] text-input-text outline-none focus:border-primary'
+
+/**
+ * 임용계약 상세 — 수정 폼.
+ * 현재 값을 기준으로 편집하고, 변경된 항목은 자동으로 변경이력에 기록된다.
+ */
+export default function AppointmentEditForm({
+  base,
+  onSaved,
+  onCancel,
+}: {
+  base: Appointment
+  onSaved: () => void
+  onCancel: () => void
+}) {
+  const [name, setName] = useState(base.name)
+  const [phone, setPhone] = useState(base.phone)
+  const [position, setPosition] = useState(base.position)
+  const [salary, setSalary] = useState(base.salary)
+  const [contractDate, setContractDate] = useState(base.contractDate)
+  const [payoutDate, setPayoutDate] = useState(base.payoutDate)
+  const [endDate, setEndDate] = useState(base.endDate)
+  const [status, setStatus] = useState<AppointmentStatus>(base.status)
+  const [bankName, setBankName] = useState(base.bankName)
+  const [accountNo, setAccountNo] = useState(base.accountNo)
+  const [accountOwner, setAccountOwner] = useState(base.accountOwner)
+  const [editedAt, setEditedAt] = useState(TODAY)
+  const [memo, setMemo] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+
+  const save = () => {
+    if (!name.trim()) return setErr('계약자명을 입력하세요.')
+    if (!editedAt) return setErr('변경일을 입력하세요.')
+    setSaving(true)
+    setErr('')
+    try {
+      updateAppointment(
+        base.id,
+        {
+          name: name.trim(),
+          phone,
+          position,
+          salary,
+          contractDate,
+          payoutDate,
+          endDate,
+          status,
+          bankName,
+          accountNo: accountNo.trim(),
+          accountOwner: accountOwner.trim() || name.trim(),
+        },
+        { memo: memo.trim(), editedAt },
+      )
+      onSaved()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="rounded-[10px] border border-primary/40 bg-input/30 p-3 space-y-3">
+      <div className="grid grid-cols-2 gap-2.5">
+        <Field label="계약자명">
+          <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="연락처">
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="직급">
+          <input value={position} onChange={(e) => setPosition(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="연봉(원)">
+          <NumInput value={salary} onChange={setSalary} />
+        </Field>
+        <Field label="계약일">
+          <input type="date" value={contractDate} onChange={(e) => setContractDate(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="급여일">
+          <input type="date" value={payoutDate} onChange={(e) => setPayoutDate(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="계약종료일">
+          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="계약상태">
+          <select value={status} onChange={(e) => setStatus(e.target.value as AppointmentStatus)} className={inputCls}>
+            {APPOINTMENT_STATUSES.map((s) => (
+              <option key={s}>{s}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="은행/기관">
+          <InstitutionSelect value={bankName} onChange={setBankName} className={inputCls} />
+        </Field>
+        <Field label="계좌번호">
+          <input value={accountNo} onChange={(e) => setAccountNo(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="예금주">
+          <input value={accountOwner} onChange={(e) => setAccountOwner(e.target.value)} className={inputCls} placeholder="미입력 시 계약자명" />
+        </Field>
+        <Field label="변경일">
+          <input type="date" value={editedAt} onChange={(e) => setEditedAt(e.target.value)} className={inputCls} />
+        </Field>
+      </div>
+      <Field label="변경 사유/메모">
+        <input value={memo} onChange={(e) => setMemo(e.target.value)} className={inputCls} placeholder="예: 직급 변경, 연봉 조정" />
+      </Field>
+
+      {err && <div className="text-[12px] text-danger">{err}</div>}
+      <div className="flex justify-end gap-2">
+        <button onClick={onCancel} className="h-9 rounded-[8px] border border-border px-3 text-[13px] font-semibold text-[#c2cde0] hover:bg-hover">
+          취소
+        </button>
+        <button onClick={save} disabled={saving} className="h-9 rounded-[8px] bg-primary px-4 text-[13px] font-bold text-white hover:brightness-110 disabled:opacity-60">
+          {saving ? '저장 중…' : '수정 저장'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[11.5px] font-semibold text-[#94a3b8]">{label}</span>
+      {children}
+    </label>
+  )
+}
+
+function NumInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <input
+      inputMode="numeric"
+      value={value ? value.toLocaleString('ko-KR') : ''}
+      onChange={(e) => onChange(Number(e.target.value.replace(/[^\d]/g, '')) || 0)}
+      className={`${inputCls} text-right tabular`}
+      placeholder="0"
+    />
+  )
+}

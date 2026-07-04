@@ -1,13 +1,17 @@
 import { useState } from 'react'
 import {
-  BANKS,
+  type AppointmentDoc,
   type AppointmentType,
   type IncomeType,
 } from '../../types/appointment'
 import { APPOINTMENT_TYPES } from '../../data/mockAppointments'
 import { createAppointment, nextContractNo } from './appointmentStore'
+import InstitutionSelect from './InstitutionSelect'
+import { getBanks } from './bankStore'
+import DocUploadList from './DocUploadList'
 
 const TODAY = '2026-07-04'
+const POSITIONS = ['예비과장', '과장', '차장', '부장', '이사', '상무', '전무']
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
 
@@ -54,21 +58,22 @@ export default function AppointmentRegisterModal({
   const [position, setPosition] = useState('')
   const [salary, setSalary] = useState(0)
   const [activity, setActivity] = useState(0)
-  const [insuranceType, setInsuranceType] = useState<IncomeType>('사업소득')
+  const insuranceType: IncomeType = '사업소득'
   const [contractDate, setContractDate] = useState(TODAY)
   const [payoutDate, setPayoutDate] = useState(
     addMonths(TODAY, APPOINTMENT_TYPES[0].payoutMonths),
   )
-  const [workStartDate, setWorkStartDate] = useState(TODAY)
-  const [reportStartDate, setReportStartDate] = useState(TODAY)
+  const workStartDate = TODAY
+  const reportStartDate = TODAY
   const [endDate, setEndDate] = useState(
     addYears(TODAY, APPOINTMENT_TYPES[0].contractYears),
   )
   const [manualPayout, setManualPayout] = useState(false)
   const [manualEnd, setManualEnd] = useState(false)
-  const [bankName, setBankName] = useState(BANKS[0])
+  const [bankName, setBankName] = useState(getBanks()[0])
   const [accountNo, setAccountNo] = useState('')
   const [accountOwner, setAccountOwner] = useState('')
+  const [documents, setDocuments] = useState<AppointmentDoc[]>([])
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
@@ -125,6 +130,7 @@ export default function AppointmentRegisterModal({
         accountOwner: accountOwner.trim() || name.trim(),
         status: '정상운영',
         createdAt: contractDate,
+        documents,
       })
       onCreated()
     } finally {
@@ -160,26 +166,7 @@ export default function AppointmentRegisterModal({
 
           {/* B. 계약정보 */}
           <section>
-            <div className="flex items-center justify-between mb-2.5">
-              <SectionTitle>계약정보</SectionTitle>
-              <div className="flex items-center gap-2 text-[12px]">
-                <span className="text-[#94a3b8]">소득구분</span>
-                {(['사업소득', '4대보험'] as IncomeType[]).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setInsuranceType(t)}
-                    className={[
-                      'h-7 rounded-[7px] px-2.5 font-bold border',
-                      insuranceType === t
-                        ? 'bg-indigo text-white border-indigo'
-                        : 'border-border text-[#94a3b8] hover:bg-hover',
-                    ].join(' ')}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <SectionTitle>계약정보</SectionTitle>
             <div className="grid grid-cols-3 gap-3">
               <Field label="추천인/추천점">
                 <input value={ref} onChange={(e) => setRef(e.target.value)} className={inputCls} placeholder="추천인 또는 추천점" />
@@ -196,8 +183,8 @@ export default function AppointmentRegisterModal({
               <Field label="직급">
                 <select value={position} onChange={(e) => changePosition(e.target.value)} className={inputCls}>
                   <option value="">-- 선택 --</option>
-                  {type.positions.map((r) => (
-                    <option key={r.position} value={r.position}>{r.position}</option>
+                  {POSITIONS.map((p) => (
+                    <option key={p} value={p}>{p}</option>
                   ))}
                 </select>
               </Field>
@@ -210,17 +197,8 @@ export default function AppointmentRegisterModal({
               <Field label="급여일">
                 <input type="date" value={payoutDate} onChange={(e) => { setManualPayout(true); setPayoutDate(e.target.value) }} className={inputCls} />
               </Field>
-              <Field label="업무개시일">
-                <input type="date" value={workStartDate} onChange={(e) => setWorkStartDate(e.target.value)} className={inputCls} />
-              </Field>
-              <Field label="신고개시일">
-                <input type="date" value={reportStartDate} onChange={(e) => setReportStartDate(e.target.value)} className={inputCls} />
-              </Field>
               <Field label="계약종료일">
                 <input type="date" value={endDate} onChange={(e) => { setManualEnd(true); setEndDate(e.target.value) }} className={inputCls} />
-              </Field>
-              <Field label="활동비(원)">
-                <NumInput value={activity} onChange={setActivity} />
               </Field>
             </div>
           </section>
@@ -230,9 +208,7 @@ export default function AppointmentRegisterModal({
             <SectionTitle>계좌정보</SectionTitle>
             <div className="grid grid-cols-3 gap-3">
               <Field label="은행/기관">
-                <select value={bankName} onChange={(e) => setBankName(e.target.value)} className={inputCls}>
-                  {BANKS.map((b) => (<option key={b}>{b}</option>))}
-                </select>
+                <InstitutionSelect value={bankName} onChange={setBankName} className={inputCls} />
               </Field>
               <Field label="계좌번호">
                 <input value={accountNo} onChange={(e) => setAccountNo(e.target.value)} className={inputCls} />
@@ -241,6 +217,17 @@ export default function AppointmentRegisterModal({
                 <input value={accountOwner} onChange={(e) => setAccountOwner(e.target.value)} className={inputCls} placeholder="미입력 시 계약자명" />
               </Field>
             </div>
+          </section>
+
+          {/* D. 제출서류 등록 */}
+          <section>
+            <SectionTitle>제출서류 등록 (Google Drive 저장)</SectionTitle>
+            <DocUploadList
+              refId={contractNo}
+              value={documents}
+              onChange={setDocuments}
+              uploadedAt={contractDate}
+            />
           </section>
 
           {err && <div className="text-[13px] text-danger">{err}</div>}

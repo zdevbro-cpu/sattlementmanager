@@ -132,7 +132,11 @@ export default function AppointmentListPage() {
         />
       )}
       {detailId && (
-        <AppointmentDetailDrawer appointmentId={detailId} onClose={() => setDetailId(null)} />
+        <AppointmentDetailDrawer
+          appointmentId={detailId}
+          onClose={() => setDetailId(null)}
+          onChanged={() => setRefresh((n) => n + 1)}
+        />
       )}
     </AppLayout>
   )

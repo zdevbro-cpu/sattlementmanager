@@ -111,6 +111,33 @@ app.post('/api/contracts/:id/pdf', async (req, res) => {
   }
 })
 
+// ── 임용계약 제출서류 → Google Drive 업로드 ──
+// JSON base64 방식. 임용계약은 프론트 인메모리라 DB 기록 없이 Drive 링크만 반환한다.
+app.post('/api/appointments/:id/document', async (req, res) => {
+  try {
+    const { filename, data, mimeType, docType } = req.body || {}
+    if (!data) return res.status(400).json({ ok: false, error: 'no data' })
+    const base64 = data.includes(',') ? data.split(',')[1] : data
+    const buffer = Buffer.from(base64, 'base64')
+    const name = docType
+      ? `${req.params.id}_${docType}_${filename}`
+      : filename
+    const up = await drive.uploadFile({
+      filename: name,
+      buffer,
+      mimeType,
+      year: new Date().getFullYear(),
+    })
+    res.json({
+      ok: true,
+      driveFileId: up.driveFileId,
+      driveViewUrl: up.driveViewUrl,
+    })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 // ── OCR 정보추출 (카드전표/현금영수증) ──
 app.post('/api/ocr', upload.single('photo'), async (req, res) => {
   try {

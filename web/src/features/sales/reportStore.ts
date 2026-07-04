@@ -43,3 +43,19 @@ export function parseEmails(s: string): string[] {
     .map((x) => x.trim())
     .filter((x) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x))
 }
+
+/** 수신 이메일 1건 추가 (유효성·중복 검사). 성공 시 true */
+export function addReportEmail(email: string): boolean {
+  const e = email.trim()
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return false
+  const list = parseEmails(state)
+  if (list.includes(e)) return false
+  setReportEmails([...list, e].join(', '))
+  return true
+}
+
+/** 수신 이메일 1건 삭제 */
+export function removeReportEmail(email: string): void {
+  const list = parseEmails(state).filter((x) => x !== email)
+  setReportEmails(list.join(', '))
+}

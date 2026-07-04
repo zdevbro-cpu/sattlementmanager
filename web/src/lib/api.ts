@@ -68,6 +68,34 @@ export async function sendDailyReport(payload: {
   return res.json().catch(() => ({ ok: false, error: '응답 파싱 실패' }))
 }
 
+/** 임용계약 제출서류(등본/신분증/통장/원천징수 등) → Google Drive 업로드 후 링크 반환 */
+export async function uploadAppointmentDoc(
+  appointmentRef: string,
+  file: File,
+  docType: string,
+): Promise<{ driveFileId: string; driveViewUrl: string }> {
+  const data = await fileToBase64(file)
+  const res = await fetch(
+    `/api/appointments/${encodeURIComponent(appointmentRef)}/document`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: file.name,
+        data,
+        mimeType: file.type || 'application/octet-stream',
+        docType,
+      }),
+    },
+  )
+  if (!res.ok) throw new Error(`Drive 업로드 실패 (${res.status})`)
+  const json = await res.json()
+  return {
+    driveFileId: json.driveFileId ?? '',
+    driveViewUrl: json.driveViewUrl ?? '#',
+  }
+}
+
 /** 계약서/전표/입금증 PDF·이미지 → Google Drive 업로드 후 링크 반환 */
 export async function uploadToDrive(
   contractId: string,

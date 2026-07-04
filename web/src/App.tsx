@@ -3,6 +3,7 @@ import AppLayout from './components/layout/AppLayout'
 import ContractListPage from './features/contract/ContractListPage'
 import SalesListPage from './features/sales/SalesListPage'
 import AppointmentListPage from './features/appointment/AppointmentListPage'
+import PaymentListPage from './features/payment/PaymentListPage'
 import SystemAdminPage from './features/system/SystemAdminPage'
 
 function Placeholder({ title }: { title: string }) {
@@ -24,7 +25,7 @@ export default function App() {
       <Route path="/base" element={<AppointmentListPage />} />
       <Route path="/sales" element={<SalesListPage />} />
       <Route path="/settlement" element={<Placeholder title="정산 계산" />} />
-      <Route path="/payment" element={<Placeholder title="지급관리" />} />
+      <Route path="/payment" element={<PaymentListPage />} />
       <Route path="/accounting" element={<Placeholder title="전표 관리" />} />
       <Route path="/stats" element={<Placeholder title="매출 통계" />} />
       <Route path="/system" element={<SystemAdminPage />} />

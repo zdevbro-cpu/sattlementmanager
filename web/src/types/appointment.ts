@@ -55,6 +55,33 @@ export interface Appointment {
   accountOwner: string // 예금주
   status: AppointmentStatus // 계약상태
   createdAt: string
+  history?: AppointmentHistory[] // 변경 이력
+  documents?: AppointmentDoc[] // 제출서류 (Google Drive)
+}
+
+/** 제출서류 1건 (Google Drive 저장 링크) */
+export interface AppointmentDoc {
+  id: string // 서류종류 키
+  docType: string // 서류종류 (예: 주민등록등본)
+  fileName: string
+  driveFileId: string
+  driveViewUrl: string
+  uploadedAt: string
+}
+
+/** 변경 이력 — 필드 단위 변경 기록 1건 */
+export interface AppointmentChange {
+  label: string // 항목명
+  before: string // 변경 전
+  after: string // 변경 후
+}
+
+/** 변경 이력 항목 (수정 1회 = 이력 1건) */
+export interface AppointmentHistory {
+  historyId: string
+  editedAt: string // 변경일
+  memo: string // 변경 사유
+  changes: AppointmentChange[]
 }
 
 /** 목록 필터 */
