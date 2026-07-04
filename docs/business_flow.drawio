@@ -1,0 +1,76 @@
+<mxfile host="65bd71144e">
+    <diagram name="업무흐름" id="flow">
+        <mxGraphModel dx="1732" dy="1144" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1400" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title" value="계약 → 매출 → 정산 → 지급 → 회계 → 통계" style="text;html=1;fontSize=18;fontStyle=1;align=center;" parent="1" vertex="1">
+                    <mxGeometry x="120" y="20" width="600" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="s1" value="계약등록&#10;(신규/증액/양도/양수/해약/폐기)" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="320" y="70" width="220" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="s2" value="계약상태 변경 &amp; 계약이력 관리" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="320" y="160" width="220" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="s3" value="매출발생&#10;(카드/현금/분할/보증금/계약금/구독료/상품판매)" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="300" y="240" width="260" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="s4" value="입금관리&#10;(분할입금/입금일/입금금액)" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="320" y="330" width="220" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="s5" value="정산계산&#10;(수수료 차감 → 정산금액 산출)" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="320" y="410" width="220" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="s6" value="수당산출&#10;(조건엔진 활용)" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="320" y="490" width="220" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="s7" value="급여생성" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="320" y="570" width="220" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="s8" value="정산마감" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="320" y="650" width="220" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="s9" value="지급 (추후)&#10;급여지급/수당지급 → 지급승인 → 지급완료" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="300" y="720" width="260" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="s10" value="회계반영&#10;(전표/입금/출금/은행 관리)" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="320" y="810" width="220" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="s11" value="통계&#10;(매출/계약/수당/급여/점주/LAS-On/Book)" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="300" y="890" width="260" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" parent="1" source="s1" target="s2" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" parent="1" source="s2" target="s3" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" parent="1" source="s3" target="s4" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" parent="1" source="s4" target="s5" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" parent="1" source="s5" target="s6" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" parent="1" source="s6" target="s7" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" parent="1" source="s7" target="s8" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" parent="1" source="s8" target="s9" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" parent="1" source="s9" target="s10" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" parent="1" source="s10" target="s11" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

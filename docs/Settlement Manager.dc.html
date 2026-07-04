@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Pretendard','Pretendard Variable',-apple-system,sans-serif; background:#0a0e1a; color:#e2e8f0; -webkit-font-smoothing:antialiased; }
+  ::-webkit-scrollbar { width:10px; height:10px; }
+  ::-webkit-scrollbar-thumb { background:#2b3550; border-radius:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  .sm-nav:hover { background:#132a4d !important; color:#e2e8f0 !important; }
+  .sm-row:hover { background:#1a2440 !important; }
+  .sm-icon-btn:hover { background:#1a2440 !important; }
+  input, select { font-family:inherit; }
+  input:focus, select:focus { outline:none; border-color:#2563eb !important; box-shadow:0 0 0 3px rgba(37,99,235,.12); }
+</style>
+</helmet>
+
+<div style="display:flex; min-height:100vh; width:100%;">
+
+  <!-- ========== SIDEBAR ========== -->
+  <aside style="width:236px; flex-shrink:0; background:#0d1322; color:#9fb3d1; display:flex; flex-direction:column; position:sticky; top:0; height:100vh;">
+    <div style="display:flex; align-items:center; gap:10px; padding:20px 20px 18px;">
+      <div style="width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,#14b8a6,#0ea5b7); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(20,184,166,.35);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 7l9-4 9 4-9 4-9-4z" fill="#fff"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div>
+        <div style="font-weight:800; font-size:15px; color:#fff; letter-spacing:-.3px;">Settlement</div>
+        <div style="font-weight:600; font-size:10.5px; color:#5f7ba6; letter-spacing:1.5px;">MANAGER</div>
+      </div>
+    </div>
+
+    <nav style="flex:1; overflow-y:auto; padding:6px 12px 20px;">
+      <div style="font-size:10.5px; font-weight:700; color:#3f5983; letter-spacing:1px; padding:12px 10px 6px;">운영</div>
+      <div class="sm-nav" onClick="{{ goDashboard }}" style="{{ nav.dashboard }}"><span style="width:18px; display:inline-flex;">▦</span>대시보드</div>
+      <div class="sm-nav" onClick="{{ goBase }}" style="{{ nav.base }}"><span style="width:18px; display:inline-flex;">◱</span>기준정보</div>
+      <div class="sm-nav" onClick="{{ goContract }}" style="{{ nav.contract }}"><span style="width:18px; display:inline-flex;">▤</span>계약관리</div>
+      <div class="sm-nav" onClick="{{ goSales }}" style="{{ nav.sales }}"><span style="width:18px; display:inline-flex;">▧</span>매출관리</div>
+
+      <div style="font-size:10.5px; font-weight:700; color:#3f5983; letter-spacing:1px; padding:16px 10px 6px;">정산 &amp; 회계</div>
+      <div class="sm-nav" onClick="{{ goSettlement }}" style="{{ nav.settlement }}"><span style="width:18px; display:inline-flex;">∑</span>정산센터</div>
+      <div class="sm-nav" onClick="{{ goPayment }}" style="{{ nav.payment }}"><span style="width:18px; display:inline-flex;">₩</span>지급관리</div>
+      <div class="sm-nav" onClick="{{ goAccounting }}" style="{{ nav.accounting }}"><span style="width:18px; display:inline-flex;">▥</span>회계관리</div>
+
+      <div style="font-size:10.5px; font-weight:700; color:#3f5983; letter-spacing:1px; padding:16px 10px 6px;">인사이트</div>
+      <div class="sm-nav" onClick="{{ goStats }}" style="{{ nav.stats }}"><span style="width:18px; display:inline-flex;">◔</span>통계</div>
+      <div class="sm-nav" onClick="{{ goSystem }}" style="{{ nav.system }}"><span style="width:18px; display:inline-flex;">⚙</span>시스템관리</div>
+    </nav>
+
+    <div style="padding:14px 18px; border-top:1px solid #16305a; display:flex; align-items:center; gap:10px;">
+      <div style="width:32px; height:32px; border-radius:50%; background:#1d3a63; color:#8fb0e0; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">관</div>
+      <div style="line-height:1.3;">
+        <div style="font-size:12.5px; font-weight:700; color:#e2e8f0;">admin@las.com</div>
+        <div style="font-size:10.5px; color:#5f7ba6;">시스템관리자</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ========== MAIN ========== -->
+  <div style="flex:1; display:flex; flex-direction:column; min-width:0;">
+
+    <!-- topbar -->
+    <header style="height:60px; background:#0d1322; border-bottom:1px solid #1c2438; display:flex; align-items:center; justify-content:space-between; padding:0 28px; position:sticky; top:0; z-index:20;">
+      <div style="display:flex; align-items:baseline; gap:10px;">
+        <span style="font-size:12px; color:#94a3b8;">{{ crumb }}</span>
+        <span style="font-size:12px; color:#cbd5e1;">/</span>
+        <span style="font-size:16px; font-weight:800; color:#e2e8f0; letter-spacing:-.3px;">{{ title }}</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="position:relative; display:flex; align-items:center;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="position:absolute; left:11px;"><circle cx="11" cy="11" r="7" stroke="#94a3b8" stroke-width="2"/><path d="M20 20l-3-3" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/></svg>
+          <input placeholder="계약자·매출 검색" style="width:230px; height:36px; border:1px solid #232c45; border-radius:9px; padding:0 12px 0 34px; font-size:13px; background:#10182b;" />
+        </div>
+        <button style="width:36px; height:36px; border:1px solid #232c45; border-radius:9px; background:#141b2e; cursor:pointer; display:flex; align-items:center; justify-content:center; position:relative;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9z" stroke="#c2cde0" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.7 21a2 2 0 01-3.4 0" stroke="#c2cde0" stroke-width="1.7" stroke-linecap="round"/></svg>
+          <span style="position:absolute; top:7px; right:8px; width:7px; height:7px; background:#ef4444; border-radius:50%; border:1.5px solid #0d1322;"></span>
+        </button>
+        <div style="height:24px; width:1px; background:#232c45;"></div>
+        <div style="font-size:13px; color:#64748b;">2026-07-04 (금)</div>
+      </div>
+    </header>
+
+    <!-- scroll area -->
+    <main style="flex:1; overflow-y:auto; padding:26px 28px 48px;">
+
+      <!-- ========== DASHBOARD ========== -->
+      <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <div style="margin-bottom:18px;">
+          <h1 style="font-size:22px; font-weight:800; letter-spacing:-.5px;">대시보드</h1>
+          <p style="font-size:13.5px; color:#64748b; margin-top:4px;">계약부터 정산·지급까지 운영 현황을 한눈에 확인하세요.</p>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px;">
+          <sc-for list="{{ stats }}" as="s" hint-placeholder-count="4">
+            <div style="background:#141b2e; border:1px solid #232c45; border-radius:14px; padding:18px 20px; box-shadow:0 1px 2px rgba(16,24,40,.04);">
+              <div style="display:flex; align-items:center; gap:11px; margin-bottom:14px;">
+                <div style="width:38px; height:38px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:17px; background:{{ s.tint }}; color:{{ s.color }};">{{ s.icon }}</div>
+                <div style="font-size:13px; color:#64748b; font-weight:600;">{{ s.label }}</div>
+              </div>
+              <div style="font-size:25px; font-weight:800; color:#eaf1fb; letter-spacing:-.6px;">{{ s.value }}</div>
+              <div style="font-size:12px; margin-top:5px; color:{{ s.deltaColor }}; font-weight:600;">{{ s.delta }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1.55fr 1fr; gap:16px; margin-bottom:16px;">
+          <!-- recent contracts -->
+          <div style="background:#141b2e; border:1px solid #232c45; border-radius:14px; overflow:hidden;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #1e2740;">
+              <div style="font-size:15px; font-weight:800;">최근 계약 현황</div>
+              <button onClick="{{ goContract }}" style="font-size:12.5px; color:#2563eb; font-weight:600; background:none; border:none; cursor:pointer;">전체보기 →</button>
+            </div>
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+              <thead>
+                <tr style="color:#94a3b8; text-align:left;">
+                  <th style="font-weight:600; padding:10px 20px;">계약일</th>
+                  <th style="font-weight:600; padding:10px 8px;">계약자</th>
+                  <th style="font-weight:600; padding:10px 8px;">유형</th>
+                  <th style="font-weight:600; padding:10px 8px; text-align:right;">계약금액</th>
+                  <th style="font-weight:600; padding:10px 20px;">상태</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ recentContracts }}" as="c" hint-placeholder-count="7">
+                  <tr class="sm-row" style="border-top:1px solid #1e2740;">
+                    <td style="padding:11px 20px; color:#64748b;">{{ c.date }}</td>
+                    <td style="padding:11px 8px; font-weight:700;">{{ c.name }}</td>
+                    <td style="padding:11px 8px;"><span style="font-size:11.5px; font-weight:700; padding:2px 9px; border-radius:20px; background:{{ c.typeTint }}; color:{{ c.typeColor }};">{{ c.type }}</span></td>
+                    <td style="padding:11px 8px; text-align:right; font-weight:700; font-variant-numeric:tabular-nums;">{{ c.amount }}</td>
+                    <td style="padding:11px 20px;"><span style="font-size:11.5px; font-weight:700; color:{{ c.statusColor }};">● {{ c.status }}</span></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- settlement pipeline -->
+          <div style="background:#141b2e; border:1px solid #232c45; border-radius:14px; padding:16px 20px;">
+            <div style="font-size:15px; font-weight:800; margin-bottom:4px;">이번 달 정산 파이프라인</div>
+            <div style="font-size:12px; color:#94a3b8; margin-bottom:16px;">2026년 7월 · 정산마감 D-6</div>
+            <sc-for list="{{ pipeline }}" as="p" hint-placeholder-count="5">
+              <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                <div style="width:26px; height:26px; border-radius:8px; background:{{ p.tint }}; color:{{ p.color }}; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex-shrink:0;">{{ p.step }}</div>
+                <div style="flex:1; min-width:0;">
+                  <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                    <span style="font-size:13px; font-weight:700;">{{ p.label }}</span>
+                    <span style="font-size:13px; font-weight:800; color:#eaf1fb; font-variant-numeric:tabular-nums;">{{ p.value }}</span>
+                  </div>
+                  <div style="height:5px; background:#1e2740; border-radius:4px; margin-top:6px; overflow:hidden;">
+                    <div style="height:100%; width:{{ p.pct }}; background:{{ p.color }}; border-radius:4px;"></div>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+            <button onClick="{{ goSettlement }}" style="width:100%; margin-top:6px; height:40px; border:none; border-radius:10px; background:#4f46e5; color:#fff; font-weight:700; font-size:13.5px; cursor:pointer;">정산 계산 실행 →</button>
+          </div>
+        </div>
+
+        <!-- top recommenders -->
+        <div style="background:#141b2e; border:1px solid #232c45; border-radius:14px; padding:16px 20px;">
+          <div style="font-size:15px; font-weight:800; margin-bottom:14px;">추천인 순위 <span style="font-size:12px; color:#94a3b8; font-weight:600;">(상위 8명 · 합계 182건)</span></div>
+          <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px;">
+            <sc-for list="{{ recommenders }}" as="r" hint-placeholder-count="8">
+              <div style="display:flex; align-items:center; gap:11px; border:1px solid #1e2740; border-radius:11px; padding:11px 13px;">
+                <div style="width:26px; height:26px; border-radius:8px; background:{{ r.tint }}; color:{{ r.color }}; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center;">{{ r.rank }}</div>
+                <div style="flex:1; min-width:0;">
+                  <div style="font-size:13.5px; font-weight:700;">{{ r.name }}</div>
+                  <div style="font-size:11px; color:#94a3b8;">{{ r.store }}</div>
+                </div>
+                <div style="font-size:15px; font-weight:800; color:#eaf1fb;">{{ r.count }}<span style="font-size:11px; color:#94a3b8; font-weight:600;">명</span></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ========== CONTRACT ========== -->
+      <sc-if value="{{ isContract }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:18px;">
+          <div>
+            <h1 style="font-size:22px; font-weight:800; letter-spacing:-.5px;">계약 조회</h1>
+            <p style="font-size:13.5px; color:#64748b; margin-top:4px;">신규·증액·양도·양수·해약·폐기 등 전체 계약을 조회합니다.</p>
+          </div>
+          <button style="height:40px; padding:0 18px; border:none; border-radius:10px; background:#2563eb; color:#fff; font-weight:700; font-size:13.5px; cursor:pointer; display:flex; align-items:center; gap:7px;">＋ 계약 등록</button>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px;">
+          <sc-for list="{{ contractSummary }}" as="s" hint-placeholder-count="4">
+            <div style="background:#141b2e; border:1px solid #232c45; border-radius:12px; padding:14px 16px;">
+              <div style="font-size:12.5px; color:#64748b; font-weight:600;">{{ s.label }}</div>
+              <div style="font-size:21px; font-weight:800; color:#eaf1fb; margin-top:5px;">{{ s.value }}<span style="font-size:12px; color:#94a3b8; font-weight:600; margin-left:2px;">{{ s.unit }}</span></div>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- filter -->
+        <div style="background:#141b2e; border:1px solid #232c45; border-radius:12px; padding:16px 18px; margin-bottom:16px; display:grid; grid-template-columns:repeat(5,1fr) auto; gap:12px; align-items:end;">
+          <div><label style="font-size:11.5px; color:#94a3b8; font-weight:600; display:block; margin-bottom:5px;">기간 시작</label><input type="date" style="width:100%; height:38px; border:1px solid #232c45; border-radius:8px; padding:0 10px; font-size:13px; color:#cbd5e1;" /></div>
+          <div><label style="font-size:11.5px; color:#94a3b8; font-weight:600; display:block; margin-bottom:5px;">기간 종료</label><input type="date" style="width:100%; height:38px; border:1px solid #232c45; border-radius:8px; padding:0 10px; font-size:13px; color:#cbd5e1;" /></div>
+          <div><label style="font-size:11.5px; color:#94a3b8; font-weight:600; display:block; margin-bottom:5px;">계약유형</label><select style="width:100%; height:38px; border:1px solid #232c45; border-radius:8px; padding:0 8px; font-size:13px; color:#cbd5e1; background:#141b2e;"><option>전체</option><option>신규</option><option>증액</option><option>양도</option><option>양수</option><option>해약</option><option>폐기</option></select></div>
+          <div><label style="font-size:11.5px; color:#94a3b8; font-weight:600; display:block; margin-bottom:5px;">계약대상</label><select style="width:100%; height:38px; border:1px solid #232c45; border-radius:8px; padding:0 8px; font-size:13px; color:#cbd5e1; background:#141b2e;"><option>전체</option><option>직원</option><option>LAS 점주</option><option>LAS-On 파트장</option><option>LAS-On 파트너</option></select></div>
+          <div><label style="font-size:11.5px; color:#94a3b8; font-weight:600; display:block; margin-bottom:5px;">계약자명</label><input placeholder="포함 검색" style="width:100%; height:38px; border:1px solid #232c45; border-radius:8px; padding:0 10px; font-size:13px;" /></div>
+          <div style="display:flex; gap:8px;"><button style="height:38px; padding:0 18px; border:none; border-radius:8px; background:#4f46e5; color:#fff; font-weight:700; font-size:13px; cursor:pointer;">검색</button><button style="height:38px; padding:0 14px; border:1px solid #232c45; border-radius:8px; background:#141b2e; color:#64748b; font-weight:600; font-size:13px; cursor:pointer;">초기화</button></div>
+        </div>
+
+        <!-- table -->
+        <div style="background:#141b2e; border:1px solid #232c45; border-radius:14px; overflow:hidden;">
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid #1e2740;">
+            <div style="font-size:14px; font-weight:700;">총 <span style="color:#2563eb;">248</span>건</div>
+            <button style="height:34px; padding:0 14px; border:1px solid #232c45; border-radius:8px; background:#141b2e; color:#16a34a; font-weight:700; font-size:12.5px; cursor:pointer;">⭳ 엑셀 다운로드</button>
+          </div>
+          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+              <tr style="color:#94a3b8; text-align:left; background:#10182b;">
+                <th style="font-weight:600; padding:11px 20px;">번호</th>
+                <th style="font-weight:600; padding:11px 8px;">계약일</th>
+                <th style="font-weight:600; padding:11px 8px;">계약자</th>
+                <th style="font-weight:600; padding:11px 8px;">대상구분</th>
+                <th style="font-weight:600; padding:11px 8px;">유형</th>
+                <th style="font-weight:600; padding:11px 8px;">추천인</th>
+                <th style="font-weight:600; padding:11px 8px; text-align:right;">계약금액</th>
+                <th style="font-weight:600; padding:11px 8px;">계좌검증</th>
+                <th style="font-weight:600; padding:11px 8px;">상태</th>
+                <th style="font-weight:600; padding:11px 20px; text-align:center;">관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ contracts }}" as="c" hint-placeholder-count="10">
+                <tr class="sm-row" style="border-top:1px solid #1e2740;">
+                  <td style="padding:12px 20px; color:#94a3b8; font-variant-numeric:tabular-nums;">{{ c.no }}</td>
+                  <td style="padding:12px 8px; color:#64748b;">{{ c.date }}</td>
+                  <td style="padding:12px 8px; font-weight:700;">{{ c.name }}</td>
+                  <td style="padding:12px 8px; color:#c2cde0;">{{ c.target }}</td>
+                  <td style="padding:12px 8px;"><span style="font-size:11.5px; font-weight:700; padding:2px 9px; border-radius:20px; background:{{ c.typeTint }}; color:{{ c.typeColor }};">{{ c.type }}</span></td>
+                  <td style="padding:12px 8px; color:#c2cde0;">{{ c.recommender }}</td>
+                  <td style="padding:12px 8px; text-align:right; font-weight:700; font-variant-numeric:tabular-nums;">{{ c.amount }}</td>
+                  <td style="padding:12px 8px;"><span style="font-size:11.5px; font-weight:700; color:{{ c.verifyColor }};">{{ c.verify }}</span></td>
+                  <td style="padding:12px 8px;"><span style="font-size:11.5px; font-weight:700; color:{{ c.statusColor }};">● {{ c.status }}</span></td>
+                  <td style="padding:12px 20px; text-align:center;"><button class="sm-icon-btn" style="width:30px; height:30px; border:1px solid #232c45; border-radius:7px; background:#141b2e; cursor:pointer;">👁</button></td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+          <div style="display:flex; align-items:center; justify-content:center; gap:6px; padding:16px;">
+            <button style="width:32px; height:32px; border:1px solid #232c45; border-radius:7px; background:#141b2e; color:#94a3b8; cursor:pointer;">‹</button>
+            <button style="width:32px; height:32px; border:none; border-radius:7px; background:#2563eb; color:#fff; font-weight:700; cursor:pointer;">1</button>
+            <button style="width:32px; height:32px; border:1px solid #232c45; border-radius:7px; background:#141b2e; color:#c2cde0; cursor:pointer;">2</button>
+            <button style="width:32px; height:32px; border:1px solid #232c45; border-radius:7px; background:#141b2e; color:#c2cde0; cursor:pointer;">3</button>
+            <button style="width:32px; height:32px; border:1px solid #232c45; border-radius:7px; background:#141b2e; color:#94a3b8; cursor:pointer;">›</button>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ========== SALES ========== -->
+      <sc-if value="{{ isSales }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:18px;">
+          <div>
+            <h1 style="font-size:22px; font-weight:800; letter-spacing:-.5px;">카드매출 등록 관리</h1>
+            <p style="font-size:13.5px; color:#64748b; margin-top:4px;">카드·현금·분할결제/입금 매출을 등록하고 전표를 관리합니다.</p>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button style="height:40px; padding:0 16px; border:1px solid #232c45; border-radius:10px; background:#141b2e; color:#16a34a; font-weight:700; font-size:13.5px; cursor:pointer;">⭳ 엑셀 다운로드</button>
+            <button style="height:40px; padding:0 18px; border:none; border-radius:10px; background:#2563eb; color:#fff; font-weight:700; font-size:13.5px; cursor:pointer;">＋ 카드매출 등록</button>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px;">
+          <sc-for list="{{ salesSummary }}" as="s" hint-placeholder-count="4">
+            <div style="background:#141b2e; border:1px solid #232c45; border-radius:12px; padding:14px 16px;">
+              <div style="font-size:12.5px; color:#64748b; font-weight:600;">{{ s.label }}</div>
+              <div style="font-size:20px; font-weight:800; color:#eaf1fb; margin-top:5px; font-variant-numeric:tabular-nums;">{{ s.value }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- category chips -->
+        <div style="background:#141b2e; border:1px solid #232c45; border-radius:12px; padding:14px 18px; margin-bottom:14px;">
+          <div style="font-size:12.5px; color:#64748b; font-weight:700; margin-bottom:10px;">🏷 매출 분류 <span style="color:#94a3b8; font-weight:500;">— 카드매출 등록 페이지 드롭다운에 노출됩니다</span></div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px;">
+            <sc-for list="{{ salesChips }}" as="chip" hint-placeholder-count="7">
+              <span style="font-size:12.5px; font-weight:700; padding:6px 12px; border-radius:8px; background:{{ chip.tint }}; color:{{ chip.color }}; display:inline-flex; align-items:center; gap:7px;">{{ chip.label }} <span style="font-size:10.5px; color:#94a3b8; font-weight:500;">{{ chip.max }}</span></span>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- filter -->
+        <div style="background:#141b2e; border:1px solid #232c45; border-radius:12px; padding:16px 18px; margin-bottom:16px; display:grid; grid-template-columns:repeat(5,1fr) auto; gap:12px; align-items:end;">
+          <div><label style="font-size:11.5px; color:#94a3b8; font-weight:600; display:block; margin-bottom:5px;">기간 시작</label><input type="date" style="width:100%; height:38px; border:1px solid #232c45; border-radius:8px; padding:0 10px; font-size:13px; color:#cbd5e1;" /></div>
+          <div><label style="font-size:11.5px; color:#94a3b8; font-weight:600; display:block; margin-bottom:5px;">기간 종료</label><input type="date" style="width:100%; height:38px; border:1px solid #232c45; border-radius:8px; padding:0 10px; font-size:13px; color:#cbd5e1;" /></div>
+          <div><label style="font-size:11.5px; color:#94a3b8; font-weight:600; display:block; margin-bottom:5px;">매출구분</label><select style="width:100%; height:38px; border:1px solid #232c45; border-radius:8px; padding:0 8px; font-size:13px; color:#cbd5e1; background:#141b2e;"><option>전체</option><option>점주보증금</option><option>LAS-On 계약금</option><option>LAVEN 구독료</option><option>매장결제</option><option>독서지도사</option></select></div>
+          <div><label style="font-size:11.5px; color:#94a3b8; font-weight:600; display:block; margin-bottom:5px;">사업부</label><input placeholder="포함" style="width:100%; height:38px; border:1px solid #232c45; border-radius:8px; padding:0 10px; font-size:13px;" /></div>
+          <div><label style="font-size:11.5px; color:#94a3b8; font-weight:600; display:block; margin-bottom:5px;">구매자</label><input placeholder="포함" style="width:100%; height:38px; border:1px solid #232c45; border-radius:8px; padding:0 10px; font-size:13px;" /></div>
+          <div style="display:flex; gap:8px;"><button style="height:38px; padding:0 18px; border:none; border-radius:8px; background:#4f46e5; color:#fff; font-weight:700; font-size:13px; cursor:pointer;">검색</button><button style="height:38px; padding:0 14px; border:1px solid #232c45; border-radius:8px; background:#141b2e; color:#64748b; font-weight:600; font-size:13px; cursor:pointer;">초기화</button></div>
+        </div>
+
+        <!-- table -->
+        <div style="background:#141b2e; border:1px solid #232c45; border-radius:14px; overflow:hidden;">
+          <div style="padding:14px 20px; border-bottom:1px solid #1e2740; font-size:14px; font-weight:700;">총 <span style="color:#2563eb;">65</span>건</div>
+          <div style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:12.5px; min-width:1020px;">
+            <thead>
+              <tr style="color:#94a3b8; text-align:left; background:#10182b;">
+                <th style="font-weight:600; padding:11px 20px;">번호</th>
+                <th style="font-weight:600; padding:11px 8px;">날짜</th>
+                <th style="font-weight:600; padding:11px 8px;">사업부</th>
+                <th style="font-weight:600; padding:11px 8px;">구매자</th>
+                <th style="font-weight:600; padding:11px 8px;">내용</th>
+                <th style="font-weight:600; padding:11px 8px; text-align:right;">금액</th>
+                <th style="font-weight:600; padding:11px 8px;">카드사</th>
+                <th style="font-weight:600; padding:11px 8px;">카드번호</th>
+                <th style="font-weight:600; padding:11px 8px;">승인번호</th>
+                <th style="font-weight:600; padding:11px 8px;">담당</th>
+                <th style="font-weight:600; padding:11px 20px; text-align:center;">관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ salesRows }}" as="r" hint-placeholder-count="9">
+                <tr class="sm-row" style="border-top:1px solid #1e2740;">
+                  <td style="padding:11px 20px; color:#94a3b8;"><span style="font-variant-numeric:tabular-nums;">{{ r.no }}</span> <sc-if value="{{ r.split }}" hint-placeholder-val="{{ true }}"><span style="font-size:10px; font-weight:800; padding:1px 6px; border-radius:5px; background:#fef3c7; color:#b45309; margin-left:3px;">📷{{ r.split }}</span></sc-if></td>
+                  <td style="padding:11px 8px; color:#64748b; white-space:nowrap;">{{ r.date }}</td>
+                  <td style="padding:11px 8px; color:#c2cde0;">{{ r.dept }}</td>
+                  <td style="padding:11px 8px; font-weight:700;">{{ r.buyer }}</td>
+                  <td style="padding:11px 8px;"><span style="font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; background:{{ r.catTint }}; color:{{ r.catColor }};">{{ r.cat }}</span></td>
+                  <td style="padding:11px 8px; text-align:right; font-weight:800; color:#eaf1fb; font-variant-numeric:tabular-nums;">{{ r.amount }}</td>
+                  <td style="padding:11px 8px; color:#c2cde0; white-space:nowrap;">{{ r.card }}</td>
+                  <td style="padding:11px 8px; color:#94a3b8; font-variant-numeric:tabular-nums; white-space:nowrap;">{{ r.cardNo }}</td>
+                  <td style="padding:11px 8px; color:#94a3b8; font-variant-numeric:tabular-nums;">{{ r.approve }}</td>
+                  <td style="padding:11px 8px; color:#c2cde0; white-space:nowrap;">{{ r.owner }}</td>
+                  <td style="padding:11px 20px; text-align:center; white-space:nowrap;"><button class="sm-icon-btn" style="width:28px; height:28px; border:1px solid #232c45; border-radius:7px; background:#141b2e; cursor:pointer;">👁</button></td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ========== SETTLEMENT ========== -->
+      <sc-if value="{{ isSettlement }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:18px;">
+          <div>
+            <h1 style="font-size:22px; font-weight:800; letter-spacing:-.5px;">정산 계산</h1>
+            <p style="font-size:13.5px; color:#64748b; margin-top:4px;">매출 → 수수료 차감 → 정산금액 → 수당 → 급여 순으로 자동 계산됩니다.</p>
+          </div>
+          <button style="height:40px; padding:0 18px; border:none; border-radius:10px; background:#4f46e5; color:#fff; font-weight:700; font-size:13.5px; cursor:pointer;">▶ 2026-07 정산 실행</button>
+        </div>
+
+        <!-- flow -->
+        <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px;">
+          <sc-for list="{{ settleFlow }}" as="f" hint-placeholder-count="5">
+            <div style="background:#141b2e; border:1px solid #232c45; border-radius:14px; padding:16px 16px; position:relative;">
+              <div style="font-size:11px; font-weight:700; color:{{ f.color }}; letter-spacing:.5px;">STEP {{ f.step }}</div>
+              <div style="font-size:13px; font-weight:700; color:#c2cde0; margin-top:8px;">{{ f.label }}</div>
+              <div style="font-size:19px; font-weight:800; color:#eaf1fb; margin-top:6px; font-variant-numeric:tabular-nums;">{{ f.value }}</div>
+              <div style="font-size:11.5px; color:{{ f.color }}; font-weight:600; margin-top:4px;">{{ f.note }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1.5fr 1fr; gap:16px;">
+          <!-- settlement table -->
+          <div style="background:#141b2e; border:1px solid #232c45; border-radius:14px; overflow:hidden;">
+            <div style="padding:14px 20px; border-bottom:1px solid #1e2740; display:flex; justify-content:space-between; align-items:center;">
+              <div style="font-size:14px; font-weight:700;">대상자별 정산 내역</div>
+              <span style="font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:20px; background:#fef3c7; color:#b45309;">마감 전 · 검토중</span>
+            </div>
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+              <thead>
+                <tr style="color:#94a3b8; text-align:left; background:#10182b;">
+                  <th style="font-weight:600; padding:11px 20px;">대상자</th>
+                  <th style="font-weight:600; padding:11px 8px;">구분</th>
+                  <th style="font-weight:600; padding:11px 8px; text-align:right;">매출</th>
+                  <th style="font-weight:600; padding:11px 8px; text-align:right;">수수료</th>
+                  <th style="font-weight:600; padding:11px 8px; text-align:right;">정산금액</th>
+                  <th style="font-weight:600; padding:11px 20px; text-align:right;">수당</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ settleRows }}" as="r" hint-placeholder-count="8">
+                  <tr class="sm-row" style="border-top:1px solid #1e2740;">
+                    <td style="padding:12px 20px; font-weight:700;">{{ r.name }}</td>
+                    <td style="padding:12px 8px;"><span style="font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; background:{{ r.tint }}; color:{{ r.color }};">{{ r.role }}</span></td>
+                    <td style="padding:12px 8px; text-align:right; color:#c2cde0; font-variant-numeric:tabular-nums;">{{ r.sales }}</td>
+                    <td style="padding:12px 8px; text-align:right; color:#ef4444; font-variant-numeric:tabular-nums;">-{{ r.fee }}</td>
+                    <td style="padding:12px 8px; text-align:right; font-weight:700; font-variant-numeric:tabular-nums;">{{ r.settle }}</td>
+                    <td style="padding:12px 20px; text-align:right; font-weight:800; color:#2563eb; font-variant-numeric:tabular-nums;">{{ r.commission }}</td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- rule engine -->
+          <div style="background:#141b2e; border:1px solid #232c45; border-radius:14px; padding:18px 20px;">
+            <div style="font-size:14px; font-weight:800; margin-bottom:4px;">적용 정산 규칙</div>
+            <div style="font-size:11.5px; color:#94a3b8; margin-bottom:16px;">프로그램매니저 조건엔진 연동</div>
+            <sc-for list="{{ rules }}" as="rule" hint-placeholder-count="4">
+              <div style="border:1px solid #1e2740; border-radius:10px; padding:12px 14px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                  <span style="font-size:13px; font-weight:700;">{{ rule.name }}</span>
+                  <span style="font-size:10.5px; font-weight:700; color:#16a34a;">● 활성</span>
+                </div>
+                <div style="font-size:12px; color:#64748b; font-family:'Pretendard'; line-height:1.5;">{{ rule.cond }}</div>
+              </div>
+            </sc-for>
+            <button style="width:100%; margin-top:4px; height:38px; border:1px solid #232c45; border-radius:9px; background:#141b2e; color:#2563eb; font-weight:700; font-size:13px; cursor:pointer;">＋ 정산기준 관리</button>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ========== ACCOUNTING ========== -->
+      <sc-if value="{{ isAccounting }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <div style="margin-bottom:18px;">
+          <h1 style="font-size:22px; font-weight:800; letter-spacing:-.5px;">전표 관리</h1>
+          <p style="font-size:13.5px; color:#64748b; margin-top:4px;">입금·출금 전표와 은행 거래 내역을 관리합니다.</p>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px;">
+          <sc-for list="{{ acctSummary }}" as="s" hint-placeholder-count="4">
+            <div style="background:#141b2e; border:1px solid #232c45; border-radius:12px; padding:14px 16px;">
+              <div style="font-size:12.5px; color:#64748b; font-weight:600;">{{ s.label }}</div>
+              <div style="font-size:20px; font-weight:800; color:{{ s.color }}; margin-top:5px; font-variant-numeric:tabular-nums;">{{ s.value }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="background:#141b2e; border:1px solid #232c45; border-radius:14px; overflow:hidden;">
+          <div style="padding:14px 20px; border-bottom:1px solid #1e2740; font-size:14px; font-weight:700;">전표 내역</div>
+          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+              <tr style="color:#94a3b8; text-align:left; background:#10182b;">
+                <th style="font-weight:600; padding:11px 20px;">전표번호</th>
+                <th style="font-weight:600; padding:11px 8px;">일자</th>
+                <th style="font-weight:600; padding:11px 8px;">구분</th>
+                <th style="font-weight:600; padding:11px 8px;">계정</th>
+                <th style="font-weight:600; padding:11px 8px;">적요</th>
+                <th style="font-weight:600; padding:11px 8px;">은행</th>
+                <th style="font-weight:600; padding:11px 20px; text-align:right;">금액</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ vouchers }}" as="v" hint-placeholder-count="8">
+                <tr class="sm-row" style="border-top:1px solid #1e2740;">
+                  <td style="padding:12px 20px; color:#94a3b8; font-variant-numeric:tabular-nums;">{{ v.no }}</td>
+                  <td style="padding:12px 8px; color:#64748b;">{{ v.date }}</td>
+                  <td style="padding:12px 8px;"><span style="font-size:11.5px; font-weight:700; padding:2px 9px; border-radius:20px; background:{{ v.tint }}; color:{{ v.color }};">{{ v.type }}</span></td>
+                  <td style="padding:12px 8px; font-weight:700;">{{ v.account }}</td>
+                  <td style="padding:12px 8px; color:#c2cde0;">{{ v.memo }}</td>
+                  <td style="padding:12px 8px; color:#c2cde0;">{{ v.bank }}</td>
+                  <td style="padding:12px 20px; text-align:right; font-weight:800; color:{{ v.color }}; font-variant-numeric:tabular-nums;">{{ v.amount }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ========== STATS ========== -->
+      <sc-if value="{{ isStats }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <div style="margin-bottom:18px;">
+          <h1 style="font-size:22px; font-weight:800; letter-spacing:-.5px;">매출 통계</h1>
+          <p style="font-size:13.5px; color:#64748b; margin-top:4px;">월별 매출·수당·급여 추이와 매출 구성을 확인합니다.</p>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1.6fr 1fr; gap:16px; margin-bottom:16px;">
+          <!-- bar chart -->
+          <div style="background:#141b2e; border:1px solid #232c45; border-radius:14px; padding:18px 22px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <div style="font-size:15px; font-weight:800;">월별 매출 추이</div>
+              <div style="display:flex; gap:14px; font-size:11.5px; color:#64748b;">
+                <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:9px; height:9px; border-radius:2px; background:#2563eb;"></span>매출</span>
+                <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:9px; height:9px; border-radius:2px; background:#93c5fd;"></span>수당</span>
+              </div>
+            </div>
+            <div style="display:flex; align-items:flex-end; gap:16px; height:230px; padding-top:24px;">
+              <sc-for list="{{ months }}" as="m" hint-placeholder-count="7">
+                <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:8px;">
+                  <div style="display:flex; align-items:flex-end; gap:4px; width:100%; justify-content:center; flex:1;">
+                    <div style="width:40%; background:linear-gradient(180deg,#3b82f6,#2563eb); border-radius:5px 5px 0 0; height:{{ m.h1 }};"></div>
+                    <div style="width:40%; background:#bfdbfe; border-radius:5px 5px 0 0; height:{{ m.h2 }};"></div>
+                  </div>
+                  <div style="font-size:11.5px; color:#94a3b8; font-weight:600;">{{ m.label }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- composition -->
+          <div style="background:#141b2e; border:1px solid #232c45; border-radius:14px; padding:18px 20px;">
+            <div style="font-size:15px; font-weight:800; margin-bottom:16px;">매출 구성 <span style="font-size:12px; color:#94a3b8; font-weight:600;">(당월)</span></div>
+            <sc-for list="{{ composition }}" as="c" hint-placeholder-count="5">
+              <div style="margin-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
+                  <span style="font-size:13px; font-weight:700;">{{ c.label }}</span>
+                  <span style="font-size:13px; font-weight:800; color:#eaf1fb;">{{ c.value }} <span style="font-size:11px; color:#94a3b8; font-weight:600;">{{ c.pct }}</span></span>
+                </div>
+                <div style="height:8px; background:#1e2740; border-radius:5px; overflow:hidden;">
+                  <div style="height:100%; width:{{ c.pct }}; background:{{ c.color }}; border-radius:5px;"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- stats table -->
+        <div style="background:#141b2e; border:1px solid #232c45; border-radius:14px; overflow:hidden;">
+          <div style="padding:14px 20px; border-bottom:1px solid #1e2740; font-size:14px; font-weight:700;">사업부별 실적</div>
+          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+              <tr style="color:#94a3b8; text-align:left; background:#10182b;">
+                <th style="font-weight:600; padding:11px 20px;">사업부</th>
+                <th style="font-weight:600; padding:11px 8px; text-align:right;">계약건수</th>
+                <th style="font-weight:600; padding:11px 8px; text-align:right;">매출</th>
+                <th style="font-weight:600; padding:11px 8px; text-align:right;">수당</th>
+                <th style="font-weight:600; padding:11px 8px; text-align:right;">급여</th>
+                <th style="font-weight:600; padding:11px 20px; text-align:right;">달성률</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ deptStats }}" as="d" hint-placeholder-count="5">
+                <tr class="sm-row" style="border-top:1px solid #1e2740;">
+                  <td style="padding:12px 20px; font-weight:700;">{{ d.name }}</td>
+                  <td style="padding:12px 8px; text-align:right; font-variant-numeric:tabular-nums;">{{ d.contracts }}</td>
+                  <td style="padding:12px 8px; text-align:right; font-weight:700; font-variant-numeric:tabular-nums;">{{ d.sales }}</td>
+                  <td style="padding:12px 8px; text-align:right; color:#c2cde0; font-variant-numeric:tabular-nums;">{{ d.commission }}</td>
+                  <td style="padding:12px 8px; text-align:right; color:#c2cde0; font-variant-numeric:tabular-nums;">{{ d.payroll }}</td>
+                  <td style="padding:12px 20px; text-align:right; font-weight:800; color:{{ d.rateColor }};">{{ d.rate }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ========== GENERIC (base/payment/system) ========== -->
+      <sc-if value="{{ isGeneric }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:18px;">
+          <div>
+            <h1 style="font-size:22px; font-weight:800; letter-spacing:-.5px;">{{ genTitle }}</h1>
+            <p style="font-size:13.5px; color:#64748b; margin-top:4px;">{{ genDesc }}</p>
+          </div>
+          <button style="height:40px; padding:0 18px; border:none; border-radius:10px; background:#2563eb; color:#fff; font-weight:700; font-size:13.5px; cursor:pointer;">＋ {{ genAdd }}</button>
+        </div>
+        <div style="background:#141b2e; border:1px solid #232c45; border-radius:14px; overflow:hidden;">
+          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+              <tr style="color:#94a3b8; text-align:left; background:#10182b;">
+                <sc-for list="{{ genCols }}" as="col" hint-placeholder-count="5">
+                  <th style="font-weight:600; padding:12px 20px;">{{ col }}</th>
+                </sc-for>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ genRows }}" as="row" hint-placeholder-count="8">
+                <tr class="sm-row" style="border-top:1px solid #1e2740;">
+                  <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="5">
+                    <td style="padding:13px 20px;">{{ cell }}</td>
+                  </sc-for>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </sc-if>
+
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { menu: 'dashboard' };
+
+  nav(key){ return () => this.setState({ menu: key }); }
+
+  navStyle(key){
+    const base = { display:'flex', alignItems:'center', gap:'10px', padding:'9px 12px', borderRadius:'9px',
+      fontSize:'13.5px', fontWeight:700, color:'#9fb3d1', cursor:'pointer', marginBottom:'2px',
+      transition:'background .12s', borderLeft:'3px solid transparent' };
+    const active = { ...base, color:'#ffffff', background:'#16305a', borderLeft:'3px solid #38bdf8' };
+    return this.state.menu === key ? active : base;
+  }
+
+  renderVals(){
+    const m = this.state.menu;
+    const meta = {
+      dashboard:  { crumb:'운영', title:'대시보드' },
+      base:       { crumb:'기준정보', title:'직원관리' },
+      contract:   { crumb:'계약관리', title:'계약 조회' },
+      sales:      { crumb:'매출관리', title:'카드매출 등록 관리' },
+      settlement: { crumb:'정산센터', title:'정산 계산' },
+      payment:    { crumb:'지급관리', title:'지급 내역' },
+      accounting: { crumb:'회계관리', title:'전표 관리' },
+      stats:      { crumb:'통계', title:'매출 통계' },
+      system:     { crumb:'시스템관리', title:'사용자 관리' },
+    }[m] || { crumb:'', title:'' };
+
+    // generic screens config
+    const generic = {
+      base: {
+        genTitle:'직원 관리', genDesc:'조직·부서에 소속된 직원 정보를 관리합니다.', genAdd:'직원 등록',
+        genCols:['사번','성명','부서','직급','연락처','상태'],
+        genRows:[
+          {cells:['E-1024','강장용','교육사업부','부장','010-2841-****','재직']},
+          {cells:['E-1051','박명화','교육사업부','과장','010-3392-****','재직']},
+          {cells:['E-1088','김수현','마케팅부','대리','010-7712-****','재직']},
+          {cells:['E-1102','유외옥','교육사업부','사원','010-4420-****','재직']},
+          {cells:['E-1130','조한진','영업1팀','팀장','010-9981-****','재직']},
+          {cells:['E-1145','안순희','영업2팀','사원','010-2310-****','휴직']},
+          {cells:['E-1177','이상순','재무팀','과장','010-5567-****','재직']},
+          {cells:['E-1190','민복돌','전략기획','대리','010-8890-****','재직']},
+        ],
+      },
+      payment: {
+        genTitle:'지급 내역', genDesc:'급여·수당 지급 상태를 관리합니다. (예정/승인/지급완료/보류/취소)', genAdd:'지급 등록',
+        genCols:['지급일','수령인','지급종류','금액','상태','비고'],
+        genRows:[
+          {cells:['2026-07-25','강장용','점주수당','4,820,000원','예정','7월 정산분']},
+          {cells:['2026-07-25','한제환','파트장수당','3,610,000원','예정','7월 정산분']},
+          {cells:['2026-07-10','이정민','판매수당','1,240,000원','승인','']},
+          {cells:['2026-07-10','김수현','직원급여','3,200,000원','지급완료','']},
+          {cells:['2026-06-25','방명애','파트너수당','980,000원','지급완료','']},
+          {cells:['2026-06-25','오영은','점주수당','2,150,000원','보류','계좌검증 대기']},
+          {cells:['2026-06-25','양은호','판매수당','670,000원','취소','계약해약']},
+          {cells:['2026-06-10','심건희','직원급여','2,800,000원','지급완료','']},
+        ],
+      },
+      system: {
+        genTitle:'사용자 관리', genDesc:'시스템 접근 권한과 사용자 계정을 관리합니다.', genAdd:'사용자 추가',
+        genCols:['계정','성명','권한','최근 접속','상태'],
+        genRows:[
+          {cells:['admin@las.com','시스템관리자','관리자','2026-07-04 09:12','활성']},
+          {cells:['ceo@las.com','대표','대표','2026-07-03 18:40','활성']},
+          {cells:['pm@las.com','박PM','PM','2026-07-04 08:55','활성']},
+          {cells:['fin@las.com','이재무','재무','2026-07-04 08:30','활성']},
+          {cells:['hr@las.com','김인사','인사','2026-07-02 17:20','활성']},
+          {cells:['store01@las.com','강장용','점주','2026-07-03 21:05','활성']},
+          {cells:['part07@las.com','한제환','파트장','2026-07-01 14:22','비활성']},
+          {cells:['view@las.com','조회계정','조회전용','2026-06-30 11:00','활성']},
+        ],
+      },
+    }[m] || {};
+
+    return {
+      crumb: meta.crumb, title: meta.title,
+      goDashboard:this.nav('dashboard'), goBase:this.nav('base'), goContract:this.nav('contract'),
+      goSales:this.nav('sales'), goSettlement:this.nav('settlement'), goPayment:this.nav('payment'),
+      goAccounting:this.nav('accounting'), goStats:this.nav('stats'), goSystem:this.nav('system'),
+      nav: {
+        dashboard:this.navStyle('dashboard'), base:this.navStyle('base'), contract:this.navStyle('contract'),
+        sales:this.navStyle('sales'), settlement:this.navStyle('settlement'), payment:this.navStyle('payment'),
+        accounting:this.navStyle('accounting'), stats:this.navStyle('stats'), system:this.navStyle('system'),
+      },
+      isDashboard:m==='dashboard', isContract:m==='contract', isSales:m==='sales',
+      isSettlement:m==='settlement', isAccounting:m==='accounting', isStats:m==='stats',
+      isGeneric: m==='base'||m==='payment'||m==='system',
+      ...generic,
+
+      // ---- dashboard ----
+      stats:[
+        { icon:'▤', label:'진행중 계약', value:'860건', delta:'▲ 24건 (이번 주)', deltaColor:'#16a34a', tint:'#e0edff', color:'#2563eb' },
+        { icon:'₩', label:'당월 매출', value:'12.8억', delta:'▲ 8.2% vs 전월', deltaColor:'#16a34a', tint:'#e2f7ec', color:'#16a34a' },
+        { icon:'◆', label:'당월 수당', value:'2.62억', delta:'▲ 3.1% vs 전월', deltaColor:'#16a34a', tint:'#fff1e0', color:'#f59e0b' },
+        { icon:'●', label:'당월 급여', value:'3,624만', delta:'▼ 1.4% vs 전월', deltaColor:'#ef4444', tint:'#f0eafd', color:'#8b5cf6' },
+      ],
+      recentContracts:[
+        { date:'2026-07-04', name:'김민재', type:'양수', typeTint:'#e0edff', typeColor:'#2563eb', amount:'8,000,000', status:'검토중', statusColor:'#f59e0b' },
+        { date:'2026-07-03', name:'성은아', type:'신규', typeTint:'#e2f7ec', typeColor:'#16a34a', amount:'2,200,000', status:'정상운영', statusColor:'#16a34a' },
+        { date:'2026-07-02', name:'진태주', type:'증액', typeTint:'#e0f2fe', typeColor:'#0284c7', amount:'10,000,000', status:'정상운영', statusColor:'#16a34a' },
+        { date:'2026-07-01', name:'김지선', type:'신규', typeTint:'#e2f7ec', typeColor:'#16a34a', amount:'2,000,000', status:'정상운영', statusColor:'#16a34a' },
+        { date:'2026-06-29', name:'박정희', type:'양도', typeTint:'#fef3c7', typeColor:'#b45309', amount:'5,000,000', status:'정상운영', statusColor:'#16a34a' },
+        { date:'2026-06-28', name:'박문제', type:'해약', typeTint:'#fee2e2', typeColor:'#dc2626', amount:'—', status:'해약완료', statusColor:'#94a3b8' },
+        { date:'2026-06-28', name:'윤영남', type:'신규', typeTint:'#e2f7ec', typeColor:'#16a34a', amount:'20,000,000', status:'정상운영', statusColor:'#16a34a' },
+      ],
+      pipeline:[
+        { step:'1', label:'매출 집계', value:'12.8억', pct:'100%', tint:'#e2f7ec', color:'#16a34a' },
+        { step:'2', label:'수수료 차감', value:'-1.1억', pct:'88%', tint:'#fee2e2', color:'#ef4444' },
+        { step:'3', label:'정산금액', value:'11.7억', pct:'82%', tint:'#e0edff', color:'#2563eb' },
+        { step:'4', label:'수당 산출', value:'2.62억', pct:'55%', tint:'#fff1e0', color:'#f59e0b' },
+        { step:'5', label:'급여 생성', value:'3,624만', pct:'30%', tint:'#f0eafd', color:'#8b5cf6' },
+      ],
+      recommenders:[
+        { rank:'1', name:'강장용', store:'동백C', count:'34', tint:'#fff1e0', color:'#f59e0b' },
+        { rank:'2', name:'한제환', store:'—', count:'26', tint:'#fef3c7', color:'#b45309' },
+        { rank:'3', name:'이정민', store:'수지점', count:'18', tint:'#e0edff', color:'#2563eb' },
+        { rank:'4', name:'김수현', store:'—', count:'17', tint:'#1e2740', color:'#64748b' },
+        { rank:'5', name:'방명애', store:'—', count:'14', tint:'#1e2740', color:'#64748b' },
+        { rank:'6', name:'오영은', store:'평촌점', count:'14', tint:'#1e2740', color:'#64748b' },
+        { rank:'7', name:'김보은', store:'—', count:'12', tint:'#1e2740', color:'#64748b' },
+        { rank:'8', name:'양은호', store:'의왕점', count:'10', tint:'#1e2740', color:'#64748b' },
+      ],
+
+      // ---- contract ----
+      contractSummary:[
+        { label:'전체 계약', value:'860', unit:'건' },
+        { label:'이번 달 신규', value:'44', unit:'건' },
+        { label:'검토 대기', value:'7', unit:'건' },
+        { label:'해약·폐기', value:'12', unit:'건' },
+      ],
+      contracts:[
+        { no:'860', date:'2026-07-04', name:'김민재', target:'LAS-On 파트너', type:'양수', typeTint:'#e0edff', typeColor:'#2563eb', recommender:'이정민', amount:'8,000,000', verify:'검증완료', verifyColor:'#16a34a', status:'검토중', statusColor:'#f59e0b' },
+        { no:'859', date:'2026-07-03', name:'성은아', target:'LAS 점주', type:'신규', typeTint:'#e2f7ec', typeColor:'#16a34a', recommender:'김예원', amount:'2,200,000', verify:'검증완료', verifyColor:'#16a34a', status:'정상운영', statusColor:'#16a34a' },
+        { no:'858', date:'2026-07-03', name:'진태주', target:'LAS 점주', type:'증액', typeTint:'#e0f2fe', typeColor:'#0284c7', recommender:'진현주', amount:'10,000,000', verify:'검증완료', verifyColor:'#16a34a', status:'정상운영', statusColor:'#16a34a' },
+        { no:'857', date:'2026-07-01', name:'김지선', target:'LAS-On 파트장', type:'신규', typeTint:'#e2f7ec', typeColor:'#16a34a', recommender:'강장용', amount:'2,000,000', verify:'검증완료', verifyColor:'#16a34a', status:'정상운영', statusColor:'#16a34a' },
+        { no:'856', date:'2026-06-29', name:'박정희', target:'LAS 점주', type:'양도', typeTint:'#fef3c7', typeColor:'#b45309', recommender:'안순희', amount:'5,000,000', verify:'검증완료', verifyColor:'#16a34a', status:'정상운영', statusColor:'#16a34a' },
+        { no:'855', date:'2026-06-29', name:'박택금', target:'LAS-On 파트너', type:'신규', typeTint:'#e2f7ec', typeColor:'#16a34a', recommender:'김혜남', amount:'3,000,000', verify:'대기', verifyColor:'#f59e0b', status:'정상운영', statusColor:'#16a34a' },
+        { no:'854', date:'2026-06-28', name:'박문제', target:'직원', type:'해약', typeTint:'#fee2e2', typeColor:'#dc2626', recommender:'강장용', amount:'—', verify:'—', verifyColor:'#94a3b8', status:'해약완료', statusColor:'#94a3b8' },
+        { no:'853', date:'2026-06-28', name:'박미혜', target:'LAS 점주', type:'신규', typeTint:'#e2f7ec', typeColor:'#16a34a', recommender:'이상순', amount:'2,200,000', verify:'검증완료', verifyColor:'#16a34a', status:'정상운영', statusColor:'#16a34a' },
+        { no:'852', date:'2026-06-28', name:'윤영남', target:'LAS-On 파트장', type:'신규', typeTint:'#e2f7ec', typeColor:'#16a34a', recommender:'민복돌', amount:'20,000,000', verify:'검증완료', verifyColor:'#16a34a', status:'정상운영', statusColor:'#16a34a' },
+        { no:'851', date:'2026-06-27', name:'이보근', target:'LAS 점주', type:'폐기', typeTint:'#f1f5f9', typeColor:'#64748b', recommender:'양은호', amount:'—', verify:'—', verifyColor:'#94a3b8', status:'폐기', statusColor:'#94a3b8' },
+      ],
+
+      // ---- sales ----
+      salesSummary:[
+        { label:'당월 카드매출', value:'842,600,000원' },
+        { label:'당월 현금매출', value:'318,400,000원' },
+        { label:'분할결제 진행', value:'23건' },
+        { label:'전표 미검증', value:'4건' },
+      ],
+      salesChips:[
+        { label:'LAS On 파트장', max:'(max 10)', tint:'#e0edff', color:'#2563eb' },
+        { label:'LAS On 파트너', max:'(max 10)', tint:'#e0edff', color:'#2563eb' },
+        { label:'매장결제', max:'(max 10)', tint:'#e2f7ec', color:'#16a34a' },
+        { label:'구독회원 S2', max:'(max 10)', tint:'#f0eafd', color:'#8b5cf6' },
+        { label:'현금(소득공제)', max:'(max 10)', tint:'#fff1e0', color:'#f59e0b' },
+        { label:'독서지도사', max:'(max 5)', tint:'#e0f2fe', color:'#0284c7' },
+        { label:'점주보증금', max:'(max 10)', tint:'#fee2e2', color:'#dc2626' },
+      ],
+      salesRows:[
+        { no:'1', split:'2', date:'2026-07-04', dept:'교육선교위원회', buyer:'강신우', cat:'점주보증금', catTint:'#fee2e2', catColor:'#dc2626', amount:'2,000,000', card:'하나카드', cardNo:'5531-7700-****-022*', approve:'16246510', owner:'동백C/강장용' },
+        { no:'2', split:'2', date:'2026-07-04', dept:'교육선교위원회', buyer:'강신우', cat:'점주보증금', catTint:'#fee2e2', catColor:'#dc2626', amount:'8,000,000', card:'롯데카드', cardNo:'5137-9200-****-045*', approve:'55899225', owner:'동백C/강장용' },
+        { no:'3', split:'', date:'2026-07-03', dept:'교육사업부', buyer:'조한진', cat:'LAS On 파트너', catTint:'#e0edff', catColor:'#2563eb', amount:'10,000,000', card:'하나카드', cardNo:'5181-8500-****-419*', approve:'21060417', owner:'강동/박명화' },
+        { no:'4', split:'', date:'2026-07-03', dept:'교육사업부', buyer:'유남길', cat:'LAS On 파트너', catTint:'#e0edff', catColor:'#2563eb', amount:'10,000,000', card:'현대카드', cardNo:'3702-99**-****-119', approve:'00365350', owner:'진주/유외옥' },
+        { no:'5', split:'', date:'2026-07-03', dept:'교육사업부', buyer:'조서영', cat:'구독회원 S2', catTint:'#f0eafd', catColor:'#8b5cf6', amount:'2,200,000', card:'삼성카드', cardNo:'9410-10**-****-5160', approve:'71238298', owner:'마포점/김수현' },
+        { no:'6', split:'', date:'2026-07-03', dept:'교육사업부', buyer:'최명기', cat:'매장결제', catTint:'#e2f7ec', catColor:'#16a34a', amount:'190,000', card:'—', cardNo:'010-****-8002', approve:'021120519', owner:'동탄/이영/현금영수증' },
+        { no:'7', split:'', date:'2026-07-02', dept:'교육사업부', buyer:'조민경', cat:'독서지도사', catTint:'#e0f2fe', catColor:'#0284c7', amount:'600,000', card:'NH카드', cardNo:'5424-16**-****-3561', approve:'40664674', owner:'청라/김수현' },
+        { no:'8', split:'', date:'2026-07-02', dept:'교육사업부', buyer:'배명희', cat:'LAS On 파트너', catTint:'#e0edff', catColor:'#2563eb', amount:'20,000,000', card:'우리카드', cardNo:'4693-69**-****-1485', approve:'83980665', owner:'신갈/김미영' },
+        { no:'9', split:'', date:'2026-07-02', dept:'교육사업부', buyer:'김점숙', cat:'LAS On 파트너', catTint:'#e0edff', catColor:'#2563eb', amount:'8,000,000', card:'롯데카드', cardNo:'4579-92**-****-1403', approve:'41320001', owner:'분당/김은숙' },
+      ],
+
+      // ---- settlement ----
+      settleFlow:[
+        { step:'1', label:'매출 집계', value:'1,161,000,000', note:'집계 완료', color:'#16a34a' },
+        { step:'2', label:'수수료 차감', value:'-108,400,000', note:'PG·카드사', color:'#ef4444' },
+        { step:'3', label:'정산금액', value:'1,052,600,000', note:'차감 후', color:'#2563eb' },
+        { step:'4', label:'수당 산출', value:'261,982,000', note:'조건엔진', color:'#f59e0b' },
+        { step:'5', label:'급여 생성', value:'36,240,000', note:'직원 급여', color:'#8b5cf6' },
+      ],
+      settleRows:[
+        { name:'강장용', role:'LAS 점주', tint:'#e0edff', color:'#2563eb', sales:'184,000,000', fee:'16,600,000', settle:'167,400,000', commission:'48,200,000' },
+        { name:'한제환', role:'파트장', tint:'#fff1e0', color:'#f59e0b', sales:'142,000,000', fee:'12,800,000', settle:'129,200,000', commission:'36,100,000' },
+        { name:'이정민', role:'파트너', tint:'#e2f7ec', color:'#16a34a', sales:'98,000,000', fee:'8,800,000', settle:'89,200,000', commission:'22,400,000' },
+        { name:'김수현', role:'직원', tint:'#f0eafd', color:'#8b5cf6', sales:'86,000,000', fee:'7,700,000', settle:'78,300,000', commission:'12,400,000' },
+        { name:'방명애', role:'파트너', tint:'#e2f7ec', color:'#16a34a', sales:'62,000,000', fee:'5,500,000', settle:'56,500,000', commission:'9,800,000' },
+        { name:'오영은', role:'LAS 점주', tint:'#e0edff', color:'#2563eb', sales:'58,000,000', fee:'5,200,000', settle:'52,800,000', commission:'21,500,000' },
+        { name:'양은호', role:'LAS 점주', tint:'#e0edff', color:'#2563eb', sales:'44,000,000', fee:'3,900,000', settle:'40,100,000', commission:'6,700,000' },
+        { name:'심건희', role:'직원', tint:'#f0eafd', color:'#8b5cf6', sales:'38,000,000', fee:'3,400,000', settle:'34,600,000', commission:'5,200,000' },
+      ],
+      rules:[
+        { name:'점주 정산 규칙', cond:'매출 ≥ 5,000,000 → 정산율 27% · 초과분 32%' },
+        { name:'파트장 수당', cond:'하위 파트너 매출 합계 × 8% + 본인매출 × 15%' },
+        { name:'파트너 수당', cond:'본인 계약매출 × 18% (증액분 별도 12%)' },
+        { name:'직원 급여 연동', cond:'기본급 + 정산 수당 × 4% (상한 500만)' },
+      ],
+
+      // ---- accounting ----
+      acctSummary:[
+        { label:'당월 입금', value:'+1,161,000,000', color:'#16a34a' },
+        { label:'당월 출금', value:'-298,222,000', color:'#ef4444' },
+        { label:'전표 건수', value:'412건', color:'#0f2547' },
+        { label:'미처리 전표', value:'6건', color:'#f59e0b' },
+      ],
+      vouchers:[
+        { no:'V-20260704-01', date:'2026-07-04', type:'입금', tint:'#e2f7ec', color:'#16a34a', account:'카드매출', memo:'하나카드 승인분', bank:'하나은행', amount:'+10,000,000' },
+        { no:'V-20260704-02', date:'2026-07-04', type:'입금', tint:'#e2f7ec', color:'#16a34a', account:'점주보증금', memo:'강신우 보증금', bank:'국민은행', amount:'+8,000,000' },
+        { no:'V-20260703-05', date:'2026-07-03', type:'출금', tint:'#fee2e2', color:'#dc2626', account:'카드수수료', memo:'PG 정산 수수료', bank:'신한은행', amount:'-1,240,000' },
+        { no:'V-20260703-04', date:'2026-07-03', type:'입금', tint:'#e2f7ec', color:'#16a34a', account:'구독료', memo:'LAVEN 구독 S2', bank:'하나은행', amount:'+2,200,000' },
+        { no:'V-20260702-08', date:'2026-07-02', type:'출금', tint:'#fee2e2', color:'#dc2626', account:'수당지급', memo:'6월 파트너수당', bank:'국민은행', amount:'-9,800,000' },
+        { no:'V-20260702-03', date:'2026-07-02', type:'입금', tint:'#e2f7ec', color:'#16a34a', account:'카드매출', memo:'우리카드 승인분', bank:'우리은행', amount:'+20,000,000' },
+        { no:'V-20260701-06', date:'2026-07-01', type:'출금', tint:'#fee2e2', color:'#dc2626', account:'급여지급', memo:'6월 직원급여', bank:'신한은행', amount:'-32,000,000' },
+        { no:'V-20260630-11', date:'2026-06-30', type:'입금', tint:'#e2f7ec', color:'#16a34a', account:'독서지도사', memo:'NH카드 승인분', bank:'농협은행', amount:'+600,000' },
+      ],
+
+      // ---- stats ----
+      months:[
+        { label:'1월', h1:'42%', h2:'22%' },
+        { label:'2월', h1:'55%', h2:'28%' },
+        { label:'3월', h1:'48%', h2:'24%' },
+        { label:'4월', h1:'68%', h2:'34%' },
+        { label:'5월', h1:'74%', h2:'38%' },
+        { label:'6월', h1:'82%', h2:'42%' },
+        { label:'7월', h1:'95%', h2:'48%' },
+      ],
+      composition:[
+        { label:'카드매출', value:'8.43억', pct:'56%', color:'#2563eb' },
+        { label:'현금매출', value:'3.18억', pct:'27%', color:'#16a34a' },
+        { label:'구독료', value:'1.02억', pct:'9%', color:'#8b5cf6' },
+        { label:'점주보증금', value:'0.68억', pct:'6%', color:'#f59e0b' },
+        { label:'기타', value:'0.28억', pct:'2%', color:'#94a3b8' },
+      ],
+      deptStats:[
+        { name:'교육사업부', contracts:'412', sales:'6.82억', commission:'1.48억', payroll:'1,820만', rate:'112%', rateColor:'#16a34a' },
+        { name:'교육선교위원회', contracts:'186', sales:'3.24억', commission:'0.71억', payroll:'940만', rate:'98%', rateColor:'#2563eb' },
+        { name:'마케팅부', contracts:'112', sales:'1.58억', commission:'0.28억', payroll:'520만', rate:'86%', rateColor:'#f59e0b' },
+        { name:'영업1팀', contracts:'96', sales:'0.84억', commission:'0.11억', payroll:'244만', rate:'74%', rateColor:'#ef4444' },
+        { name:'전략기획', contracts:'54', sales:'0.32억', commission:'0.04억', payroll:'100만', rate:'68%', rateColor:'#ef4444' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
