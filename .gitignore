@@ -1,0 +1,34 @@
+# deps
+node_modules/
+**/node_modules/
+
+# env / secrets
+.env
+.env.local
+.env.*.local
+server/.env
+web/.env
+web/.env.local
+
+# build output
+dist/
+web/dist/
+
+# 로컬 백업 파일 (작업 안전용, 저장소 제외)
+*.backup
+*.bak_*
+
+# 잔재 프론트 환경파일
+.env.production
+web/.env.production
+
+# uploads (Drive 로컬 폴백)
+server/uploads/
+
+# logs
+*.log
+npm-debug.log*
+
+# editor / os
+.DS_Store
+Thumbs.db

@@ -1,0 +1,102 @@
+// 조직관리 — 임용계약(appointment) 도메인 타입
+// contractmanager 임용계약관리 준용
+
+export type AppointmentStatus =
+  | '정상운영'
+  | '일시정지'
+  | '계약해지'
+  | '계약만료'
+
+export const APPOINTMENT_STATUSES: AppointmentStatus[] = [
+  '정상운영',
+  '일시정지',
+  '계약해지',
+  '계약만료',
+]
+
+export type IncomeType = '사업소득' | '4대보험'
+
+/** 직급별 급여조건 (직급 → 연봉/활동비) */
+export interface PositionRule {
+  position: string // 직급
+  basic: number // 연봉(원)
+  activity: number // 활동비(원)
+}
+
+/** 임용계약 종류(계약명) — 직급별 rules 보유 */
+export interface AppointmentType {
+  id: string
+  name: string // 계약명
+  contractYears: number // 계약기간(년)
+  payoutMonths: number // 급여일 = 계약일 + N개월
+  positions: PositionRule[]
+}
+
+/** 임용계약 레코드 */
+export interface Appointment {
+  id: string
+  contractNo: string // 계약번호 (LASE-yyyymmdd-000)
+  name: string // 계약자명
+  typeName: string // 계약종류(계약명)
+  ref: string // 추천인/추천점
+  residentNo: string // 주민번호
+  phone: string // 연락처
+  position: string // 직급
+  salary: number // 급여(연봉)
+  activity: number // 활동비
+  insuranceType: IncomeType // 소득구분
+  contractDate: string // 계약일
+  payoutDate: string // 급여일
+  workStartDate: string // 업무개시일
+  reportStartDate: string // 신고개시일
+  endDate: string // 계약종료일
+  bankName: string // 은행/기관
+  accountNo: string // 계좌번호
+  accountOwner: string // 예금주
+  status: AppointmentStatus // 계약상태
+  createdAt: string
+}
+
+/** 목록 필터 */
+export interface AppointmentFilter {
+  keyword: string // 계약자명·추천인
+  startDate: string // 계약일 시작
+  endDate: string // 계약일 종료
+}
+
+export const EMPTY_APPOINTMENT_FILTER: AppointmentFilter = {
+  keyword: '',
+  startDate: '',
+  endDate: '',
+}
+
+export const BANKS = [
+  '국민은행',
+  '신한은행',
+  '우리은행',
+  '하나은행',
+  '농협은행',
+  'IBK기업은행',
+  'SC제일은행',
+  '카카오뱅크',
+  '토스뱅크',
+  '새마을금고',
+  '우체국',
+]
+
+/** 상태 → 배지 톤 */
+export function appointmentStatusTone(
+  status: string,
+): 'green' | 'amber' | 'red' | 'slate' {
+  switch (status) {
+    case '정상운영':
+      return 'green'
+    case '일시정지':
+    case '계약만료':
+      return 'amber'
+    case '계약해지':
+      return 'red'
+    default:
+      return 'slate'
+  }
+}

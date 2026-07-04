@@ -1,0 +1,93 @@
+// 시스템 공통 배지 — 연한 바탕(bg) + 짙은 동일색 텍스트(fg)
+// 상태/내용/결재구분 등 모든 배지에 동일 스타일 적용
+
+export type Tone =
+  | 'green'
+  | 'blue'
+  | 'sky'
+  | 'amber'
+  | 'red'
+  | 'purple'
+  | 'teal'
+  | 'slate'
+
+// 다크 테마 배지 — 은은한(반투명) 동일색 바탕 + 선명한 동일색 텍스트
+export const TONES: Record<Tone, { fg: string; bg: string }> = {
+  green: { fg: '#22c55e', bg: 'rgba(34, 197, 94, 0.15)' },
+  blue: { fg: '#60a5fa', bg: 'rgba(96, 165, 250, 0.15)' },
+  sky: { fg: '#38bdf8', bg: 'rgba(56, 189, 248, 0.15)' },
+  amber: { fg: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' },
+  red: { fg: '#f87171', bg: 'rgba(248, 113, 113, 0.15)' },
+  purple: { fg: '#a78bfa', bg: 'rgba(167, 139, 250, 0.15)' },
+  teal: { fg: '#2dd4bf', bg: 'rgba(45, 212, 191, 0.15)' },
+  slate: { fg: '#94a3b8', bg: 'rgba(148, 163, 184, 0.15)' },
+}
+
+export default function Badge({
+  tone,
+  children,
+  className = '',
+}: {
+  tone: Tone
+  children: React.ReactNode
+  className?: string
+}) {
+  const t = TONES[tone]
+  return (
+    <span
+      className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11.5px] font-bold ${className}`}
+      style={{ color: t.fg, background: t.bg, border: `1px solid ${t.fg}33` }}
+    >
+      {children}
+    </span>
+  )
+}
+
+/* ── 도메인별 톤 리졸버 ─────────────────────────── */
+
+/** 계약 상태 → 톤 */
+export function statusTone(status: string): Tone {
+  switch (status) {
+    case '신규':
+      return 'green'
+    case '증액':
+      return 'sky'
+    case '양수':
+      return 'blue'
+    case '양도':
+      return 'amber'
+    case '해지':
+      return 'red'
+    case '폐기':
+      return 'slate'
+    default:
+      return 'slate'
+  }
+}
+
+/** 결재구분(카드/현금/카드현금·혼합) → 톤 */
+export function methodTone(method: string): Tone {
+  switch (method) {
+    case '카드':
+      return 'blue'
+    case '현금':
+      return 'green'
+    case '혼합':
+    case '카드현금':
+      return 'purple'
+    default:
+      return 'slate'
+  }
+}
+
+/** 매출구분(내용) → 톤 */
+export function categoryTone(cat: string): Tone {
+  if (cat.includes('점주보증금') || cat.includes('보증금')) return 'green'
+  if (cat.includes('구독')) return 'sky'
+  if (cat.includes('파트장') || cat.includes('파트너')) return 'green'
+  if (cat.includes('매장')) return 'teal'
+  if (cat.includes('독서')) return 'sky'
+  if (cat.includes('현금')) return 'green'
+  if (cat.includes('LASBOOK') || cat.includes('교재')) return 'amber'
+  return 'slate'
+}

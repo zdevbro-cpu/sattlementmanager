@@ -1,0 +1,74 @@
+/* Pretendard (design spec 지정 폰트) — @import 규칙은 최상단에 위치해야 함 */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+@import 'tailwindcss';
+
+/* ── Design tokens (docs/README.md 기준 다크 테마) ───────────────── */
+@theme {
+  --font-sans: 'Pretendard', 'Pretendard Variable', -apple-system, sans-serif;
+
+  /* Surfaces */
+  --color-bg: #0a0e1a;
+  --color-sidebar: #0d1322;
+  --color-card: #141b2e;
+  --color-border: #232c45;
+  --color-border-top: #1c2438;
+  --color-input: #10182b;
+  --color-track: #1e2740;
+  --color-hover: #1a2440;
+
+  /* Sidebar states */
+  --color-nav-active: #16305a;
+  --color-nav-hover: #132a4d;
+  --color-accent: #38bdf8;
+
+  /* Text */
+  --color-text: #e2e8f0;
+  --color-text-strong: #eaf1fb;
+  --color-text-mid: #c2cde0;
+  --color-text-sub: #94a3b8;
+  --color-text-faint: #64748b;
+  --color-input-text: #cbd5e1;
+
+  /* Accents / states */
+  --color-primary: #2563eb;
+  --color-indigo: #4f46e5;
+  --color-success: #16a34a;
+  --color-danger: #ef4444;
+  --color-danger-strong: #dc2626;
+  --color-warning: #f59e0b;
+  --color-warning-strong: #b45309;
+  --color-purple: #8b5cf6;
+  --color-sky: #0284c7;
+  --color-teal: #14b8a6;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 스크롤바(다크) */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #232c45;
+  border-radius: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
