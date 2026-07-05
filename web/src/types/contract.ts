@@ -120,6 +120,7 @@ export interface ContractSnapshot {
   // ── 계좌·개인정보 ──────────────────────────
   bankName: string // 은행명
   accountNo: string // 계좌번호
+  accountOwner: string // 예금주
   residentNo: string // 주민등록번호
   phone: string // 전화번호
 

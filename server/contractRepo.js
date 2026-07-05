@@ -52,6 +52,7 @@ function mapSnapshot(h, installments, documents) {
     recruiter: h.recruiter || '',
     bankName: h.bank_name || '',
     accountNo: h.account_no || '',
+    accountOwner: h.account_owner || '',
     residentNo: h.resident_no || '',
     phone: h.phone || '',
     payment: {
@@ -148,9 +149,9 @@ async function insertHistory(client, contractId, snap) {
        (contract_id,status,event_date,org,contractor_name,contract_type,contract_date,
         deposit,allowance,allowance_pay_day,first_allowance_pay_date,
         contract_end_date,branch,manager,recruiter,
-        bank_name,account_no,resident_no,phone,
+        bank_name,account_no,account_owner,resident_no,phone,
         payment_method,payment_total,memo)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
      RETURNING id`,
     [
       contractId,
@@ -170,6 +171,7 @@ async function insertHistory(client, contractId, snap) {
       snap.recruiter,
       snap.bankName || '',
       snap.accountNo || '',
+      snap.accountOwner || '',
       snap.residentNo || '',
       snap.phone || '',
       p.method || '카드',

@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Eye, Trash2 } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import Badge, { categoryTone } from '../../components/ui/Badge'
+import DateTextInput from '../../components/ui/DateTextInput'
 import { comma, dateText, won } from '../../lib/format'
 import { BUSINESS_UNITS } from '../../data/mockSales'
 import {
@@ -16,16 +17,28 @@ import SalesDetailDrawer from './SalesDetailDrawer'
 
 type Tab = 'card' | 'textbook'
 
+/** 오늘 날짜(YYYY-MM-DD) — 목록 화면 오픈 시 필터 기본값으로 사용 */
+function todayIso(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+const TODAY = todayIso()
+const DEFAULT_SALES_FILTER: SalesFilter = {
+  ...EMPTY_SALES_FILTER,
+  startDate: TODAY,
+  endDate: TODAY,
+}
+
 export default function SalesListPage() {
   const categories = useSalesCategories()
   const [tab, setTab] = useState<Tab>('card')
-  const [draft, setDraft] = useState<SalesFilter>(EMPTY_SALES_FILTER)
-  const [applied, setApplied] = useState<SalesFilter>(EMPTY_SALES_FILTER)
+  const [filter, setFilter] = useState<SalesFilter>(DEFAULT_SALES_FILTER)
   const [registerOpen, setRegisterOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [refresh, setRefresh] = useState(0)
+  const endDateRef = useRef<HTMLInputElement>(null)
 
-  const rows = useMemo(() => listSales(applied), [applied, refresh])
+  const rows = useMemo(() => listSales(filter), [filter, refresh])
   const sum = useMemo(
     () => summarizeSales(listSales(EMPTY_SALES_FILTER)),
     [refresh],
@@ -95,13 +108,23 @@ export default function SalesListPage() {
           <div className="rounded-[14px] border border-border bg-card p-4 mb-4 overflow-x-auto">
             <div className="grid grid-cols-[repeat(7,minmax(120px,1fr))_auto] gap-2 items-end min-w-[1100px]">
               <Field label="기간 시작">
-                <input type="date" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} className={inputCls} />
+                <DateTextInput
+                  value={filter.startDate}
+                  onChange={(v) => setFilter({ ...filter, startDate: v })}
+                  onTabNext={() => endDateRef.current?.focus()}
+                  className={inputCls}
+                />
               </Field>
               <Field label="기간 종료">
-                <input type="date" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} className={inputCls} />
+                <DateTextInput
+                  ref={endDateRef}
+                  value={filter.endDate}
+                  onChange={(v) => setFilter({ ...filter, endDate: v })}
+                  className={inputCls}
+                />
               </Field>
               <Field label="종류">
-                <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} className={inputCls}>
+                <select value={filter.category} onChange={(e) => setFilter({ ...filter, category: e.target.value })} className={inputCls}>
                   <option value="전체">전체</option>
                   {categories.map((c) => (
                     <option key={c.name}>{c.name}</option>
@@ -109,7 +132,7 @@ export default function SalesListPage() {
                 </select>
               </Field>
               <Field label="사업부">
-                <input value={draft.businessUnit} onChange={(e) => setDraft({ ...draft, businessUnit: e.target.value })} placeholder="포함" className={inputCls} list="bu-list" />
+                <input value={filter.businessUnit} onChange={(e) => setFilter({ ...filter, businessUnit: e.target.value })} placeholder="포함" className={inputCls} list="bu-list" />
                 <datalist id="bu-list">
                   {BUSINESS_UNITS.map((b) => (
                     <option key={b} value={b} />
@@ -117,23 +140,17 @@ export default function SalesListPage() {
                 </datalist>
               </Field>
               <Field label="구매자">
-                <input value={draft.buyer} onChange={(e) => setDraft({ ...draft, buyer: e.target.value })} placeholder="포함" className={inputCls} />
+                <input value={filter.buyer} onChange={(e) => setFilter({ ...filter, buyer: e.target.value })} placeholder="포함" className={inputCls} />
               </Field>
               <Field label="입력자 소속">
-                <input value={draft.inputterOrg} onChange={(e) => setDraft({ ...draft, inputterOrg: e.target.value })} placeholder="포함" className={inputCls} />
+                <input value={filter.inputterOrg} onChange={(e) => setFilter({ ...filter, inputterOrg: e.target.value })} placeholder="포함" className={inputCls} />
               </Field>
               <Field label="입력자 성명">
-                <input value={draft.inputterName} onChange={(e) => setDraft({ ...draft, inputterName: e.target.value })} placeholder="포함" className={inputCls} />
+                <input value={filter.inputterName} onChange={(e) => setFilter({ ...filter, inputterName: e.target.value })} placeholder="포함" className={inputCls} />
               </Field>
               <div className="flex items-end gap-2">
-                <button onClick={() => setApplied(draft)} className="h-[38px] rounded-[8px] bg-indigo px-4 text-sm font-bold text-white hover:brightness-110 whitespace-nowrap">
-                  🔍 검색
-                </button>
                 <button
-                  onClick={() => {
-                    setDraft(EMPTY_SALES_FILTER)
-                    setApplied(EMPTY_SALES_FILTER)
-                  }}
+                  onClick={() => setFilter(DEFAULT_SALES_FILTER)}
                   className="h-[38px] rounded-[8px] border border-border px-4 text-sm font-semibold text-[#c2cde0] hover:bg-hover whitespace-nowrap"
                 >
                   초기화

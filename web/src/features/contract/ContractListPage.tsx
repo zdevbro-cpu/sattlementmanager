@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import StatusBadge from '../../components/ui/StatusBadge'
 import Badge, { methodTone } from '../../components/ui/Badge'
+import DateTextInput from '../../components/ui/DateTextInput'
 import { comma, dateText } from '../../lib/format'
 import {
   EMPTY_FILTER,
@@ -42,6 +43,7 @@ export default function ContractListPage() {
   const [registerOpen, setRegisterOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [refresh, setRefresh] = useState(0)
+  const contractEndDateRef = useRef<HTMLInputElement>(null)
 
   const rows = useMemo(
     () => listContracts(applied),
@@ -130,22 +132,18 @@ export default function ContractListPage() {
 
           {/* 2행: 계약일자 · 계약종료일 · 유치자 · 소속 */}
           <Field label="계약일자">
-            <input
-              type="date"
+            <DateTextInput
               value={draft.contractDate}
-              onChange={(e) =>
-                setDraft({ ...draft, contractDate: e.target.value })
-              }
+              onChange={(v) => setDraft({ ...draft, contractDate: v })}
+              onTabNext={() => contractEndDateRef.current?.focus()}
               className={inputCls}
             />
           </Field>
           <Field label="계약종료일">
-            <input
-              type="date"
+            <DateTextInput
+              ref={contractEndDateRef}
               value={draft.contractEndDate}
-              onChange={(e) =>
-                setDraft({ ...draft, contractEndDate: e.target.value })
-              }
+              onChange={(v) => setDraft({ ...draft, contractEndDate: v })}
               className={inputCls}
             />
           </Field>

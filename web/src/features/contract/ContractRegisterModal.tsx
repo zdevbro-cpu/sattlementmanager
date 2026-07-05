@@ -31,6 +31,7 @@ interface FormState {
   recruiter: string
   bankName: string
   accountNo: string
+  accountOwner: string
   residentNo: string
   phone: string
   memo: string
@@ -59,6 +60,7 @@ export default function ContractRegisterModal({
     recruiter: RECRUITERS[0],
     bankName: '',
     accountNo: '',
+    accountOwner: '',
     residentNo: '',
     phone: '',
     memo: '',
@@ -104,6 +106,7 @@ export default function ContractRegisterModal({
         recruiter: f.recruiter,
         bankName: f.bankName,
         accountNo: f.accountNo,
+        accountOwner: f.accountOwner.trim() || f.contractorName.trim(),
         residentNo: f.residentNo,
         phone: f.phone,
         payment,
@@ -200,6 +203,9 @@ export default function ContractRegisterModal({
               </Field>
               <Field label="계좌번호">
                 <input value={f.accountNo} onChange={(e) => set('accountNo', e.target.value)} className={inputCls} placeholder="계좌번호" />
+              </Field>
+              <Field label="예금주">
+                <input value={f.accountOwner} onChange={(e) => set('accountOwner', e.target.value)} className={inputCls} placeholder="미입력 시 계약자명" />
               </Field>
               <Field label="주민등록번호">
                 <input value={f.residentNo} onChange={(e) => set('residentNo', e.target.value)} className={inputCls} placeholder="예: 900101-1******" />

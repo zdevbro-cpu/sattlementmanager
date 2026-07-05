@@ -181,6 +181,7 @@ function SnapshotCard({
     ['유치자', s.recruiter],
     ['은행명', s.bankName],
     ['계좌번호', s.accountNo],
+    ['예금주', s.accountOwner],
     ['주민등록번호', s.residentNo],
     ['전화번호', s.phone],
   ]

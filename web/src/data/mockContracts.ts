@@ -71,6 +71,7 @@ function snap(p: Partial<ContractSnapshot>): ContractSnapshot {
     recruiter: '정유치',
     bankName: '국민은행',
     accountNo: '123456-04-567890',
+    accountOwner: '계약자',
     residentNo: '900101-1******',
     phone: '010-1234-5678',
     payment: cardPayment(3_000_000),

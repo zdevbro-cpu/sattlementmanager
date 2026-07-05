@@ -9,9 +9,9 @@ import { createAppointment, nextContractNo } from './appointmentStore'
 import InstitutionSelect from './InstitutionSelect'
 import { getBanks } from './bankStore'
 import DocUploadList from './DocUploadList'
+import { POSITIONS, usePositionSalaries } from './positionSalaryStore'
 
 const TODAY = '2026-07-04'
-const POSITIONS = ['예비과장', '과장', '차장', '부장', '이사', '상무', '전무']
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
 
@@ -49,6 +49,7 @@ export default function AppointmentRegisterModal({
   onClose: () => void
   onCreated: () => void
 }) {
+  const positionSalaries = usePositionSalaries()
   const [type, setType] = useState<AppointmentType>(APPOINTMENT_TYPES[0])
   const [contractNo, setContractNo] = useState(nextContractNo(TODAY))
   const [ref, setRef] = useState('')
@@ -94,11 +95,11 @@ export default function AppointmentRegisterModal({
   }
   const changePosition = (p: string) => {
     setPosition(p)
+    // 시스템관리 "직급별 기본급여" 테이블에서 연봉 자동표시 (이후 수동 수정 가능)
+    const salaryRow = positionSalaries.find((r) => r.position === p)
+    if (salaryRow) setSalary(salaryRow.basic)
     const rule = type.positions.find((r) => r.position === p)
-    if (rule) {
-      setSalary(rule.basic)
-      setActivity(rule.activity)
-    }
+    if (rule) setActivity(rule.activity)
   }
 
   const submit = () => {

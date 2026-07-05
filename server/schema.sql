@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS contract_history (
   recruiter                TEXT,                   -- 유치자
   bank_name                TEXT,                   -- 은행명
   account_no               TEXT,                   -- 계좌번호
+  account_owner            TEXT,                   -- 예금주
   resident_no              TEXT,                   -- 주민등록번호
   phone                    TEXT,                   -- 전화번호
   payment_method           TEXT,                   -- 카드/현금

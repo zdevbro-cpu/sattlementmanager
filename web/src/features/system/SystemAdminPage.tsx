@@ -31,6 +31,10 @@ import {
   removeReportEmail,
   useReportEmails,
 } from '../sales/reportStore'
+import {
+  updatePositionSalary,
+  usePositionSalaries,
+} from '../appointment/positionSalaryStore'
 
 const GROUPS: { kind: CodeKind; title: string; desc: string }[] = [
   { kind: 'orgs', title: '소속', desc: '계약 소속 구분 (예: A, B)' },
@@ -117,7 +121,8 @@ function CommonCodeAdmin() {
         <DocTypeCard />
         <ReportEmailCard />
         <SalesCategoryCard />
-        {Array.from({ length: Math.max(0, 10 - GROUPS.length - 4) }).map(
+        <PositionSalaryCard />
+        {Array.from({ length: Math.max(0, 10 - GROUPS.length - 5) }).map(
           (_, i) => (
             <EmptySlot key={`empty-${i}`} />
           ),
@@ -225,6 +230,37 @@ function SalesCategoryCard() {
             등록된 분류가 없습니다.
           </li>
         )}
+      </ul>
+    </div>
+  )
+}
+
+function PositionSalaryCard() {
+  const rows = usePositionSalaries()
+  return (
+    <div className="rounded-[14px] border border-border bg-card p-4">
+      <h3 className="text-[15px] font-extrabold text-text-strong mb-3">
+        직급별 기본급여
+      </h3>
+      <ul className="space-y-1.5 max-h-[280px] overflow-y-auto">
+        {rows.map((r) => (
+          <li
+            key={r.position}
+            className="flex items-center justify-between gap-2 rounded-[8px] border border-border px-3 py-1.5 text-[13px]"
+          >
+            <span className="text-[#c2cde0]">{r.position}</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={r.basic.toLocaleString('ko-KR')}
+              onChange={(e) => {
+                const n = Number(e.target.value.replace(/[^\d]/g, '')) || 0
+                updatePositionSalary(r.position, n)
+              }}
+              className="h-8 w-28 rounded-[7px] bg-input border border-border px-2 text-right text-[13px] text-input-text outline-none focus:border-primary tabular"
+            />
+          </li>
+        ))}
       </ul>
     </div>
   )

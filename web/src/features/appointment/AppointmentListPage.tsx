@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Eye } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import Badge from '../../components/ui/Badge'
+import DateTextInput from '../../components/ui/DateTextInput'
 import { comma, dateText } from '../../lib/format'
 import {
   EMPTY_APPOINTMENT_FILTER,
@@ -24,6 +25,7 @@ export default function AppointmentListPage() {
   const [registerOpen, setRegisterOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [refresh, setRefresh] = useState(0)
+  const endDateRef = useRef<HTMLInputElement>(null)
 
   const rows = useMemo(() => listAppointments(applied), [applied, refresh])
   const sum = useMemo(
@@ -65,10 +67,20 @@ export default function AppointmentListPage() {
             <input value={draft.keyword} onChange={(e) => setDraft({ ...draft, keyword: e.target.value })} placeholder="계약자명, 추천인 검색" className={inputCls} />
           </Field>
           <Field label="계약일 시작">
-            <input type="date" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} className={inputCls} />
+            <DateTextInput
+              value={draft.startDate}
+              onChange={(v) => setDraft({ ...draft, startDate: v })}
+              onTabNext={() => endDateRef.current?.focus()}
+              className={inputCls}
+            />
           </Field>
           <Field label="계약일 종료">
-            <input type="date" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} className={inputCls} />
+            <DateTextInput
+              ref={endDateRef}
+              value={draft.endDate}
+              onChange={(v) => setDraft({ ...draft, endDate: v })}
+              className={inputCls}
+            />
           </Field>
           <div className="flex gap-2">
             <button onClick={() => setApplied(draft)} className="h-[38px] rounded-[8px] bg-indigo px-5 text-sm font-bold text-white hover:brightness-110">검색</button>
@@ -89,6 +101,7 @@ export default function AppointmentListPage() {
             <thead>
               <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
                 {[
+                  ['번호', 'center'],
                   ['계약자명', ''],
                   ['계약종류', ''],
                   ['추천인', ''],
@@ -107,12 +120,12 @@ export default function AppointmentListPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((a) => (
-                <Row key={a.id} a={a} onDetail={() => setDetailId(a.id)} />
+              {rows.map((a, i) => (
+                <Row key={a.id} a={a} no={rows.length - i} onDetail={() => setDetailId(a.id)} />
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-3 py-10 text-center text-[#64748b]">
+                  <td colSpan={11} className="px-3 py-10 text-center text-[#64748b]">
                     조건에 맞는 임용계약이 없습니다.
                   </td>
                 </tr>
@@ -166,9 +179,10 @@ function SummaryCard({ label, value, tint, fg }: { label: string; value: number;
   )
 }
 
-function Row({ a, onDetail }: { a: Appointment; onDetail: () => void }) {
+function Row({ a, no, onDetail }: { a: Appointment; no: number; onDetail: () => void }) {
   return (
     <tr className="border-b border-border hover:bg-hover">
+      <td className="px-3 py-1.5 text-center whitespace-nowrap tabular text-[#c2cde0]">{no}</td>
       <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{a.name}</td>
       <td className="px-3 py-1.5 whitespace-nowrap">{a.typeName}</td>
       <td className="px-3 py-1.5 whitespace-nowrap">{a.ref}</td>
