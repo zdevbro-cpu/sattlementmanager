@@ -6,6 +6,7 @@ import {
 } from '../../types/appointment'
 import { updateAppointment } from './appointmentStore'
 import InstitutionSelect from './InstitutionSelect'
+import { usePositionSalaries } from './positionSalaryStore'
 
 const TODAY = '2026-07-04'
 const inputCls =
@@ -24,10 +25,18 @@ export default function AppointmentEditForm({
   onSaved: () => void
   onCancel: () => void
 }) {
+  const positionSalaries = usePositionSalaries()
   const [name, setName] = useState(base.name)
   const [phone, setPhone] = useState(base.phone)
   const [position, setPosition] = useState(base.position)
   const [salary, setSalary] = useState(base.salary)
+
+  /** 직급 변경 시 시스템관리(직급별 기본급여)의 연봉으로 자동 연동 */
+  const onPositionChange = (p: string) => {
+    setPosition(p)
+    const match = positionSalaries.find((x) => x.position === p)
+    if (match) setSalary(match.basic)
+  }
   const [contractDate, setContractDate] = useState(base.contractDate)
   const [payoutDate, setPayoutDate] = useState(base.payoutDate)
   const [endDate, setEndDate] = useState(base.endDate)
@@ -81,7 +90,14 @@ export default function AppointmentEditForm({
           <input value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} />
         </Field>
         <Field label="직급">
-          <input value={position} onChange={(e) => setPosition(e.target.value)} className={inputCls} />
+          <select value={position} onChange={(e) => onPositionChange(e.target.value)} className={inputCls}>
+            {!positionSalaries.some((x) => x.position === position) && position && (
+              <option value={position}>{position}</option>
+            )}
+            {positionSalaries.map((x) => (
+              <option key={x.position}>{x.position}</option>
+            ))}
+          </select>
         </Field>
         <Field label="연봉(원)">
           <NumInput value={salary} onChange={setSalary} />

@@ -14,6 +14,7 @@ import { BRANCHES, MANAGERS, RECRUITERS } from '../../data/mockContracts'
 import { listContracts, summarize } from './contractStore'
 import ContractRegisterModal from './ContractRegisterModal'
 import ContractDetailDrawer from './ContractDetailDrawer'
+import { downloadListAsExcel } from '../../lib/excelExport'
 
 // 목록 컬럼 정의 (결재구분은 유치자 다음, 보증금/수당은 우측 정렬 + 폭 고정)
 const COLS: { label: string; align?: 'center' | 'right'; w?: number }[] = [
@@ -82,6 +83,31 @@ export default function ContractListPage() {
       alive = false
     }
   }, [refresh])
+
+  const onExcelDownload = () => {
+    const headers = COLS.filter((c) => c.label !== '상세').map((c) => c.label)
+    const data = rows.map((c, i) => {
+      const s = c.current
+      return [
+        rows.length - i,
+        s.org,
+        s.contractorName,
+        s.contractType,
+        dateText(s.contractDate),
+        s.deposit,
+        s.allowance,
+        s.allowancePayDay ? `매월 ${s.allowancePayDay}일` : '-',
+        dateText(s.firstAllowancePayDate),
+        dateText(s.contractEndDate),
+        s.branch,
+        s.manager,
+        s.recruiter,
+        payMethodLabel(s.payment.method),
+        s.status,
+      ]
+    })
+    downloadListAsExcel(`계약목록_${new Date().toISOString().slice(0, 10)}.xlsx`, headers, data, undefined, [5, 6])
+  }
 
   return (
     <AppLayout title="계약 조회">
@@ -214,7 +240,7 @@ export default function ContractListPage() {
             계약 목록{' '}
             <span className="text-[#64748b] font-semibold">({rows.length})</span>
           </span>
-          <button className="text-[13px] font-bold text-success">
+          <button onClick={onExcelDownload} className="text-[13px] font-bold text-success">
             ⭳ 엑셀 다운로드
           </button>
         </div>

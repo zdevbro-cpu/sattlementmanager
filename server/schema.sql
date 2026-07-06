@@ -213,3 +213,12 @@ CREATE TABLE IF NOT EXISTS extra_payouts (
   account_owner  TEXT,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ══════════════════════════════════════════════════════════════
+-- 시스템 설정 (key-value) — 일일보고 수신 이메일 등, 백엔드(cron)에서도 참조 필요한 설정
+-- ══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL DEFAULT ''
+);

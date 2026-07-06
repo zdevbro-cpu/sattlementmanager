@@ -14,6 +14,7 @@ import { deleteSale, listSales, summarizeSales } from './salesStore'
 import { useSalesCategories } from './salesCategoryStore'
 import SalesRegisterModal from './SalesRegisterModal'
 import SalesDetailDrawer from './SalesDetailDrawer'
+import { downloadSalesListReport } from './dailyReportExcel'
 
 type Tab = 'card' | 'textbook'
 
@@ -41,7 +42,8 @@ export default function SalesListPage() {
   const [rows, setRows] = useState<Sale[]>([])
   const [loading, setLoading] = useState(true)
   const [loadErr, setLoadErr] = useState('')
-  const [sum, setSum] = useState(() => summarizeSales([]))
+  // 요약 카드는 검색조건이 반영된 현재 목록(rows) 기준으로 집계한다.
+  const sum = summarizeSales(rows)
 
   useEffect(() => {
     let alive = true
@@ -65,15 +67,23 @@ export default function SalesListPage() {
     }
   }, [filter, refresh])
 
-  useEffect(() => {
-    let alive = true
-    listSales(EMPTY_SALES_FILTER).then((list) => {
-      if (alive) setSum(summarizeSales(list))
-    })
-    return () => {
-      alive = false
+  const [excelBusy, setExcelBusy] = useState(false)
+  const onExcelDownload = async () => {
+    const label =
+      filter.startDate && filter.endDate
+        ? filter.startDate === filter.endDate
+          ? filter.startDate
+          : `${filter.startDate}~${filter.endDate}`
+        : '전체'
+    setExcelBusy(true)
+    try {
+      await downloadSalesListReport(rows, label)
+    } catch (e) {
+      alert((e as Error).message)
+    } finally {
+      setExcelBusy(false)
     }
-  }, [refresh])
+  }
 
   const onDelete = async (s: Sale) => {
     if (s.source === 'contract') {
@@ -115,8 +125,12 @@ export default function SalesListPage() {
               >
                 ↻ 새로고침
               </button>
-              <button className="h-10 rounded-[10px] bg-success px-4 text-sm font-bold text-white hover:brightness-110">
-                ⭳ 엑셀 다운로드
+              <button
+                onClick={onExcelDownload}
+                disabled={excelBusy}
+                className="h-10 rounded-[10px] bg-success px-4 text-sm font-bold text-white hover:brightness-110 disabled:opacity-60"
+              >
+                {excelBusy ? '다운로드 중…' : '⭳ 엑셀 다운로드'}
               </button>
               <button
                 onClick={() => setRegisterOpen(true)}

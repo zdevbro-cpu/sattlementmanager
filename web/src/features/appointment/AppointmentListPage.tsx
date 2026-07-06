@@ -87,7 +87,7 @@ export default function AppointmentListPage() {
           onClick={() => setRegisterOpen(true)}
           className="h-10 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110"
         >
-          ＋ 신규 계약 등록
+          ＋ 임용계약등록
         </button>
       </div>
 

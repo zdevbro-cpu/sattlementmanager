@@ -32,6 +32,8 @@ import {
   useReportEmails,
 } from '../sales/reportStore'
 import {
+  addPosition,
+  removePosition,
   updatePositionSalary,
   usePositionSalaries,
 } from '../appointment/positionSalaryStore'
@@ -242,28 +244,70 @@ function SalesCategoryCard() {
 
 function PositionSalaryCard() {
   const rows = usePositionSalaries()
+  const [newPosition, setNewPosition] = useState('')
+  const [newBasic, setNewBasic] = useState(0)
+  const [err, setErr] = useState('')
+
+  const add = () => {
+    if (!addPosition(newPosition, newBasic)) {
+      setErr('직급명을 입력하거나, 이미 있는 직급이 아닌지 확인하세요.')
+      return
+    }
+    setNewPosition('')
+    setNewBasic(0)
+    setErr('')
+  }
+
   return (
     <div className="rounded-[14px] border border-border bg-card p-4">
       <h3 className="text-[15px] font-extrabold text-text-strong mb-3">
         직급별 기본급여
       </h3>
+      <div className="flex gap-2 mb-3">
+        <input
+          value={newPosition}
+          onChange={(e) => setNewPosition(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+          placeholder="신규 직급명"
+          className="h-9 flex-1 min-w-0 rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary"
+        />
+        <input
+          type="text"
+          inputMode="numeric"
+          value={newBasic ? newBasic.toLocaleString('ko-KR') : ''}
+          onChange={(e) => setNewBasic(Number(e.target.value.replace(/[^\d]/g, '')) || 0)}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+          placeholder="연봉"
+          className="h-9 w-24 rounded-[8px] bg-input border border-border px-2 text-right text-[13px] text-input-text outline-none focus:border-primary tabular"
+        />
+        <button
+          onClick={add}
+          className="h-9 shrink-0 whitespace-nowrap rounded-[8px] bg-primary px-3 text-[13px] font-bold text-white hover:brightness-110"
+        >
+          추가
+        </button>
+      </div>
+      {err && <div className="mb-2 text-[11.5px] text-danger">{err}</div>}
       <ul className="space-y-1.5 max-h-[280px] overflow-y-auto">
         {rows.map((r) => (
           <li
             key={r.position}
             className="flex items-center justify-between gap-2 rounded-[8px] border border-border px-3 py-1.5 text-[13px]"
           >
-            <span className="text-[#c2cde0]">{r.position}</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={r.basic.toLocaleString('ko-KR')}
-              onChange={(e) => {
-                const n = Number(e.target.value.replace(/[^\d]/g, '')) || 0
-                updatePositionSalary(r.position, n)
-              }}
-              className="h-8 w-28 rounded-[7px] bg-input border border-border px-2 text-right text-[13px] text-input-text outline-none focus:border-primary tabular"
-            />
+            <span className="shrink-0 whitespace-nowrap text-[#c2cde0]">{r.position}</span>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={r.basic.toLocaleString('ko-KR')}
+                onChange={(e) => {
+                  const n = Number(e.target.value.replace(/[^\d]/g, '')) || 0
+                  updatePositionSalary(r.position, n)
+                }}
+                className="h-8 w-20 rounded-[7px] bg-input border border-border px-1.5 text-right text-[13px] text-input-text outline-none focus:border-primary tabular"
+              />
+              <DeleteBtn onClick={() => removePosition(r.position)} />
+            </div>
           </li>
         ))}
       </ul>

@@ -9,7 +9,7 @@ import { createAppointment, nextContractNo } from './appointmentStore'
 import InstitutionSelect from './InstitutionSelect'
 import { getBanks } from './bankStore'
 import DocUploadList from './DocUploadList'
-import { POSITIONS, usePositionSalaries } from './positionSalaryStore'
+import { usePositionSalaries } from './positionSalaryStore'
 
 const TODAY = '2026-07-04'
 const inputCls =
@@ -191,8 +191,8 @@ export default function AppointmentRegisterModal({
               <Field label="직급">
                 <select value={position} onChange={(e) => changePosition(e.target.value)} className={inputCls}>
                   <option value="">-- 선택 --</option>
-                  {POSITIONS.map((p) => (
-                    <option key={p} value={p}>{p}</option>
+                  {positionSalaries.map((r) => (
+                    <option key={r.position} value={r.position}>{r.position}</option>
                   ))}
                 </select>
               </Field>

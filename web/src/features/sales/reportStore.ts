@@ -1,12 +1,13 @@
-// 일일보고 수신 이메일 설정 — localStorage 영속화
-// (매일 오후 10시 매출내용 양식을 이 수신자에게 메일링 — 실제 발송은 백엔드 스케줄러 연동)
+// 일일보고 수신 이메일 설정 — Cloud SQL(app_settings) 저장, localStorage는 로딩 전 캐시로만 사용
+// 백엔드 cron(/api/cron/daily-sales-report)이 동일한 DB 값을 참조해 실제 발송 대상자로 사용한다.
 import { useSyncExternalStore } from 'react'
+import { fetchReportEmails, updateReportEmailsApi } from '../../lib/api'
 
 const KEY = 'sm.reportEmails.v1'
 const DEFAULT =
   'gospress.dckwak@gmail.com, najulove76@naver.com, eunjooni@naver.com'
 
-function load(): string {
+function loadCache(): string {
   try {
     return localStorage.getItem(KEY) ?? DEFAULT
   } catch {
@@ -14,8 +15,28 @@ function load(): string {
   }
 }
 
-let state = load()
+let state = loadCache()
 const listeners = new Set<() => void>()
+
+function emit() {
+  try {
+    localStorage.setItem(KEY, state)
+  } catch {
+    /* ignore */
+  }
+  listeners.forEach((l) => l())
+}
+
+fetchReportEmails()
+  .then((v) => {
+    if (v && v !== state) {
+      state = v
+      emit()
+    }
+  })
+  .catch(() => {
+    /* 서버 미응답 시 로컬 캐시 유지 */
+  })
 
 export function getReportEmails(): string {
   return state
@@ -23,8 +44,10 @@ export function getReportEmails(): string {
 
 export function setReportEmails(v: string): void {
   state = v
-  localStorage.setItem(KEY, v)
-  listeners.forEach((l) => l())
+  emit()
+  updateReportEmailsApi(v).catch(() => {
+    /* 서버 저장 실패는 조용히 무시 — 다음 로드 시 재동기화 */
+  })
 }
 
 function subscribe(cb: () => void) {

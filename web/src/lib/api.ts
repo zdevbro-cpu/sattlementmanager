@@ -299,3 +299,19 @@ export function createExtraPayoutApi(p: Omit<ExtraPayee, 'id'>): Promise<ExtraPa
 export function deleteExtraPayoutApi(id: string): Promise<void> {
   return sendJson(`/api/extra-payouts/${encodeURIComponent(id)}`, 'DELETE')
 }
+
+// ── 일일보고 수신 이메일 설정 (백엔드 cron이 참조하는 DB 값) ──
+export function fetchReportEmails(): Promise<string> {
+  return getData('/api/system/config/daily-report-email')
+}
+export function updateReportEmailsApi(value: string): Promise<string> {
+  return sendJson('/api/system/config/daily-report-email', 'PATCH', { value })
+}
+
+// ── 직급별 기본급여 설정 (JSON 문자열로 저장) ──
+export function fetchPositionSalaries(): Promise<string> {
+  return getData('/api/system/config/position-salaries')
+}
+export function updatePositionSalariesApi(value: string): Promise<string> {
+  return sendJson('/api/system/config/position-salaries', 'PATCH', { value })
+}
