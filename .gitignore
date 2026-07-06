@@ -27,6 +27,9 @@ web/.env.production
 # uploads (Drive 로컬 폴백)
 server/uploads/
 
+# firebase 배포 캐시
+.firebase/
+
 # logs
 *.log
 npm-debug.log*

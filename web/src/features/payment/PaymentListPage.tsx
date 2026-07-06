@@ -3,12 +3,17 @@ import { Calendar, DollarSign, Landmark, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import { comma, dateText, won } from '../../lib/format'
-import { EMPTY_FILTER } from '../../types/contract'
+import { EMPTY_FILTER, type Contract } from '../../types/contract'
 import { listContracts } from '../contract/contractStore'
-import { type PayoutCategory } from '../../types/payout'
+import { type ExtraPayee, type PayoutCategory } from '../../types/payout'
 import { EMPTY_APPOINTMENT_FILTER, type Appointment } from '../../types/appointment'
 import { listAppointments } from '../appointment/appointmentStore'
 import { usePositionSalaries } from '../appointment/positionSalaryStore'
+import {
+  createExtraPayoutApi,
+  deleteExtraPayoutApi,
+  fetchExtraPayouts,
+} from '../../lib/api'
 
 /** 오늘 날짜(YYYY-MM-DD) — 화면 오픈 시 필터 기본값으로 사용 */
 function todayIso(): string {
@@ -84,33 +89,28 @@ const EMPTY_REVENUE_FILTER: RevenueFilter = {
   keyword: '',
 }
 
-interface ExtraPayee {
-  id: string
-  source: '조직관리' | '계약자'
-  name: string
-  amount: number
-  residentNo: string
-  bankName: string
-  accountNo: string
-  accountOwner: string
-}
-
 function RevenuePayoutView() {
   const [filter, setFilter] = useState<RevenueFilter>(EMPTY_REVENUE_FILTER)
   const [extras, setExtras] = useState<ExtraPayee[]>([])
   const [addOpen, setAddOpen] = useState(false)
+  const [contracts, setContracts] = useState<Contract[]>([])
+
+  useEffect(() => {
+    listContracts(EMPTY_FILTER).then(setContracts)
+    fetchExtraPayouts().then(setExtras)
+  }, [])
 
   const payout = (allowance: number) =>
     Math.round(allowance * (1 - WITHHOLDING))
 
   const all = useMemo(
     () =>
-      listContracts(EMPTY_FILTER)
+      contracts
         .map((c) => c.current)
         .filter(
           (s) => s.allowance > 0 && s.status !== '해지' && s.status !== '폐기',
         ),
-    [],
+    [contracts],
   )
 
   // 급여일(수당지급일) 기준 — 검색기간(시작일~종료일) 안에 실제로 급여일이 도래하는 계약만 표시
@@ -132,7 +132,14 @@ function RevenuePayoutView() {
   const totalCount = targets.length + extras.length
 
   const reset = () => setFilter(EMPTY_REVENUE_FILTER)
-  const removeExtra = (id: string) => setExtras(extras.filter((e) => e.id !== id))
+  const removeExtra = (id: string) => {
+    setExtras(extras.filter((e) => e.id !== id))
+    deleteExtraPayoutApi(id).catch(() => {})
+  }
+  const addExtra = async (p: Omit<ExtraPayee, 'id'>) => {
+    const created = await createExtraPayoutApi(p)
+    setExtras((prev) => [created, ...prev])
+  }
   // contractmanager 출력 기능 준용 — 텍스트 파일(.txt) 다운로드
   const onExport = () => {
     if (totalCount === 0) {
@@ -140,15 +147,15 @@ function RevenuePayoutView() {
       return
     }
     const amountOnly = (v: number) => `${v.toLocaleString('ko-KR')}원`
-    // 계약자명  수익금  주민번호 / 은행명  계좌번호  예금주(계약자명)
+    // 이름  내역  금액  주민번호 / 은행명  계좌번호  예금주
     const body = [
       ...targets.map(
         ({ s }) =>
-          `${s.contractorName}  ${amountOnly(payout(s.allowance))}  ${s.residentNo} / ${s.bankName}  ${s.accountNo}  ${s.contractorName}`,
+          `${s.contractorName}  수당  ${amountOnly(payout(s.allowance))}  ${s.residentNo} / ${s.bankName}  ${s.accountNo}  ${s.contractorName}`,
       ),
       ...extras.map(
         (e) =>
-          `${e.name}  ${amountOnly(e.amount)}  ${e.residentNo} / ${e.bankName}  ${e.accountNo}  ${e.accountOwner}`,
+          `${e.name}  ${e.memo || '-'}  ${amountOnly(e.amount)}  ${e.residentNo} / ${e.bankName}  ${e.accountNo}  ${e.accountOwner}`,
       ),
     ]
     const content = body.join('\r\n')
@@ -258,7 +265,7 @@ function RevenuePayoutView() {
                   </td>
                   <td className="px-3 py-1.5 tabular text-center whitespace-nowrap text-[#64748b]">-</td>
                   <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{e.name}</td>
-                  <td className="px-3 py-1.5 whitespace-nowrap text-[#64748b]">-</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap text-[#94a3b8]">{e.memo || '-'}</td>
                   <td className="px-3 py-1.5 whitespace-nowrap">{e.bankName}</td>
                   <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{maskAccount(e.accountNo)}</td>
                   <td className="px-3 py-1.5 tabular text-center whitespace-nowrap text-[#64748b]">-</td>
@@ -292,7 +299,10 @@ function RevenuePayoutView() {
       {addOpen && (
         <AddExtraPayeeModal
           onClose={() => setAddOpen(false)}
-          onAdd={(p) => setExtras([p, ...extras])}
+          onAdd={async (p) => {
+            await addExtra(p)
+            setAddOpen(false)
+          }}
         />
       )}
     </div>
@@ -305,15 +315,30 @@ function AddExtraPayeeModal({
   onAdd,
 }: {
   onClose: () => void
-  onAdd: (p: ExtraPayee) => void
+  onAdd: (p: Omit<ExtraPayee, 'id'>) => void | Promise<void>
 }) {
   const [keyword, setKeyword] = useState('')
   const [selectedKey, setSelectedKey] = useState('')
+  const [memo, setMemo] = useState('')
   const [amount, setAmount] = useState(0)
+  const [candidates, setCandidates] = useState<
+    {
+      key: string
+      source: '조직관리' | '계약자'
+      name: string
+      residentNo: string
+      bankName: string
+      accountNo: string
+      accountOwner: string
+    }[]
+  >([])
 
-  const contractCandidates = useMemo(
-    () =>
-      listContracts(EMPTY_FILTER)
+  useEffect(() => {
+    Promise.all([
+      listContracts(EMPTY_FILTER),
+      listAppointments(EMPTY_APPOINTMENT_FILTER),
+    ]).then(([contracts, appointments]) => {
+      const contractCandidates = contracts
         .map((c) => c.current)
         .filter((s) => s.status !== '해지' && s.status !== '폐기')
         .map((s) => ({
@@ -324,14 +349,10 @@ function AddExtraPayeeModal({
           bankName: s.bankName,
           accountNo: s.accountNo,
           accountOwner: s.accountOwner || s.contractorName,
-        })),
-    [],
-  )
-  const appointmentCandidates = useMemo(
-    () =>
-      listAppointments(EMPTY_APPOINTMENT_FILTER)
-        .filter((a) => a.status === '정상운영')
-        .map((a) => ({
+        }))
+      const appointmentCandidates = appointments
+        .filter((a: Appointment) => a.status === '정상운영')
+        .map((a: Appointment) => ({
           key: `a-${a.id}`,
           source: '조직관리' as const,
           name: a.name,
@@ -339,15 +360,12 @@ function AddExtraPayeeModal({
           bankName: a.bankName,
           accountNo: a.accountNo,
           accountOwner: a.accountOwner || a.name,
-        })),
-    [],
-  )
+        }))
+      // 계약자/임용자 구분 없이 하나의 목록으로 통합해 검색
+      setCandidates([...contractCandidates, ...appointmentCandidates])
+    })
+  }, [])
 
-  // 계약자/임용자 구분 없이 하나의 목록으로 통합해 검색
-  const candidates = useMemo(
-    () => [...contractCandidates, ...appointmentCandidates],
-    [contractCandidates, appointmentCandidates],
-  )
   const kw = keyword.trim()
   const list = kw ? candidates.filter((c) => c.name.includes(kw)) : candidates
   const selected = list.find((c) => c.key === selectedKey)
@@ -355,9 +373,9 @@ function AddExtraPayeeModal({
   const add = () => {
     if (!selected || !amount) return
     onAdd({
-      id: `EX-${selected.key}-${Date.now()}`,
       source: selected.source,
       name: selected.name,
+      memo: memo.trim(),
       amount,
       residentNo: selected.residentNo,
       bankName: selected.bankName,
@@ -406,24 +424,34 @@ function AddExtraPayeeModal({
             </div>
           )}
 
-          <label className="block">
-            <span className="mb-1 block text-[11.5px] font-semibold text-[#94a3b8]">지급 금액(원)</span>
-            <input
-              inputMode="numeric"
-              value={amount ? amount.toLocaleString('ko-KR') : ''}
-              onChange={(e) => setAmount(Number(e.target.value.replace(/[^\d]/g, '')) || 0)}
-              className="h-9 w-full rounded-[8px] bg-input border border-border px-3 text-right text-[13px] text-input-text outline-none focus:border-primary tabular"
-              placeholder="0"
-            />
-          </label>
+          {selected && (
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-1 block text-[11.5px] font-semibold text-[#94a3b8]">지급내역</span>
+                <input
+                  value={memo}
+                  onChange={(e) => setMemo(e.target.value)}
+                  placeholder="예: 특별수당"
+                  className="h-9 w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[11.5px] font-semibold text-[#94a3b8]">지급금액(원)</span>
+                <input
+                  inputMode="numeric"
+                  value={amount ? amount.toLocaleString('ko-KR') : ''}
+                  onChange={(e) => setAmount(Number(e.target.value.replace(/[^\d]/g, '')) || 0)}
+                  className="h-9 w-full rounded-[8px] bg-input border border-border px-3 text-right text-[13px] text-input-text outline-none focus:border-primary tabular"
+                  placeholder="0"
+                />
+              </label>
+            </div>
+          )}
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-border">
           <button onClick={onClose} className="h-9 rounded-[8px] border border-border px-4 text-sm font-semibold text-[#c2cde0] hover:bg-hover">취소</button>
           <button
-            onClick={() => {
-              add()
-              onClose()
-            }}
+            onClick={add}
             disabled={!selected || !amount}
             className="h-9 rounded-[8px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110 disabled:opacity-50"
           >
@@ -476,7 +504,10 @@ function SalaryPayoutView() {
   const payout = (a: Appointment) =>
     Math.round((monthlySalary(a) + activityOf(a)) * (1 - WITHHOLDING))
 
-  const all = useMemo(() => listAppointments(EMPTY_APPOINTMENT_FILTER), [])
+  const [all, setAll] = useState<Appointment[]>([])
+  useEffect(() => {
+    listAppointments(EMPTY_APPOINTMENT_FILTER).then(setAll)
+  }, [])
 
   // 급여일(payoutDate) 기준 — 검색기간(시작일~종료일) 안에 급여일이 있는 정상운영 임용계약만 표시
   const targets = useMemo(() => {
@@ -528,10 +559,10 @@ function SalaryPayoutView() {
       return
     }
     const amountOnly = (v: number) => `${v.toLocaleString('ko-KR')}원`
-    // 계약자명  급여  주민번호 / 은행명  계좌번호  예금주(계약자명) — 수익금지급 출력과 동일 포맷
+    // 이름  내역  금액  주민번호 / 은행명  계좌번호  예금주 — 수익금지급 출력과 동일 포맷
     const body = targets.map(
       (a) =>
-        `${a.name}  ${amountOnly(payout(a))}  ${a.residentNo} / ${a.bankName}  ${a.accountNo}  ${a.name}`,
+        `${a.name}  급여  ${amountOnly(payout(a))}  ${a.residentNo} / ${a.bankName}  ${a.accountNo}  ${a.name}`,
     )
     const content = body.join('\r\n')
     const fileName = `급여지급목록_${filter.endDate}_${filter.startDate}.txt`

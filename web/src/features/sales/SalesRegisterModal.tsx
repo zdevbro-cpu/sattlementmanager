@@ -26,14 +26,14 @@ export default function SalesRegisterModal({
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
-  const submit = () => {
+  const submit = async () => {
     if (!date) return setErr('매출일을 입력하세요.')
     if (!buyer.trim()) return setErr('구매자를 입력하세요.')
     if (payment.totalAmount <= 0) return setErr('결재 금액을 입력하세요.')
     setSaving(true)
     setErr('')
     try {
-      createSale({
+      await createSale({
         date,
         category,
         businessUnit,
@@ -48,6 +48,8 @@ export default function SalesRegisterModal({
         createdAt: date,
       })
       onCreated()
+    } catch (e) {
+      setErr((e as Error).message)
     } finally {
       setSaving(false)
     }

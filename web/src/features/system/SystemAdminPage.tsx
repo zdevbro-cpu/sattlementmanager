@@ -35,6 +35,10 @@ import {
   updatePositionSalary,
   usePositionSalaries,
 } from '../appointment/positionSalaryStore'
+import {
+  updateFeeRate,
+  useSettlementSettings,
+} from './settlementSettingsStore'
 
 const GROUPS: { kind: CodeKind; title: string; desc: string }[] = [
   { kind: 'orgs', title: '소속', desc: '계약 소속 구분 (예: A, B)' },
@@ -122,7 +126,8 @@ function CommonCodeAdmin() {
         <ReportEmailCard />
         <SalesCategoryCard />
         <PositionSalaryCard />
-        {Array.from({ length: Math.max(0, 10 - GROUPS.length - 5) }).map(
+        <SettlementFeeCard />
+        {Array.from({ length: Math.max(0, 10 - GROUPS.length - 6) }).map(
           (_, i) => (
             <EmptySlot key={`empty-${i}`} />
           ),
@@ -262,6 +267,34 @@ function PositionSalaryCard() {
           </li>
         ))}
       </ul>
+    </div>
+  )
+}
+
+function SettlementFeeCard() {
+  const { feeRate } = useSettlementSettings()
+  return (
+    <div className="rounded-[14px] border border-border bg-card p-4">
+      <h3 className="text-[15px] font-extrabold text-text-strong mb-3">
+        정산 수수료율
+      </h3>
+      <p className="text-[12px] text-[#94a3b8] mb-3">
+        대시보드 정산 파이프라인의 수수료 차감·정산금액 계산에 사용됩니다.
+      </p>
+      <div className="flex items-center gap-2 rounded-[8px] border border-border px-3 py-1.5">
+        <span className="flex-1 text-[13px] text-[#c2cde0]">매출 대비 수수료율</span>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={feeRate}
+          onChange={(e) => {
+            const n = Number(e.target.value.replace(/[^\d.]/g, '')) || 0
+            updateFeeRate(n)
+          }}
+          className="h-8 w-16 rounded-[7px] bg-input border border-border px-2 text-right text-[13px] text-input-text outline-none focus:border-primary tabular"
+        />
+        <span className="text-[13px] text-[#94a3b8]">%</span>
+      </div>
     </div>
   )
 }

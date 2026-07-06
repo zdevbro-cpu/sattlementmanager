@@ -58,8 +58,10 @@ export default function HistoryAddForm({
         createdAt: eventDate,
         documents: [],
       }
-      addHistory(contractId, snap)
+      await addHistory(contractId, snap)
       onSaved()
+    } catch (e) {
+      setErr((e as Error).message)
     } finally {
       setSaving(false)
     }

@@ -83,3 +83,133 @@ CREATE TABLE IF NOT EXISTS contract_documents (
   uploaded_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_doc_contract ON contract_documents(contract_id);
+
+-- ══════════════════════════════════════════════════════════════
+-- 조직관리(임용계약) 스키마
+-- ══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS appointments (
+  id                 TEXT PRIMARY KEY,
+  contract_no        TEXT,                 -- 계약번호 (LASE-yyyymmdd-000)
+  name               TEXT NOT NULL,        -- 계약자명
+  type_name          TEXT,                 -- 계약종류(계약명)
+  ref                TEXT,                 -- 추천인/추천점
+  resident_no        TEXT,                 -- 주민번호
+  phone              TEXT,                 -- 연락처
+  position           TEXT,                 -- 직급
+  salary             BIGINT DEFAULT 0,     -- 급여(연봉)
+  activity            BIGINT DEFAULT 0,     -- 활동비
+  insurance_type     TEXT,                 -- 사업소득/4대보험
+  contract_date      DATE,                 -- 계약일
+  payout_date        DATE,                 -- 급여일
+  work_start_date    DATE,                 -- 업무개시일
+  report_start_date  DATE,                 -- 신고개시일
+  end_date           DATE,                 -- 계약종료일
+  bank_name          TEXT,                 -- 은행/기관
+  account_no         TEXT,                 -- 계좌번호
+  account_owner      TEXT,                 -- 예금주
+  status             TEXT NOT NULL DEFAULT '정상운영', -- 계약상태
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_appointment_status ON appointments(status);
+CREATE INDEX IF NOT EXISTS idx_appointment_payout ON appointments(payout_date);
+
+-- 임용계약 변경 이력 (필드 단위 변경 기록)
+CREATE TABLE IF NOT EXISTS appointment_history (
+  id             BIGSERIAL PRIMARY KEY,
+  appointment_id TEXT NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+  edited_at      DATE,
+  memo           TEXT,
+  changes        JSONB,                -- [{label, before, after}, ...]
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_appt_history_appt ON appointment_history(appointment_id);
+
+-- 임용계약 제출서류 (등본/신분증/통장 등 → Google Drive 링크만 저장)
+CREATE TABLE IF NOT EXISTS appointment_documents (
+  id             BIGSERIAL PRIMARY KEY,
+  appointment_id TEXT NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+  doc_type       TEXT,                 -- 서류종류 (예: 주민등록등본)
+  file_name      TEXT,
+  drive_file_id  TEXT,
+  drive_view_url TEXT,
+  uploaded_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_appt_doc_appt ON appointment_documents(appointment_id);
+
+-- ══════════════════════════════════════════════════════════════
+-- 매출관리 스키마
+-- ══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS sales (
+  id               TEXT PRIMARY KEY,
+  date             DATE,                 -- 매출일
+  category         TEXT,                 -- 매출구분 (시스템관리 salesCategories)
+  business_unit    TEXT,                 -- 사업부
+  buyer            TEXT,                 -- 구매자
+  manager          TEXT,                 -- 담당(지점/담당자)
+  inputter_org     TEXT,                 -- 입력자 소속
+  inputter_name    TEXT,                 -- 입력자 성명
+  payment_method   TEXT,                 -- 카드/현금/혼합/없음
+  payment_total    BIGINT DEFAULT 0,
+  verified         BOOLEAN NOT NULL DEFAULT false, -- 전표 검증 여부
+  memo             TEXT,
+  source           TEXT NOT NULL DEFAULT 'sale',   -- sale(직접등록) / contract(계약 보증금 연동)
+  contract_id      TEXT REFERENCES contracts(id) ON DELETE SET NULL,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(date);
+
+-- 매출 결재 분할 (카드/현금, contract_history의 payment_installments와 동일 구조)
+CREATE TABLE IF NOT EXISTS sales_installments (
+  id               BIGSERIAL PRIMARY KEY,
+  sale_id          TEXT NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+  method           TEXT NOT NULL,      -- 카드/현금
+  seq              INT NOT NULL,
+  amount           BIGINT DEFAULT 0,
+  issuer           TEXT,
+  card_number      TEXT,
+  approval_no      TEXT,
+  terminal_no      TEXT,
+  serial_no        TEXT,
+  transaction_date DATE,
+  identifier_type  TEXT,
+  identifier_no    TEXT,
+  merchant_name    TEXT,
+  merchant_biz_no  TEXT,
+  bank             TEXT,
+  depositor        TEXT,
+  drive_file_id    TEXT,
+  drive_view_url   TEXT,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_sales_installment_sale ON sales_installments(sale_id);
+
+-- 매출 첨부서류 (전표/입금증 → Google Drive 링크만 저장)
+CREATE TABLE IF NOT EXISTS sales_documents (
+  id             BIGSERIAL PRIMARY KEY,
+  sale_id        TEXT NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+  kind           TEXT,
+  file_name      TEXT,
+  drive_file_id  TEXT,
+  drive_view_url TEXT,
+  uploaded_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_sales_doc_sale ON sales_documents(sale_id);
+
+-- ══════════════════════════════════════════════════════════════
+-- 지급관리 · 추가지급 대상자 (수익금지급 화면에서 수동 등록)
+-- ══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS extra_payouts (
+  id             TEXT PRIMARY KEY,
+  source         TEXT NOT NULL,        -- 조직관리 / 계약자
+  name           TEXT NOT NULL,
+  memo           TEXT,                 -- 지급내역
+  amount         BIGINT NOT NULL DEFAULT 0,
+  resident_no    TEXT,
+  bank_name      TEXT,
+  account_no     TEXT,
+  account_owner  TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);

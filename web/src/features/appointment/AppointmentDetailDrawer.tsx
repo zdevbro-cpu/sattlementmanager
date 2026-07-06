@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Badge from '../../components/ui/Badge'
 import { dateText, won } from '../../lib/format'
-import { appointmentStatusTone } from '../../types/appointment'
-import { getAppointment, setAppointmentDocuments } from './appointmentStore'
+import { appointmentStatusTone, type Appointment } from '../../types/appointment'
+import { getAppointment } from './appointmentStore'
 import AppointmentEditForm from './AppointmentEditForm'
 import DocUploadList from './DocUploadList'
 
@@ -17,13 +17,24 @@ export default function AppointmentDetailDrawer({
 }) {
   const [editOpen, setEditOpen] = useState(false)
   const [tick, setTick] = useState(0)
-  const a = useMemo(() => getAppointment(appointmentId), [appointmentId, tick])
+  const [a, setA] = useState<Appointment | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    getAppointment(appointmentId).then((res) => {
+      if (alive) setA(res)
+    })
+    return () => {
+      alive = false
+    }
+  }, [appointmentId, tick])
+
   if (!a) return null
 
   const info: [string, string][] = [
     ['계약번호', a.contractNo],
     ['계약종류', a.typeName],
-    ['추천인/추천점', a.ref],
+    ['지점명', a.ref],
     ['직급', a.position],
     ['소득구분', a.insuranceType],
     ['주민번호', a.residentNo],
@@ -100,8 +111,8 @@ export default function AppointmentDetailDrawer({
             <DocUploadList
               refId={a.contractNo}
               value={a.documents ?? []}
-              onChange={(docs) => {
-                setAppointmentDocuments(a.id, docs)
+              onChange={() => {
+                // 업로드 자체는 uploadAppointmentDoc()가 즉시 DB에 기록하므로, 여기서는 재조회만 한다.
                 setTick((n) => n + 1)
                 onChanged?.()
               }}

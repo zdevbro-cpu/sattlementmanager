@@ -41,20 +41,24 @@ const PROMPTS = {
 }
 
 /** 이미지 버퍼 → OCR 추출 객체. Gemini 미설정 시 {} */
-async function analyzeImage(imageBuffer, type = 'sales') {
+async function analyzeImage(imageBuffer, type = 'sales', mimeType = 'image/jpeg') {
   if (!model) return {}
   const prompt = PROMPTS[type] || PROMPTS.sales
   const base64 = imageBuffer.toString('base64')
   const result = await model.generateContent([
     prompt,
-    { inlineData: { data: base64, mimeType: 'image/jpeg' } },
+    { inlineData: { data: base64, mimeType } },
   ])
   const text = result.response.text()
   const match = text.match(/\{[\s\S]*\}/)
-  if (!match) return {}
+  if (!match) {
+    console.warn('[ocr] JSON 추출 실패 (Gemini가 JSON을 반환하지 않음)')
+    return {}
+  }
   try {
     return JSON.parse(match[0])
-  } catch {
+  } catch (e) {
+    console.warn('[ocr] JSON 파싱 실패:', e.message)
     return {}
   }
 }

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import StatusBadge from '../../components/ui/StatusBadge'
 import Badge, { methodTone } from '../../components/ui/Badge'
@@ -45,12 +45,43 @@ export default function ContractListPage() {
   const [refresh, setRefresh] = useState(0)
   const contractEndDateRef = useRef<HTMLInputElement>(null)
 
-  const rows = useMemo(
-    () => listContracts(applied),
+  const [rows, setRows] = useState<Contract[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadErr, setLoadErr] = useState('')
+  const [sum, setSum] = useState(() => summarize([]))
+
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    setLoadErr('')
+    listContracts(applied)
+      .then((list) => {
+        if (alive) {
+          setRows(list)
+          setLoading(false)
+        }
+      })
+      .catch((e) => {
+        if (alive) {
+          setLoadErr((e as Error).message || '목록을 불러오지 못했습니다.')
+          setLoading(false)
+        }
+      })
+    return () => {
+      alive = false
+    }
     // refresh 로 재조회 강제
-    [applied, refresh],
-  )
-  const sum = useMemo(() => summarize(listContracts(EMPTY_FILTER)), [refresh])
+  }, [applied, refresh])
+
+  useEffect(() => {
+    let alive = true
+    listContracts(EMPTY_FILTER).then((list) => {
+      if (alive) setSum(summarize(list))
+    })
+    return () => {
+      alive = false
+    }
+  }, [refresh])
 
   return (
     <AppLayout title="계약 조회">
@@ -96,10 +127,16 @@ export default function ContractListPage() {
         />
       </div>
 
-      {/* 필터 바 */}
-      <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
-        <div className="grid grid-cols-4 gap-3">
-          {/* 1행: 계약자명 · 상태 · 지점명 · 관리자 */}
+      {/* 필터 바 — 1줄 배치 */}
+      <div className="rounded-[14px] border border-border bg-card p-4 mb-4 overflow-x-auto">
+        <div className="grid grid-cols-[repeat(8,minmax(120px,1fr))_auto_auto] gap-2 items-end min-w-[1400px]">
+          <Field label="소속">
+            <SelectFilter
+              value={draft.org}
+              options={codes.orgs}
+              onChange={(v) => setDraft({ ...draft, org: v })}
+            />
+          </Field>
           <Field label="계약자명">
             <input
               value={draft.keyword}
@@ -108,29 +145,6 @@ export default function ContractListPage() {
               className={inputCls}
             />
           </Field>
-          <Field label="상태">
-            <SelectFilter
-              value={draft.status}
-              options={codes.statuses}
-              onChange={(v) => setDraft({ ...draft, status: v })}
-            />
-          </Field>
-          <Field label="지점명">
-            <SelectFilter
-              value={draft.branch}
-              options={BRANCHES}
-              onChange={(v) => setDraft({ ...draft, branch: v })}
-            />
-          </Field>
-          <Field label="관리자">
-            <SelectFilter
-              value={draft.manager}
-              options={MANAGERS}
-              onChange={(v) => setDraft({ ...draft, manager: v })}
-            />
-          </Field>
-
-          {/* 2행: 계약일자 · 계약종료일 · 유치자 · 소속 */}
           <Field label="계약일자">
             <DateTextInput
               value={draft.contractDate}
@@ -147,6 +161,20 @@ export default function ContractListPage() {
               className={inputCls}
             />
           </Field>
+          <Field label="지점명">
+            <SelectFilter
+              value={draft.branch}
+              options={BRANCHES}
+              onChange={(v) => setDraft({ ...draft, branch: v })}
+            />
+          </Field>
+          <Field label="관리자">
+            <SelectFilter
+              value={draft.manager}
+              options={MANAGERS}
+              onChange={(v) => setDraft({ ...draft, manager: v })}
+            />
+          </Field>
           <Field label="유치자">
             <SelectFilter
               value={draft.recruiter}
@@ -154,18 +182,16 @@ export default function ContractListPage() {
               onChange={(v) => setDraft({ ...draft, recruiter: v })}
             />
           </Field>
-          <Field label="소속">
+          <Field label="상태">
             <SelectFilter
-              value={draft.org}
-              options={codes.orgs}
-              onChange={(v) => setDraft({ ...draft, org: v })}
+              value={draft.status}
+              options={codes.statuses}
+              onChange={(v) => setDraft({ ...draft, status: v })}
             />
           </Field>
-        </div>
-        <div className="mt-3 flex justify-end gap-2">
           <button
             onClick={() => setApplied(draft)}
-            className="h-[38px] rounded-[8px] bg-indigo px-5 text-sm font-bold text-white hover:brightness-110"
+            className="h-[38px] rounded-[8px] bg-indigo px-5 text-sm font-bold text-white hover:brightness-110 whitespace-nowrap"
           >
             검색
           </button>
@@ -174,7 +200,7 @@ export default function ContractListPage() {
               setDraft(EMPTY_FILTER)
               setApplied(EMPTY_FILTER)
             }}
-            className="h-[38px] rounded-[8px] border border-border px-5 text-sm font-semibold text-[#c2cde0] hover:bg-hover"
+            className="h-[38px] rounded-[8px] border border-border px-5 text-sm font-semibold text-[#c2cde0] hover:bg-hover whitespace-nowrap"
           >
             초기화
           </button>
@@ -228,7 +254,11 @@ export default function ContractListPage() {
                     colSpan={COLS.length}
                     className="px-3 py-10 text-center text-[#64748b]"
                   >
-                    조건에 맞는 계약이 없습니다.
+                    {loading
+                      ? '불러오는 중…'
+                      : loadErr
+                        ? `불러오기 실패: ${loadErr}`
+                        : '조건에 맞는 계약이 없습니다.'}
                   </td>
                 </tr>
               )}

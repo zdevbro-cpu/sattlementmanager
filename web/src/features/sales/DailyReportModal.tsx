@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { comma, won } from '../../lib/format'
-import { EMPTY_SALES_FILTER } from '../../types/sales'
+import { EMPTY_SALES_FILTER, type Sale } from '../../types/sales'
 import { listSales } from './salesStore'
 import { parseEmails, useReportEmails } from './reportStore'
 import { dailyReportAttachment, downloadDailyReport } from './dailyReportExcel'
@@ -54,10 +54,16 @@ export default function DailyReportModal({
     }
   }
 
-  const rows = useMemo(
-    () => listSales(EMPTY_SALES_FILTER).filter((s) => s.date === date),
-    [date],
-  )
+  const [rows, setRows] = useState<Sale[]>([])
+  useEffect(() => {
+    let alive = true
+    listSales(EMPTY_SALES_FILTER).then((list) => {
+      if (alive) setRows(list.filter((s) => s.date === date))
+    })
+    return () => {
+      alive = false
+    }
+  }, [date])
   const total = rows.reduce((a, s) => a + s.payment.totalAmount, 0)
   const cardTotal = rows
     .filter((s) => s.payment.method === '카드' || s.payment.method === '혼합')

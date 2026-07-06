@@ -19,7 +19,8 @@ export async function buildDailyReportWorkbook(
   await wb.xlsx.load(buf)
   const ws = wb.worksheets[0]
 
-  const rows = listSales(EMPTY_SALES_FILTER).filter((s) => s.date === date)
+  const all = await listSales(EMPTY_SALES_FILTER)
+  const rows = all.filter((s) => s.date === date)
 
   // 제목에 보고일자 표기
   ws.getCell('A1').value = `A_카드 매출 일일 보고(교육사업부)   ·   ${date}`

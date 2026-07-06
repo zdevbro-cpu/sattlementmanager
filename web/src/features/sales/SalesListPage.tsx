@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Eye, Trash2 } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import Badge, { categoryTone } from '../../components/ui/Badge'
@@ -38,19 +38,50 @@ export default function SalesListPage() {
   const [refresh, setRefresh] = useState(0)
   const endDateRef = useRef<HTMLInputElement>(null)
 
-  const rows = useMemo(() => listSales(filter), [filter, refresh])
-  const sum = useMemo(
-    () => summarizeSales(listSales(EMPTY_SALES_FILTER)),
-    [refresh],
-  )
+  const [rows, setRows] = useState<Sale[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadErr, setLoadErr] = useState('')
+  const [sum, setSum] = useState(() => summarizeSales([]))
 
-  const onDelete = (s: Sale) => {
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    setLoadErr('')
+    listSales(filter)
+      .then((list) => {
+        if (alive) {
+          setRows(list)
+          setLoading(false)
+        }
+      })
+      .catch((e) => {
+        if (alive) {
+          setLoadErr((e as Error).message || '목록을 불러오지 못했습니다.')
+          setLoading(false)
+        }
+      })
+    return () => {
+      alive = false
+    }
+  }, [filter, refresh])
+
+  useEffect(() => {
+    let alive = true
+    listSales(EMPTY_SALES_FILTER).then((list) => {
+      if (alive) setSum(summarizeSales(list))
+    })
+    return () => {
+      alive = false
+    }
+  }, [refresh])
+
+  const onDelete = async (s: Sale) => {
     if (s.source === 'contract') {
       alert('계약 보증금 연동 항목입니다. 계약관리에서 관리하세요.')
       return
     }
     if (!confirm('이 매출을 삭제할까요?')) return
-    deleteSale(s.id)
+    await deleteSale(s.id)
     setRefresh((n) => n + 1)
   }
 
@@ -197,7 +228,11 @@ export default function SalesListPage() {
                   {rows.length === 0 && (
                     <tr>
                       <td colSpan={12} className="px-3 py-10 text-center text-[#64748b]">
-                        조건에 맞는 매출이 없습니다.
+                        {loading
+                          ? '불러오는 중…'
+                          : loadErr
+                            ? `불러오기 실패: ${loadErr}`
+                            : '조건에 맞는 매출이 없습니다.'}
                       </td>
                     </tr>
                   )}

@@ -114,25 +114,18 @@ export default function ContractRegisterModal({
         memo: f.memo,
         createdAt: f.contractDate,
       }
-      const created = createContract(snapshot)
+      const created = await createContract(snapshot)
 
       if (contractFile) {
-        let link = { driveFileId: '', driveViewUrl: '#' }
         try {
-          link = await uploadToDrive(created.id, contractFile, '신규등록')
+          await uploadToDrive(created.id, contractFile, '신규등록')
         } catch {
           /* 백엔드 미기동 시에도 계약 등록은 유지 */
         }
-        created.current.documents.push({
-          id: `${created.id}-doc1`,
-          kind: '계약서',
-          fileName: contractFile.name,
-          driveFileId: link.driveFileId,
-          driveViewUrl: link.driveViewUrl,
-          uploadedAt: f.contractDate,
-        })
       }
       onCreated()
+    } catch (e) {
+      setErr((e as Error).message)
     } finally {
       setSaving(false)
     }

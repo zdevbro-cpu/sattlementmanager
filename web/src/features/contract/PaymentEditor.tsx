@@ -6,7 +6,7 @@ import type {
   PaymentMethod,
 } from '../../types/contract'
 import { comma } from '../../lib/format'
-import { ocrImage, type CardOcrResult, type CashOcrResult } from '../../lib/api'
+import { ocrImage, uploadReceiptImage, type CardOcrResult, type CashOcrResult } from '../../lib/api'
 import DropZone from '../../components/ui/DropZone'
 
 const SPLIT_OPTS = [2, 3, 4, 5, 6] // 분할은 2회부터
@@ -91,9 +91,12 @@ const selCls =
 export default function PaymentEditor({
   value,
   onChange,
+  variant = 'desktop',
 }: {
   value: PaymentInfo
   onChange: (v: PaymentInfo) => void
+  /** 'mobile' — 모바일 매출등록 전용 스캔 UI(대형 촬영 박스 + 분석중 오버레이) 적용 */
+  variant?: 'desktop' | 'mobile'
 }) {
   const [mode, setMode] = useState<PayMode>(() => deriveMode(value))
 
@@ -149,9 +152,9 @@ export default function PaymentEditor({
   return (
     <div className="space-y-4">
       {/* 결재구분 모드 선택 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-[13px] font-bold text-text-strong">결재구분</span>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="shrink-0 whitespace-nowrap text-[13px] font-bold text-text-strong">결재구분</span>
           <select
             value={mode}
             onChange={(e) => changeMode(e.target.value as PayMode)}
@@ -164,7 +167,7 @@ export default function PaymentEditor({
             ))}
           </select>
           {cardSplit && (
-            <label className="flex items-center gap-1 text-[12px] text-warning">
+            <label className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[12px] text-warning">
               카드
               <select
                 value={value.cardInstallments.length}
@@ -180,7 +183,7 @@ export default function PaymentEditor({
             </label>
           )}
           {cashSplit && (
-            <label className="flex items-center gap-1 text-[12px] text-success">
+            <label className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[12px] text-success">
               현금
               <select
                 value={value.cashInstallments.length}
@@ -196,7 +199,7 @@ export default function PaymentEditor({
             </label>
           )}
         </div>
-        <span className="text-[13px] text-[#94a3b8]">
+        <span className="whitespace-nowrap text-[13px] text-[#94a3b8]">
           합계 <b className="text-text-strong tabular">{comma(total)}</b>원
         </span>
       </div>
@@ -212,6 +215,7 @@ export default function PaymentEditor({
               <CardRow
                 key={i}
                 item={it}
+                variant={variant}
                 onChange={(patch) =>
                   commit({
                     ...value,
@@ -237,6 +241,7 @@ export default function PaymentEditor({
               <CashRow
                 key={i}
                 item={it}
+                variant={variant}
                 onChange={(patch) =>
                   commit({
                     ...value,
@@ -258,19 +263,39 @@ export default function PaymentEditor({
 function CardRow({
   item,
   onChange,
+  variant = 'desktop',
 }: {
   item: CardInstallment
   onChange: (p: Partial<CardInstallment>) => void
+  variant?: 'desktop' | 'mobile'
 }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [driveErr, setDriveErr] = useState('')
+  const [preview, setPreview] = useState('')
 
   const onFile = async (file: File) => {
+    setPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return URL.createObjectURL(file)
+    })
     onChange({ imageName: file.name })
     setBusy(true)
     setErr('')
+    setDriveErr('')
     try {
-      const r = (await ocrImage(file, 'sales')) as CardOcrResult
+      const [r, up] = await Promise.all([
+        ocrImage(file, 'sales') as Promise<CardOcrResult>,
+        uploadReceiptImage(file)
+          .then((v) => {
+            setDriveErr('')
+            return v
+          })
+          .catch((e) => {
+            setDriveErr((e as Error).message || 'Drive 저장 실패')
+            return null
+          }),
+      ])
       onChange({
         imageName: file.name,
         amount: r.amount ? Number(r.amount.replace(/[^\d]/g, '')) : item.amount,
@@ -280,12 +305,53 @@ function CardRow({
         terminalNo: r.terminalNo ?? item.terminalNo,
         serialNo: r.serialNo ?? item.serialNo,
         transactionDate: r.transactionDate ?? item.transactionDate,
+        ...(up ? { driveFileId: up.driveFileId, driveViewUrl: up.driveViewUrl } : {}),
       })
     } catch (e) {
       setErr((e as Error).message)
     } finally {
       setBusy(false)
     }
+  }
+
+  const clearPhoto = () => {
+    setPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return ''
+    })
+    setErr('')
+    setDriveErr('')
+    onChange({ imageName: '', driveFileId: undefined, driveViewUrl: undefined })
+  }
+
+  if (variant === 'mobile') {
+    return (
+      <div className="rounded-[10px] border border-border bg-input/30 p-3">
+        <div className="mb-2 text-[13px] font-bold text-warning">카드 {item.seq}회차</div>
+        <ScanSlot
+          preview={preview}
+          busy={busy}
+          onFile={onFile}
+          onClear={clearPhoto}
+          hint="📷 사진 촬영 → 금액/카드사/카드번호/승인번호 자동 입력"
+        />
+        {err && <div className="mt-1.5 text-[11.5px] text-danger">{err}</div>}
+        {driveErr && (
+          <div className="mt-1.5 text-[11.5px] text-warning">
+            ⚠ 이미지 Drive 저장 실패 (텍스트 인식은 정상): {driveErr}
+          </div>
+        )}
+        <div className="mt-3 flex flex-col gap-2.5">
+          <NumCell label="금액" value={item.amount} onChange={(amount) => onChange({ amount })} />
+          <TextCell label="카드사" value={item.issuer} onChange={(issuer) => onChange({ issuer })} />
+          <TextCell label="카드번호" value={item.cardNumber} onChange={(cardNumber) => onChange({ cardNumber })} />
+          <TextCell label="승인번호" value={item.approvalNo} onChange={(approvalNo) => onChange({ approvalNo })} />
+          <TextCell label="단말기번호" value={item.terminalNo} onChange={(terminalNo) => onChange({ terminalNo })} />
+          <TextCell label="일련번호" value={item.serialNo} onChange={(serialNo) => onChange({ serialNo })} />
+          <TextCell label="거래일" value={item.transactionDate} onChange={(transactionDate) => onChange({ transactionDate })} type="date" />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -295,11 +361,38 @@ function CardRow({
           카드 {item.seq}회차
         </span>
         {item.imageName && (
-          <span className="text-[11px] text-[#64748b]">📎 {item.imageName}</span>
+          <span className="text-[11px] text-[#64748b]">
+            {item.driveFileId ? '📎 ' : '⚠ '}
+            {item.imageName}
+          </span>
         )}
       </div>
-      <div className="grid grid-cols-[1fr_200px] gap-2.5">
-        <div className="grid grid-cols-4 gap-1.5">
+      <div className="flex flex-col gap-2.5 sm:grid sm:grid-cols-[1fr_200px] sm:items-start">
+        <div className="order-1 sm:order-2">
+          <span className="mb-0.5 block text-[10.5px] text-[#64748b]">
+            카드결재 이미지
+          </span>
+          {preview && (
+            <img
+              src={preview}
+              alt="카드결재 이미지 미리보기"
+              className="mb-1.5 h-24 w-full rounded-[6px] border border-border object-cover"
+            />
+          )}
+          <DropZone onFile={onFile} accept="image/*" capture="environment" compact
+            hint={busy ? '인식중…' : 'OCR 자동추출'}>
+            <div className="text-[11.5px] text-[#94a3b8]">
+              {busy ? '인식중…' : preview ? '📷 다시 촬영' : '📷 이미지 드래그드롭 / 탐색기'}
+            </div>
+          </DropZone>
+          {err && <div className="mt-1 text-[11px] text-danger">{err}</div>}
+          {driveErr && (
+            <div className="mt-1 text-[11px] text-warning">
+              ⚠ 이미지 Drive 저장 실패 (텍스트 인식은 정상): {driveErr}
+            </div>
+          )}
+        </div>
+        <div className="order-2 sm:order-1 grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-1.5">
           <NumCell label="금액" value={item.amount} onChange={(amount) => onChange({ amount })} />
           <TextCell label="카드사" value={item.issuer} onChange={(issuer) => onChange({ issuer })} />
           <TextCell label="카드번호" value={item.cardNumber} onChange={(cardNumber) => onChange({ cardNumber })} />
@@ -307,18 +400,6 @@ function CardRow({
           <TextCell label="단말기번호" value={item.terminalNo} onChange={(terminalNo) => onChange({ terminalNo })} />
           <TextCell label="일련번호" value={item.serialNo} onChange={(serialNo) => onChange({ serialNo })} />
           <TextCell label="거래일" value={item.transactionDate} onChange={(transactionDate) => onChange({ transactionDate })} type="date" />
-        </div>
-        <div>
-          <span className="mb-0.5 block text-[10.5px] text-[#64748b]">
-            카드결재 이미지
-          </span>
-          <DropZone onFile={onFile} accept="image/*" capture="environment" compact
-            hint={busy ? '인식중…' : 'OCR 자동추출'}>
-            <div className="text-[11.5px] text-[#94a3b8]">
-              {busy ? '인식중…' : '📷 이미지 드래그드롭 / 탐색기'}
-            </div>
-          </DropZone>
-          {err && <div className="mt-1 text-[11px] text-danger">{err}</div>}
         </div>
       </div>
     </div>
@@ -329,19 +410,39 @@ function CardRow({
 function CashRow({
   item,
   onChange,
+  variant = 'desktop',
 }: {
   item: CashInstallment
   onChange: (p: Partial<CashInstallment>) => void
+  variant?: 'desktop' | 'mobile'
 }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [driveErr, setDriveErr] = useState('')
+  const [preview, setPreview] = useState('')
 
   const onFile = async (file: File) => {
+    setPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return URL.createObjectURL(file)
+    })
     onChange({ imageName: file.name })
     setBusy(true)
     setErr('')
+    setDriveErr('')
     try {
-      const r = (await ocrImage(file, 'cash_receipt')) as CashOcrResult
+      const [r, up] = await Promise.all([
+        ocrImage(file, 'cash_receipt') as Promise<CashOcrResult>,
+        uploadReceiptImage(file)
+          .then((v) => {
+            setDriveErr('')
+            return v
+          })
+          .catch((e) => {
+            setDriveErr((e as Error).message || 'Drive 저장 실패')
+            return null
+          }),
+      ])
       onChange({
         imageName: file.name,
         amount: r.amount ? Number(r.amount.replace(/[^\d]/g, '')) : item.amount,
@@ -351,6 +452,7 @@ function CashRow({
         identifierNo: r.identifierNo ?? item.identifierNo,
         merchantName: r.merchantName ?? item.merchantName,
         merchantBizNo: r.merchantBizNo ?? item.merchantBizNo,
+        ...(up ? { driveFileId: up.driveFileId, driveViewUrl: up.driveViewUrl } : {}),
       })
     } catch (e) {
       setErr((e as Error).message)
@@ -359,18 +461,34 @@ function CashRow({
     }
   }
 
-  return (
-    <div className="rounded-[8px] border border-border bg-input/30 p-2.5">
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-[12px] font-bold text-success">
-          현금 {item.seq}회차
-        </span>
-        {item.imageName && (
-          <span className="text-[11px] text-[#64748b]">📎 {item.imageName}</span>
+  const clearPhoto = () => {
+    setPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return ''
+    })
+    setErr('')
+    setDriveErr('')
+    onChange({ imageName: '', driveFileId: undefined, driveViewUrl: undefined })
+  }
+
+  if (variant === 'mobile') {
+    return (
+      <div className="rounded-[10px] border border-border bg-input/30 p-3">
+        <div className="mb-2 text-[13px] font-bold text-success">현금 {item.seq}회차</div>
+        <ScanSlot
+          preview={preview}
+          busy={busy}
+          onFile={onFile}
+          onClear={clearPhoto}
+          hint="📷 사진 촬영 → 금액/은행/입금자/승인번호 자동 입력"
+        />
+        {err && <div className="mt-1.5 text-[11.5px] text-danger">{err}</div>}
+        {driveErr && (
+          <div className="mt-1.5 text-[11.5px] text-warning">
+            ⚠ 이미지 Drive 저장 실패 (텍스트 인식은 정상): {driveErr}
+          </div>
         )}
-      </div>
-      <div className="grid grid-cols-[1fr_200px] gap-2.5">
-        <div className="grid grid-cols-4 gap-1.5">
+        <div className="mt-3 flex flex-col gap-2.5">
           <NumCell label="금액" value={item.amount} onChange={(amount) => onChange({ amount })} />
           <TextCell label="은행" value={item.bank ?? ''} onChange={(bank) => onChange({ bank })} />
           <TextCell label="입금자" value={item.depositor ?? ''} onChange={(depositor) => onChange({ depositor })} />
@@ -380,19 +498,103 @@ function CashRow({
           <TextCell label="식별번호" value={item.identifierNo} onChange={(identifierNo) => onChange({ identifierNo })} />
           <TextCell label="가맹점" value={item.merchantName} onChange={(merchantName) => onChange({ merchantName })} />
         </div>
-        <div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-[8px] border border-border bg-input/30 p-2.5">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-[12px] font-bold text-success">
+          현금 {item.seq}회차
+        </span>
+        {item.imageName && (
+          <span className="text-[11px] text-[#64748b]">
+            {item.driveFileId ? '📎 ' : '⚠ '}
+            {item.imageName}
+          </span>
+        )}
+      </div>
+      <div className="flex flex-col gap-2.5 sm:grid sm:grid-cols-[1fr_200px] sm:items-start">
+        <div className="order-1 sm:order-2">
           <span className="mb-0.5 block text-[10.5px] text-[#64748b]">
             현금입금 이미지
           </span>
+          {preview && (
+            <img
+              src={preview}
+              alt="현금입금 이미지 미리보기"
+              className="mb-1.5 h-24 w-full rounded-[6px] border border-border object-cover"
+            />
+          )}
           <DropZone onFile={onFile} accept="image/*" capture="environment" compact
             hint={busy ? '인식중…' : 'OCR 자동추출'}>
             <div className="text-[11.5px] text-[#94a3b8]">
-              {busy ? '인식중…' : '📷 이미지 드래그드롭 / 탐색기'}
+              {busy ? '인식중…' : preview ? '📷 다시 촬영' : '📷 이미지 드래그드롭 / 탐색기'}
             </div>
           </DropZone>
           {err && <div className="mt-1 text-[11px] text-danger">{err}</div>}
+          {driveErr && (
+            <div className="mt-1 text-[11px] text-warning">
+              ⚠ 이미지 Drive 저장 실패 (텍스트 인식은 정상): {driveErr}
+            </div>
+          )}
+        </div>
+        <div className="order-2 sm:order-1 grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-1.5">
+          <NumCell label="금액" value={item.amount} onChange={(amount) => onChange({ amount })} />
+          <TextCell label="은행" value={item.bank ?? ''} onChange={(bank) => onChange({ bank })} />
+          <TextCell label="입금자" value={item.depositor ?? ''} onChange={(depositor) => onChange({ depositor })} />
+          <TextCell label="승인번호" value={item.approvalNo} onChange={(approvalNo) => onChange({ approvalNo })} />
+          <TextCell label="거래일" value={item.transactionDate} onChange={(transactionDate) => onChange({ transactionDate })} type="date" />
+          <TextCell label="식별수단" value={item.identifierType} onChange={(identifierType) => onChange({ identifierType })} />
+          <TextCell label="식별번호" value={item.identifierNo} onChange={(identifierNo) => onChange({ identifierNo })} />
+          <TextCell label="가맹점" value={item.merchantName} onChange={(merchantName) => onChange({ merchantName })} />
         </div>
       </div>
+    </div>
+  )
+}
+
+/* ── 모바일 스캔 UI (lavenmanager 인터페이스 준용) ─────────────────────────── */
+function ScanSlot({
+  preview,
+  busy,
+  onFile,
+  onClear,
+  hint,
+}: {
+  preview: string
+  busy: boolean
+  onFile: (file: File) => void
+  onClear: () => void
+  hint: string
+}) {
+  if (!preview) {
+    return (
+      <DropZone onFile={onFile} accept="image/*" capture="environment">
+        <div className="py-4 text-[12.5px] text-[#94a3b8]">{hint}</div>
+      </DropZone>
+    )
+  }
+  return (
+    <div className="relative">
+      <img
+        src={preview}
+        alt="촬영 이미지 미리보기"
+        className="max-h-56 w-full rounded-[8px] border border-border object-contain"
+      />
+      {busy && (
+        <div className="absolute inset-0 flex items-center justify-center rounded-[8px] bg-black/60 text-[13px] font-semibold text-white">
+          분석 중…
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onClear}
+        className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-[12px] font-bold text-white"
+      >
+        ×
+      </button>
     </div>
   )
 }
@@ -436,7 +638,7 @@ function NumCell({
       <span className="mb-0.5 block text-[10.5px] text-[#64748b]">{label}</span>
       <input
         inputMode="numeric"
-        value={value ? String(value) : ''}
+        value={value ? value.toLocaleString('ko-KR') : ''}
         onChange={(e) => onChange(Number(e.target.value.replace(/[^\d]/g, '')) || 0)}
         className={`${inputCls} text-right tabular`}
       />

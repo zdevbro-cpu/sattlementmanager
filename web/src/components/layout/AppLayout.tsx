@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
+import { useAuth } from '../../features/auth/AuthContext'
 
 interface NavItem {
   to: string
@@ -17,7 +18,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: '운영',
     items: [
-      { to: '/dashboard', label: '대시보드', glyph: '▦' },
+      { to: '/dashboard', label: '대시보드', glyph: '▦', enabled: true },
       { to: '/base', label: '조직관리', glyph: '◱', enabled: true },
       { to: '/contracts', label: '계약관리', glyph: '▤', enabled: true },
       { to: '/sales', label: '매출관리', glyph: '▧', enabled: true },
@@ -66,15 +67,19 @@ export default function AppLayout({
 }) {
   const loc = useLocation()
   const crumb = BREADCRUMB[loc.pathname] ?? '운영'
+  const { user, signOut } = useAuth()
+  const email = user?.email ?? ''
 
   return (
     <div className="flex min-h-screen w-full">
       {/* ── 사이드바 ─────────────────────────── */}
       <aside className="sticky top-0 h-screen w-[236px] shrink-0 bg-sidebar flex flex-col">
         <div className="flex items-center gap-2.5 px-4 py-4">
-          <div className="h-[34px] w-[34px] rounded-[9px] bg-gradient-to-br from-teal to-sky flex items-center justify-center">
-            <span className="text-white text-lg font-black">S</span>
-          </div>
+          <img
+            src="/logo.png"
+            alt="Settlement Manager"
+            className="h-[34px] w-[34px] rounded-[9px] object-cover"
+          />
           <div className="leading-tight">
             <div className="text-white font-extrabold text-[15px]">
               Settlement
@@ -120,14 +125,19 @@ export default function AppLayout({
 
         <div className="border-t border-nav-active px-3 py-3 flex items-center gap-2.5">
           <div className="h-8 w-8 rounded-full bg-[#1d3a63] text-[#8fb0e0] flex items-center justify-center text-xs font-bold">
-            A
+            {email.slice(0, 1).toUpperCase() || '?'}
           </div>
-          <div className="leading-tight">
-            <div className="text-[12.5px] font-bold text-[#e2e8f0]">
-              admin@las.com
-            </div>
+          <div className="min-w-0 flex-1 leading-tight">
+            <div className="truncate text-[12.5px] font-bold text-[#e2e8f0]">{email}</div>
             <div className="text-[10.5px] text-[#5f7ba6]">시스템관리자</div>
           </div>
+          <button
+            onClick={() => signOut()}
+            title="로그아웃"
+            className="shrink-0 rounded-[7px] px-2 py-1 text-[11px] font-semibold text-[#9fb3d1] hover:bg-nav-hover hover:text-white"
+          >
+            로그아웃
+          </button>
         </div>
       </aside>
 
@@ -146,10 +156,6 @@ export default function AppLayout({
               placeholder="계약자·매출 검색"
               className="h-9 w-[230px] rounded-[9px] bg-input border border-border px-3 text-[13px] text-input-text placeholder:text-[#64748b] outline-none focus:border-primary"
             />
-            <button className="relative h-9 w-9 rounded-[9px] hover:bg-hover text-[#94a3b8]">
-              🔔
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-danger ring-2 ring-sidebar" />
-            </button>
             <span className="h-6 w-px bg-border" />
             <span className="text-xs text-[#94a3b8]">{todayLabel()}</span>
           </div>

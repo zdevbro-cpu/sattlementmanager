@@ -40,13 +40,13 @@ export default function AppointmentEditForm({
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
-  const save = () => {
+  const save = async () => {
     if (!name.trim()) return setErr('계약자명을 입력하세요.')
     if (!editedAt) return setErr('변경일을 입력하세요.')
     setSaving(true)
     setErr('')
     try {
-      updateAppointment(
+      await updateAppointment(
         base.id,
         {
           name: name.trim(),
@@ -64,6 +64,8 @@ export default function AppointmentEditForm({
         { memo: memo.trim(), editedAt },
       )
       onSaved()
+    } catch (e) {
+      setErr((e as Error).message)
     } finally {
       setSaving(false)
     }

@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react'
 import { dateText, won } from '../../lib/format'
-import { salesMethodLabel } from '../../types/sales'
+import { salesMethodLabel, type Sale } from '../../types/sales'
 import { getSale } from './salesStore'
 import Badge, { methodTone } from '../../components/ui/Badge'
 
@@ -10,7 +11,18 @@ export default function SalesDetailDrawer({
   saleId: string
   onClose: () => void
 }) {
-  const s = getSale(saleId)
+  const [s, setS] = useState<Sale | undefined>(undefined)
+
+  useEffect(() => {
+    let alive = true
+    getSale(saleId).then((res) => {
+      if (alive) setS(res)
+    })
+    return () => {
+      alive = false
+    }
+  }, [saleId])
+
   if (!s) return null
   const p = s.payment
 
@@ -70,6 +82,16 @@ export default function SalesDetailDrawer({
                       <span>단말기: {c.terminalNo || '-'}</span>
                       <span>거래일: {dateText(c.transactionDate)}</span>
                     </div>
+                    {c.driveViewUrl && (
+                      <a
+                        href={c.driveViewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1.5 inline-flex items-center gap-1 text-[11.5px] font-bold text-primary hover:brightness-110"
+                      >
+                        📎 등록된 전표 원본 보기 →
+                      </a>
+                    )}
                   </div>
                 ))}
               </div>
@@ -96,6 +118,16 @@ export default function SalesDetailDrawer({
                       <span>거래일: {dateText(c.transactionDate)}</span>
                       <span>가맹점: {c.merchantName || '-'}</span>
                     </div>
+                    {c.driveViewUrl && (
+                      <a
+                        href={c.driveViewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1.5 inline-flex items-center gap-1 text-[11.5px] font-bold text-primary hover:brightness-110"
+                      >
+                        📎 등록된 입금증 원본 보기 →
+                      </a>
+                    )}
                   </div>
                 ))}
               </div>

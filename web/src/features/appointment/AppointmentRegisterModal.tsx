@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   type AppointmentDoc,
   type AppointmentType,
@@ -51,7 +51,12 @@ export default function AppointmentRegisterModal({
 }) {
   const positionSalaries = usePositionSalaries()
   const [type, setType] = useState<AppointmentType>(APPOINTMENT_TYPES[0])
-  const [contractNo, setContractNo] = useState(nextContractNo(TODAY))
+  const [contractNo, setContractNo] = useState('')
+
+  useEffect(() => {
+    nextContractNo(TODAY).then(setContractNo)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [ref, setRef] = useState('')
   const [name, setName] = useState('')
   const [residentNo, setResidentNo] = useState('')
@@ -89,7 +94,7 @@ export default function AppointmentRegisterModal({
   }
   const changeContractDate = (v: string) => {
     setContractDate(v)
-    setContractNo(nextContractNo(v))
+    nextContractNo(v).then(setContractNo)
     if (!manualPayout) setPayoutDate(addMonths(v, type.payoutMonths))
     if (!manualEnd) setEndDate(addYears(v, type.contractYears))
   }
@@ -102,7 +107,7 @@ export default function AppointmentRegisterModal({
     if (rule) setActivity(rule.activity)
   }
 
-  const submit = () => {
+  const submit = async () => {
     if (!name.trim()) return setErr('계약자명을 입력하세요.')
     if (!residentNo.trim()) return setErr('주민번호를 입력하세요.')
     if (!phone.trim()) return setErr('연락처를 입력하세요.')
@@ -110,7 +115,7 @@ export default function AppointmentRegisterModal({
     setSaving(true)
     setErr('')
     try {
-      createAppointment({
+      await createAppointment({
         contractNo,
         name: name.trim(),
         typeName: type.name,
@@ -134,6 +139,8 @@ export default function AppointmentRegisterModal({
         documents,
       })
       onCreated()
+    } catch (e) {
+      setErr((e as Error).message)
     } finally {
       setSaving(false)
     }
@@ -169,8 +176,8 @@ export default function AppointmentRegisterModal({
           <section>
             <SectionTitle>계약정보</SectionTitle>
             <div className="grid grid-cols-3 gap-3">
-              <Field label="추천인/추천점">
-                <input value={ref} onChange={(e) => setRef(e.target.value)} className={inputCls} placeholder="추천인 또는 추천점" />
+              <Field label="지점명">
+                <input value={ref} onChange={(e) => setRef(e.target.value)} className={inputCls} placeholder="지점명 입력" />
               </Field>
               <Field label="계약자명">
                 <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />

@@ -11,6 +11,9 @@ const fs = require('fs')
 
 const { pool } = require('./db')
 const repo = require('./contractRepo')
+const appointmentRepo = require('./appointmentRepo')
+const salesRepo = require('./salesRepo')
+const extraPayoutRepo = require('./extraPayoutRepo')
 const drive = require('./services/driveService')
 const ocr = require('./services/ocrService')
 
@@ -111,8 +114,63 @@ app.post('/api/contracts/:id/pdf', async (req, res) => {
   }
 })
 
-// ── 임용계약 제출서류 → Google Drive 업로드 ──
-// JSON base64 방식. 임용계약은 프론트 인메모리라 DB 기록 없이 Drive 링크만 반환한다.
+// ── 임용계약(조직관리) 목록/상세/등록/이력/서류 ──
+app.get('/api/appointments', async (req, res) => {
+  try {
+    const list = await appointmentRepo.listAppointments({
+      keyword: req.query.keyword || '',
+      startDate: req.query.startDate || '',
+      endDate: req.query.endDate || '',
+    })
+    res.json({ ok: true, data: list })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.get('/api/appointments/next-contract-no', async (req, res) => {
+  try {
+    const no = await appointmentRepo.nextContractNo(req.query.date || '')
+    res.json({ ok: true, data: no })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.get('/api/appointments/:id', async (req, res) => {
+  try {
+    const a = await appointmentRepo.getAppointment(req.params.id)
+    if (!a) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: a })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.post('/api/appointments', async (req, res) => {
+  try {
+    const a = await appointmentRepo.createAppointment(req.body)
+    res.status(201).json({ ok: true, data: a })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.patch('/api/appointments/:id', async (req, res) => {
+  try {
+    const { patch, memo, editedAt } = req.body || {}
+    const a = await appointmentRepo.updateAppointment(req.params.id, patch || {}, {
+      memo,
+      editedAt,
+    })
+    if (!a) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: a })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// 임용계약 제출서류 → Google Drive 업로드 + DB 기록 (JSON base64 방식)
 app.post('/api/appointments/:id/document', async (req, res) => {
   try {
     const { filename, data, mimeType, docType } = req.body || {}
@@ -128,11 +186,121 @@ app.post('/api/appointments/:id/document', async (req, res) => {
       mimeType,
       year: new Date().getFullYear(),
     })
+    // 신규 등록 화면에서는 계약 저장 전이라 실제 appointment id가 아직 없을 수 있다
+    // (그 경우 createAppointment()가 documents 배열을 받아 저장 시점에 연결한다).
+    const existing = await appointmentRepo.getAppointment(req.params.id)
+    if (existing) {
+      await appointmentRepo.addAppointmentDocument(req.params.id, {
+        docType,
+        fileName: filename,
+        driveFileId: up.driveFileId,
+        driveViewUrl: up.driveViewUrl,
+      })
+    }
     res.json({
       ok: true,
       driveFileId: up.driveFileId,
       driveViewUrl: up.driveViewUrl,
     })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// ── 매출관리 목록/상세/등록/삭제/서류 ──
+app.get('/api/sales', async (req, res) => {
+  try {
+    const list = await salesRepo.listSales({
+      startDate: req.query.startDate || '',
+      endDate: req.query.endDate || '',
+      category: req.query.category || '전체',
+      businessUnit: req.query.businessUnit || '',
+      buyer: req.query.buyer || '',
+      inputterOrg: req.query.inputterOrg || '',
+      inputterName: req.query.inputterName || '',
+    })
+    res.json({ ok: true, data: list })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.get('/api/sales/:id', async (req, res) => {
+  try {
+    const s = await salesRepo.getSale(req.params.id)
+    if (!s) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: s })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.post('/api/sales', async (req, res) => {
+  try {
+    const s = await salesRepo.createSale(req.body)
+    res.status(201).json({ ok: true, data: s })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.delete('/api/sales/:id', async (req, res) => {
+  try {
+    await salesRepo.deleteSale(req.params.id)
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// 매출 전표/입금증 → Google Drive 업로드 + DB 기록
+app.post('/api/sales/:id/document', async (req, res) => {
+  try {
+    const { filename, data, mimeType, kind } = req.body || {}
+    if (!data) return res.status(400).json({ ok: false, error: 'no data' })
+    const base64 = data.includes(',') ? data.split(',')[1] : data
+    const buffer = Buffer.from(base64, 'base64')
+    const up = await drive.uploadFile({
+      filename,
+      buffer,
+      mimeType,
+      year: new Date().getFullYear(),
+    })
+    await salesRepo.addSaleDocument(req.params.id, {
+      kind: kind || '전표',
+      fileName: filename,
+      driveFileId: up.driveFileId,
+      driveViewUrl: up.driveViewUrl,
+    })
+    res.json({ ok: true, ...up })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// ── 지급관리 · 추가지급 대상자 ──
+app.get('/api/extra-payouts', async (_req, res) => {
+  try {
+    const list = await extraPayoutRepo.listExtraPayouts()
+    res.json({ ok: true, data: list })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.post('/api/extra-payouts', async (req, res) => {
+  try {
+    const p = await extraPayoutRepo.createExtraPayout(req.body)
+    res.status(201).json({ ok: true, data: p })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.delete('/api/extra-payouts/:id', async (req, res) => {
+  try {
+    await extraPayoutRepo.deleteExtraPayout(req.params.id)
+    res.json({ ok: true })
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message })
   }
@@ -148,9 +316,31 @@ app.post('/api/ocr', upload.single('photo'), async (req, res) => {
       buffer = Buffer.from(b.includes(',') ? b.split(',')[1] : b, 'base64')
     }
     if (!buffer) return res.status(400).json({ ok: false, error: 'no image' })
-    const data = await ocr.analyzeImage(buffer, type)
+    const mimeType = req.file ? req.file.mimetype : 'image/jpeg'
+    const data = await ocr.analyzeImage(buffer, type, mimeType)
     res.json({ ok: true, data })
   } catch (e) {
+    console.error('[api/ocr] 실패:', e.message)
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// ── 촬영 이미지(영수증/전표) → Google Drive 업로드 (소유 레코드 생성 전 업로드용) ──
+app.post('/api/drive/upload', async (req, res) => {
+  try {
+    const { filename, data, mimeType } = req.body || {}
+    if (!data) return res.status(400).json({ ok: false, error: 'no data' })
+    const base64 = data.includes(',') ? data.split(',')[1] : data
+    const buffer = Buffer.from(base64, 'base64')
+    const up = await drive.uploadFile({
+      filename,
+      buffer,
+      mimeType,
+      year: new Date().getFullYear(),
+    })
+    res.json({ ok: true, ...up })
+  } catch (e) {
+    console.error('[api/drive/upload] 실패:', e.message)
     res.status(500).json({ ok: false, error: e.message })
   }
 })

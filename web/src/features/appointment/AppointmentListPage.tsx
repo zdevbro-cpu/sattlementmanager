@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Eye } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import Badge from '../../components/ui/Badge'
@@ -17,6 +17,8 @@ import {
 import AppointmentRegisterModal from './AppointmentRegisterModal'
 import AppointmentDetailDrawer from './AppointmentDetailDrawer'
 
+const PAGE_SIZES = [20, 50, 100]
+
 export default function AppointmentListPage() {
   const [draft, setDraft] = useState<AppointmentFilter>(EMPTY_APPOINTMENT_FILTER)
   const [applied, setApplied] = useState<AppointmentFilter>(
@@ -27,11 +29,48 @@ export default function AppointmentListPage() {
   const [refresh, setRefresh] = useState(0)
   const endDateRef = useRef<HTMLInputElement>(null)
 
-  const rows = useMemo(() => listAppointments(applied), [applied, refresh])
-  const sum = useMemo(
-    () => summarizeAppointments(listAppointments(EMPTY_APPOINTMENT_FILTER)),
-    [refresh],
-  )
+  const [rows, setRows] = useState<Appointment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadErr, setLoadErr] = useState('')
+  const [sum, setSum] = useState(() => summarizeAppointments([]))
+  const [perPage, setPerPage] = useState(20)
+  const [page, setPage] = useState(1)
+
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    setLoadErr('')
+    listAppointments(applied)
+      .then((list) => {
+        if (alive) {
+          setRows(list)
+          setLoading(false)
+        }
+      })
+      .catch((e) => {
+        if (alive) {
+          setLoadErr((e as Error).message || '목록을 불러오지 못했습니다.')
+          setLoading(false)
+        }
+      })
+    return () => {
+      alive = false
+    }
+  }, [applied, refresh])
+
+  useEffect(() => {
+    let alive = true
+    listAppointments(EMPTY_APPOINTMENT_FILTER).then((list) => {
+      if (alive) setSum(summarizeAppointments(list))
+    })
+    return () => {
+      alive = false
+    }
+  }, [refresh])
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / perPage))
+  const safePage = Math.min(page, totalPages)
+  const pagedRows = rows.slice((safePage - 1) * perPage, safePage * perPage)
 
   return (
     <AppLayout title="조직관리 · 임용계약">
@@ -63,8 +102,8 @@ export default function AppointmentListPage() {
       {/* 필터 */}
       <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
         <div className="grid grid-cols-[2fr_1fr_1fr_auto] gap-3 items-end">
-          <Field label="검색 (계약자명·추천인)">
-            <input value={draft.keyword} onChange={(e) => setDraft({ ...draft, keyword: e.target.value })} placeholder="계약자명, 추천인 검색" className={inputCls} />
+          <Field label="검색 (계약자명·지점명)">
+            <input value={draft.keyword} onChange={(e) => setDraft({ ...draft, keyword: e.target.value })} placeholder="계약자명, 지점명 검색" className={inputCls} />
           </Field>
           <Field label="계약일 시작">
             <DateTextInput
@@ -83,8 +122,8 @@ export default function AppointmentListPage() {
             />
           </Field>
           <div className="flex gap-2">
-            <button onClick={() => setApplied(draft)} className="h-[38px] rounded-[8px] bg-indigo px-5 text-sm font-bold text-white hover:brightness-110">검색</button>
-            <button onClick={() => { setDraft(EMPTY_APPOINTMENT_FILTER); setApplied(EMPTY_APPOINTMENT_FILTER) }} className="h-[38px] rounded-[8px] border border-border px-5 text-sm font-semibold text-[#c2cde0] hover:bg-hover">초기화</button>
+            <button onClick={() => { setApplied(draft); setPage(1) }} className="h-[38px] rounded-[8px] bg-indigo px-5 text-sm font-bold text-white hover:brightness-110">검색</button>
+            <button onClick={() => { setDraft(EMPTY_APPOINTMENT_FILTER); setApplied(EMPTY_APPOINTMENT_FILTER); setPage(1) }} className="h-[38px] rounded-[8px] border border-border px-5 text-sm font-semibold text-[#c2cde0] hover:bg-hover">초기화</button>
           </div>
         </div>
       </div>
@@ -102,9 +141,9 @@ export default function AppointmentListPage() {
               <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
                 {[
                   ['번호', 'center'],
+                  ['소속지점', ''],
                   ['계약자명', ''],
                   ['계약종류', ''],
-                  ['추천인', ''],
                   ['계약일자', 'center'],
                   ['급여일', 'center'],
                   ['계약종료일', 'center'],
@@ -120,19 +159,56 @@ export default function AppointmentListPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((a, i) => (
-                <Row key={a.id} a={a} no={rows.length - i} onDetail={() => setDetailId(a.id)} />
+              {pagedRows.map((a, i) => (
+                <Row
+                  key={a.id}
+                  a={a}
+                  no={rows.length - ((safePage - 1) * perPage + i)}
+                  onDetail={() => setDetailId(a.id)}
+                />
               ))}
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={11} className="px-3 py-10 text-center text-[#64748b]">
-                    조건에 맞는 임용계약이 없습니다.
+                    {loading
+                      ? '불러오는 중…'
+                      : loadErr
+                        ? `불러오기 실패: ${loadErr}`
+                        : '조건에 맞는 임용계약이 없습니다.'}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+        {rows.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+            <div className="flex gap-1">
+              <button onClick={() => setPage(Math.max(1, safePage - 1))} className="h-8 w-8 rounded-md border border-border text-[#94a3b8] hover:bg-hover">‹</button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setPage(n)}
+                  className={`h-8 min-w-8 px-2 rounded-md border text-[13px] font-semibold ${n === safePage ? 'border-primary text-primary' : 'border-border text-[#94a3b8] hover:bg-hover'}`}
+                >
+                  {n}
+                </button>
+              ))}
+              <button onClick={() => setPage(Math.min(totalPages, safePage + 1))} className="h-8 w-8 rounded-md border border-border text-[#94a3b8] hover:bg-hover">›</button>
+            </div>
+            <div className="flex gap-1">
+              {PAGE_SIZES.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => { setPerPage(n); setPage(1) }}
+                  className={`h-8 px-3 rounded-md border text-[13px] font-semibold ${n === perPage ? 'border-primary text-primary' : 'border-border text-[#94a3b8] hover:bg-hover'}`}
+                >
+                  {n}개
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {registerOpen && (
@@ -183,9 +259,9 @@ function Row({ a, no, onDetail }: { a: Appointment; no: number; onDetail: () => 
   return (
     <tr className="border-b border-border hover:bg-hover">
       <td className="px-3 py-1.5 text-center whitespace-nowrap tabular text-[#c2cde0]">{no}</td>
+      <td className="px-3 py-1.5 whitespace-nowrap">{a.ref}</td>
       <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{a.name}</td>
       <td className="px-3 py-1.5 whitespace-nowrap">{a.typeName}</td>
-      <td className="px-3 py-1.5 whitespace-nowrap">{a.ref}</td>
       <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(a.contractDate)}</td>
       <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(a.payoutDate)}</td>
       <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(a.endDate)}</td>

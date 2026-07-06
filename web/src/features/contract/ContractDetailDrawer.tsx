@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import StatusBadge from '../../components/ui/StatusBadge'
 import { comma, dateText, won } from '../../lib/format'
-import type { ContractSnapshot } from '../../types/contract'
+import type { Contract, ContractSnapshot } from '../../types/contract'
 import { getContract } from './contractStore'
 import HistoryAddForm from './HistoryAddForm'
 
@@ -17,7 +17,17 @@ export default function ContractDetailDrawer({
   const [openHistory, setOpenHistory] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [tick, setTick] = useState(0)
-  const contract = useMemo(() => getContract(contractId), [contractId, tick])
+  const [contract, setContract] = useState<Contract | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    getContract(contractId).then((c) => {
+      if (alive) setContract(c)
+    })
+    return () => {
+      alive = false
+    }
+  }, [contractId, tick])
 
   if (!contract) return null
   const cur = contract.current
@@ -227,6 +237,16 @@ function PaymentView({ s }: { s: ContractSnapshot }) {
             <span>일련번호: {c.serialNo || '-'}</span>
             <span>거래일: {dateText(c.transactionDate)}</span>
           </div>
+          {c.driveViewUrl && (
+            <a
+              href={c.driveViewUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1.5 inline-flex items-center gap-1 text-[11.5px] font-bold text-primary hover:brightness-110"
+            >
+              📎 등록된 전표 원본 보기 →
+            </a>
+          )}
         </div>
       ))}
       {p.cashInstallments.map((c) => (
@@ -248,6 +268,16 @@ function PaymentView({ s }: { s: ContractSnapshot }) {
             <span>식별수단: {c.identifierType || '-'}</span>
             <span>가맹점: {c.merchantName || '-'}</span>
           </div>
+          {c.driveViewUrl && (
+            <a
+              href={c.driveViewUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1.5 inline-flex items-center gap-1 text-[11.5px] font-bold text-primary hover:brightness-110"
+            >
+              📎 등록된 입금증 원본 보기 →
+            </a>
+          )}
         </div>
       ))}
     </div>

@@ -86,7 +86,7 @@ export interface AppointmentHistory {
 
 /** 목록 필터 */
 export interface AppointmentFilter {
-  keyword: string // 계약자명·추천인
+  keyword: string // 계약자명·지점명
   startDate: string // 계약일 시작
   endDate: string // 계약일 종료
 }

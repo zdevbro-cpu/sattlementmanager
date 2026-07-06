@@ -1,13 +1,10 @@
-// 매출 데이터 접근 계층.
-// 매출 직접등록분 + 계약관리 보증금 결재(점주보증금) 를 하나의 테이블로 통합 조회한다.
-import { MOCK_SALES } from '../../data/mockSales'
+// 매출 데이터 접근 계층 — Cloud SQL(PostgreSQL) 백엔드(server/salesRepo.js)를 통해 조회/저장한다.
+// 매출 직접등록분(DB) + 계약관리 보증금 결재(점주보증금, 계약 데이터에서 파생) 를 하나의 목록으로 통합 조회한다.
 import type { Sale, SalesFilter } from '../../types/sales'
-import { parseDate } from '../../lib/format'
 import { listContracts } from '../contract/contractStore'
 import { EMPTY_FILTER, type Contract } from '../../types/contract'
-
-let store: Sale[] = [...MOCK_SALES]
-let seq = store.length
+import { createSaleApi, deleteSaleApi, fetchSale, fetchSales } from '../../lib/api'
+import { getContract } from '../contract/contractStore'
 
 /** 계약(보증금 결재) → 매출(점주보증금) 변환 */
 function contractToSale(c: Contract): Sale {
@@ -32,63 +29,60 @@ function contractToSale(c: Contract): Sale {
 }
 
 /** 계약에서 유입되는 보증금 매출 (금액>0, 폐기 제외) */
-function contractSales(): Sale[] {
-  return listContracts(EMPTY_FILTER)
+async function contractSales(): Promise<Sale[]> {
+  const contracts = await listContracts(EMPTY_FILTER)
+  return contracts
     .filter(
       (c) => c.current.payment.totalAmount > 0 && c.current.status !== '폐기',
     )
     .map(contractToSale)
 }
 
-/** 통합 매출 원본 (직접등록 + 계약연동) */
-function allSales(): Sale[] {
-  return [...store, ...contractSales()]
-}
-
-export function listSales(filter: SalesFilter): Sale[] {
-  const start = parseDate(filter.startDate)
-  const end = parseDate(filter.endDate)
+export async function listSales(filter: SalesFilter): Promise<Sale[]> {
+  const [direct, fromContracts] = await Promise.all([
+    fetchSales(filter),
+    contractSales(),
+  ])
   const buyer = filter.buyer.trim()
-  const bu = filter.businessUnit.trim()
-  const inOrg = filter.inputterOrg.trim()
-  const inName = filter.inputterName.trim()
-
-  return allSales()
-    .filter((s) => {
-      if (filter.category !== '전체' && s.category !== filter.category)
-        return false
-      if (bu && !s.businessUnit.includes(bu)) return false
-      if (buyer && !s.buyer.includes(buyer)) return false
-      if (inOrg && !s.inputterOrg.includes(inOrg)) return false
-      if (inName && !s.inputterName.includes(inName)) return false
-      const d = parseDate(s.date)
-      if (start && d && d < start) return false
-      if (end && d && d > end) return false
-      return true
-    })
-    .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
+  const filteredContractSales = fromContracts.filter((s) => {
+    if (filter.category !== '전체' && s.category !== filter.category) return false
+    if (filter.businessUnit.trim() && !s.businessUnit.includes(filter.businessUnit.trim()))
+      return false
+    if (buyer && !s.buyer.includes(buyer)) return false
+    if (filter.inputterOrg.trim() && !s.inputterOrg.includes(filter.inputterOrg.trim()))
+      return false
+    if (filter.inputterName.trim() && !s.inputterName.includes(filter.inputterName.trim()))
+      return false
+    if (filter.startDate && s.date && s.date < filter.startDate) return false
+    if (filter.endDate && s.date && s.date > filter.endDate) return false
+    return true
+  })
+  return [...direct, ...filteredContractSales].sort((a, b) =>
+    (b.date ?? '').localeCompare(a.date ?? ''),
+  )
 }
 
-export function getSale(id: string): Sale | undefined {
-  return allSales().find((s) => s.id === id)
-}
-
-export function createSale(sale: Omit<Sale, 'id' | 'source'>): Sale {
-  seq += 1
-  const created: Sale = {
-    ...sale,
-    id: `S${String(seq).padStart(3, '0')}`,
-    source: 'sale',
+/** 매출 1건 조회 (계약연동분은 원본 계약에서 파생) */
+export async function getSale(id: string): Promise<Sale | undefined> {
+  try {
+    if (id.startsWith('CS-')) {
+      const contract = await getContract(id.slice(3))
+      return contractToSale(contract)
+    }
+    return await fetchSale(id)
+  } catch {
+    return undefined
   }
-  store = [created, ...store]
-  return created
+}
+
+export function createSale(sale: Omit<Sale, 'id' | 'source'>): Promise<Sale> {
+  return createSaleApi({ ...sale, source: 'sale' })
 }
 
 /** 직접등록 매출만 삭제 가능. 계약연동분은 계약관리에서 관리. */
-export function deleteSale(id: string): boolean {
-  const target = store.find((s) => s.id === id)
-  if (!target) return false // 계약연동분 등 삭제 불가
-  store = store.filter((s) => s.id !== id)
+export async function deleteSale(id: string): Promise<boolean> {
+  if (id.startsWith('CS-')) return false // 계약연동분 삭제 불가
+  await deleteSaleApi(id)
   return true
 }
 
