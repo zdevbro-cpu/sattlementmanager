@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Eye } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import StatusBadge from '../../components/ui/StatusBadge'
 import Badge, { methodTone } from '../../components/ui/Badge'
@@ -453,9 +454,9 @@ function Row({
         <button
           onClick={onDetail}
           title="상세 보기"
-          className="h-7 w-7 rounded-md hover:bg-[#1a2440] text-[#94a3b8]"
+          className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover hover:text-white"
         >
-          👁
+          <Eye size={16} />
         </button>
       </td>
     </tr>
