@@ -10,8 +10,7 @@ import InstitutionSelect from './InstitutionSelect'
 import { getBanks } from './bankStore'
 import DocUploadList from './DocUploadList'
 import { usePositionSalaries } from './positionSalaryStore'
-
-const TODAY = '2026-07-04'
+import { todayIso } from '../../lib/format'
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
 
@@ -50,6 +49,7 @@ export default function AppointmentRegisterModal({
   onCreated: () => void
 }) {
   const positionSalaries = usePositionSalaries()
+  const [TODAY] = useState(() => todayIso())
   const [type, setType] = useState<AppointmentType>(APPOINTMENT_TYPES[0])
   const [contractNo, setContractNo] = useState('')
 

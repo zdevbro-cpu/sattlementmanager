@@ -7,8 +7,8 @@ import {
 import { updateAppointment } from './appointmentStore'
 import InstitutionSelect from './InstitutionSelect'
 import { usePositionSalaries } from './positionSalaryStore'
+import { todayIso } from '../../lib/format'
 
-const TODAY = '2026-07-04'
 const inputCls =
   'h-9 w-full rounded-[8px] bg-input border border-border px-2.5 text-[13px] text-input-text outline-none focus:border-primary'
 
@@ -44,7 +44,7 @@ export default function AppointmentEditForm({
   const [bankName, setBankName] = useState(base.bankName)
   const [accountNo, setAccountNo] = useState(base.accountNo)
   const [accountOwner, setAccountOwner] = useState(base.accountOwner)
-  const [editedAt, setEditedAt] = useState(TODAY)
+  const [editedAt, setEditedAt] = useState(() => todayIso())
   const [memo, setMemo] = useState('')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')

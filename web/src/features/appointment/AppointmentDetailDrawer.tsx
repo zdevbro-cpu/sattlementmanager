@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import Badge from '../../components/ui/Badge'
-import { dateText, won } from '../../lib/format'
+import { dateText, todayIso, won } from '../../lib/format'
 import { appointmentStatusTone, type Appointment } from '../../types/appointment'
 import { getAppointment } from './appointmentStore'
 import AppointmentEditForm from './AppointmentEditForm'
@@ -116,7 +116,7 @@ export default function AppointmentDetailDrawer({
                 setTick((n) => n + 1)
                 onChanged?.()
               }}
-              uploadedAt="2026-07-04"
+              uploadedAt={todayIso()}
             />
           </section>
 

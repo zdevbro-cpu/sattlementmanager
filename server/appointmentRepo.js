@@ -1,11 +1,12 @@
 // 조직관리(임용계약) 도메인 DB 레포지토리 (Cloud SQL / PostgreSQL)
 const { pool } = require('./db')
 
+/** DATE/TIMESTAMPTZ 값 → YYYY-MM-DD (KST 기준). UTC로 바로 slice하면 자정~오전9시 사이 값이 하루 전으로 표시된다. */
 function isoDate(v) {
   if (!v) return ''
   const d = new Date(v)
   if (Number.isNaN(d.getTime())) return ''
-  return d.toISOString().slice(0, 10)
+  return new Date(d.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10)
 }
 
 /** DB row → 프론트 Appointment 형태로 매핑 */

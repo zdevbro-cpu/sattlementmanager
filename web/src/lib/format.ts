@@ -16,6 +16,19 @@ export function dateText(s: string | null | undefined): string {
   return s
 }
 
+/** 오늘 날짜(YYYY-MM-DD) — 브라우저 로컬시간 기준 (한국 사용자 기준 KST) */
+export function todayIso(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** 오늘 날짜 표시용 라벨: "YYYY-MM-DD (요일)" — 브라우저 로컬시간 기준 */
+export function todayLabel(): string {
+  const d = new Date()
+  const days = ['일', '월', '화', '수', '목', '금', '토']
+  return `${todayIso()} (${days[d.getDay()]})`
+}
+
 /** YYYY-MM-DD 문자열 파싱 → Date (비교용). 실패 시 null */
 export function parseDate(s: string | null | undefined): Date | null {
   if (!s) return null

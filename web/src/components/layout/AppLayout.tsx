@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useAuth } from '../../features/auth/AuthContext'
+import { todayLabel } from '../../lib/format'
 
 interface NavItem {
   to: string
@@ -51,11 +52,6 @@ const BREADCRUMB: Record<string, string> = {
   '/accounting': '회계관리',
   '/stats': '통계',
   '/system': '시스템관리',
-}
-
-function todayLabel(): string {
-  // 디자인 스펙 기준 고정 표기 (실제 앱에선 현재 날짜)
-  return '2026-07-04 (금)'
 }
 
 export default function AppLayout({
