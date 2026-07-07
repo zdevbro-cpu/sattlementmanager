@@ -5,6 +5,7 @@ import type { Contract, ContractFilter, ContractSnapshot } from '../types/contra
 import type { Appointment, AppointmentFilter } from '../types/appointment'
 import type { Sale, SalesFilter } from '../types/sales'
 import type { ExtraPayee } from '../types/payout'
+import type { TextbookApplication, TextbookApplicationFilter } from '../types/textbook'
 
 /** 카드전표 OCR 결과 (type='sales') */
 export interface CardOcrResult {
@@ -28,6 +29,21 @@ export interface CashOcrResult {
   merchantBizNo?: string
 }
 
+/** 교재구매 신청서(수기) OCR 결과 (type='textbook_application') */
+export interface TextbookOcrResult {
+  applyDate?: string
+  buyerName?: string
+  childName?: string
+  childBirthdate?: string
+  phone?: string
+  address?: string
+  deliveryMemo?: string
+  book1Name?: string
+  book2Name?: string
+  subscriptionType?: string
+  managementType?: string
+}
+
 /** 파일 → base64(dataURL 프리픽스 제거) */
 export function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -45,8 +61,8 @@ export function fileToBase64(file: File): Promise<string> {
 /** 촬영/업로드 이미지 → OCR 정보추출 */
 export async function ocrImage(
   file: File,
-  type: 'sales' | 'cash_receipt',
-): Promise<CardOcrResult | CashOcrResult> {
+  type: 'sales' | 'cash_receipt' | 'textbook_application',
+): Promise<CardOcrResult | CashOcrResult | TextbookOcrResult> {
   const form = new FormData()
   form.append('photo', file)
   form.append('type', type)
@@ -285,6 +301,9 @@ export function fetchSale(id: string): Promise<Sale> {
 export function createSaleApi(s: Omit<Sale, 'id'>): Promise<Sale> {
   return sendJson('/api/sales', 'POST', s)
 }
+export function updateSaleApi(id: string, s: Omit<Sale, 'id'>): Promise<Sale> {
+  return sendJson(`/api/sales/${encodeURIComponent(id)}`, 'PATCH', s)
+}
 export function deleteSaleApi(id: string): Promise<void> {
   return sendJson(`/api/sales/${encodeURIComponent(id)}`, 'DELETE')
 }
@@ -314,4 +333,54 @@ export function fetchPositionSalaries(): Promise<string> {
 }
 export function updatePositionSalariesApi(value: string): Promise<string> {
   return sendJson('/api/system/config/position-salaries', 'PATCH', { value })
+}
+
+// ── 교재구매 신청 관리 ──────────────────────────────────────
+export function fetchTextbookApplications(
+  filter: TextbookApplicationFilter,
+): Promise<TextbookApplication[]> {
+  return getData(
+    `/api/textbook-applications${qs({
+      startDate: filter.startDate,
+      endDate: filter.endDate,
+      buyer: filter.buyer,
+    })}`,
+  )
+}
+export function fetchTextbookApplication(id: string): Promise<TextbookApplication> {
+  return getData(`/api/textbook-applications/${encodeURIComponent(id)}`)
+}
+export function createTextbookApplicationApi(
+  a: Omit<TextbookApplication, 'id' | 'createdAt'>,
+): Promise<TextbookApplication> {
+  return sendJson('/api/textbook-applications', 'POST', a)
+}
+export function deleteTextbookApplicationApi(id: string): Promise<void> {
+  return sendJson(`/api/textbook-applications/${encodeURIComponent(id)}`, 'DELETE')
+}
+/** 수기 신청서 원본 사진 → Google Drive 업로드 후 링크 반환 */
+export async function uploadTextbookPhoto(
+  id: string,
+  file: File,
+): Promise<{ driveFileId: string; driveViewUrl: string }> {
+  const data = await fileToBase64(file)
+  const res = await fetch(`/api/textbook-applications/${encodeURIComponent(id)}/photo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename: file.name, data, mimeType: file.type || 'image/jpeg' }),
+  })
+  if (!res.ok) throw new Error(`Drive 업로드 실패 (${res.status})`)
+  const json = await res.json()
+  return { driveFileId: json.driveFileId ?? '', driveViewUrl: json.driveViewUrl ?? '#' }
+}
+/** 수기신청서가 없는 신청건 — 입력정보로 양식 PDF 생성 (서버에서 Drive 업로드까지 처리) */
+export async function generateTextbookPdf(
+  id: string,
+): Promise<{ driveFileId: string; driveViewUrl: string }> {
+  const res = await fetch(`/api/textbook-applications/${encodeURIComponent(id)}/generate-pdf`, {
+    method: 'POST',
+  })
+  if (!res.ok) throw new Error(`PDF 생성 실패 (${res.status})`)
+  const json = await res.json()
+  return { driveFileId: json.driveFileId ?? '', driveViewUrl: json.driveViewUrl ?? '#' }
 }

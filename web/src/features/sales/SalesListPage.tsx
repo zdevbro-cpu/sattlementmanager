@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Eye, Trash2 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { AlertTriangle, Banknote, CreditCard, Eye, Layers, Trash2 } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import Badge, { categoryTone } from '../../components/ui/Badge'
 import DateTextInput from '../../components/ui/DateTextInput'
@@ -15,6 +16,7 @@ import { useSalesCategories } from './salesCategoryStore'
 import SalesRegisterModal from './SalesRegisterModal'
 import SalesDetailDrawer from './SalesDetailDrawer'
 import { downloadSalesListReport } from './dailyReportExcel'
+import TextbookAdminPage from '../textbook/TextbookAdminPage'
 
 type Tab = 'card' | 'textbook'
 
@@ -32,9 +34,10 @@ const DEFAULT_SALES_FILTER: SalesFilter = {
 
 export default function SalesListPage() {
   const categories = useSalesCategories()
-  const [tab, setTab] = useState<Tab>('card')
+  const [searchParams] = useSearchParams()
+  const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'textbook' ? 'textbook' : 'card')
   const [filter, setFilter] = useState<SalesFilter>(DEFAULT_SALES_FILTER)
-  const [registerOpen, setRegisterOpen] = useState(false)
+  const [editingSale, setEditingSale] = useState<Sale | 'new' | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [refresh, setRefresh] = useState(0)
   const endDateRef = useRef<HTMLInputElement>(null)
@@ -96,28 +99,34 @@ export default function SalesListPage() {
   }
 
   return (
-    <AppLayout title="카드결제 등록 관리">
+    <AppLayout title="매출관리">
+      {/* 헤더 */}
+      <div className="mb-4">
+        <h1 className="text-[22px] font-extrabold tracking-[-0.5px] text-text-strong">
+          매출관리
+        </h1>
+      </div>
+
       {/* 상단 탭 */}
-      <div className="flex items-center gap-2 mb-4">
-        <TabBtn active={tab === 'card'} onClick={() => setTab('card')}>
-          💳 카드결제 관리
-        </TabBtn>
-        <TabBtn active={tab === 'textbook'} onClick={() => setTab('textbook')}>
-          📚 교재구매 신청 관리
-        </TabBtn>
+      <div className="flex gap-1 mb-5 border-b border-border">
+        <TabButton active={tab === 'card'} onClick={() => setTab('card')}>
+          결재관리
+        </TabButton>
+        <TabButton active={tab === 'textbook'} onClick={() => setTab('textbook')}>
+          교재신청관리
+        </TabButton>
       </div>
 
       {tab === 'textbook' ? (
-        <div className="rounded-[14px] border border-border bg-card p-10 text-center text-[#94a3b8]">
-          교재구매 신청 관리 화면은 준비 중입니다.
-        </div>
+        <TextbookAdminPage />
       ) : (
         <>
-          {/* 헤더 */}
+          {/* 섹션 소제목 + 액션 버튼 */}
           <div className="flex items-start justify-between mb-4">
-            <h1 className="text-[22px] font-extrabold tracking-[-0.5px] text-text-strong">
-              카드결제 등록 관리
-            </h1>
+            <div>
+              <h2 className="text-[18px] font-extrabold text-text-strong">결재관리</h2>
+              <p className="text-[13px] text-[#94a3b8] mt-1">매출 결재 내역을 관리합니다.</p>
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setRefresh((n) => n + 1)}
@@ -133,7 +142,7 @@ export default function SalesListPage() {
                 {excelBusy ? '다운로드 중…' : '⭳ 엑셀 다운로드'}
               </button>
               <button
-                onClick={() => setRegisterOpen(true)}
+                onClick={() => setEditingSale('new')}
                 className="h-10 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110"
               >
                 ＋ 매출 등록
@@ -143,10 +152,10 @@ export default function SalesListPage() {
 
           {/* 요약 카드 */}
           <div className="grid grid-cols-4 gap-4 mb-4">
-            <SummaryCard label="전체 건수" value={`${sum.total}건`} tint="#e0edff" fg="#2563eb" />
-            <SummaryCard label="카드매출" value={won(sum.cardTotal)} tint="#e0edff" fg="#2563eb" />
-            <SummaryCard label="현금매출" value={won(sum.cashTotal)} tint="#e2f7ec" fg="#16a34a" />
-            <SummaryCard label="분할 / 미검증" value={`${sum.splitCount} / ${sum.unverified}`} tint="#fff1e0" fg="#f59e0b" />
+            <SummaryCard label="전체 건수" value={`${sum.total}건`} sub="기간 필터 기준" tint="#e0edff" fg="#2563eb" icon={<Layers size={18} />} />
+            <SummaryCard label="카드매출" value={won(sum.cardTotal)} sub="기간 내 카드 매출 합계" tint="#e0edff" fg="#2563eb" icon={<CreditCard size={18} />} />
+            <SummaryCard label="현금매출" value={won(sum.cashTotal)} sub="기간 내 현금 매출 합계" tint="#e2f7ec" fg="#16a34a" icon={<Banknote size={18} />} />
+            <SummaryCard label="분할 / 미검증" value={`${sum.splitCount} / ${sum.unverified}`} sub="분할결제 / 미검증 건수" tint="#fff1e0" fg="#f59e0b" icon={<AlertTriangle size={18} />} />
           </div>
 
           {/* 필터 바 — 기간시작 ~ 입력자 성명 + 검색/초기화 모두 1줄 */}
@@ -257,17 +266,25 @@ export default function SalesListPage() {
         </>
       )}
 
-      {registerOpen && (
+      {editingSale && (
         <SalesRegisterModal
-          onClose={() => setRegisterOpen(false)}
+          sale={editingSale === 'new' ? undefined : editingSale}
+          onClose={() => setEditingSale(null)}
           onCreated={() => {
-            setRegisterOpen(false)
+            setEditingSale(null)
             setRefresh((n) => n + 1)
           }}
         />
       )}
       {detailId && (
-        <SalesDetailDrawer saleId={detailId} onClose={() => setDetailId(null)} />
+        <SalesDetailDrawer
+          saleId={detailId}
+          onClose={() => setDetailId(null)}
+          onEdit={(s) => {
+            setDetailId(null)
+            setEditingSale(s)
+          }}
+        />
       )}
     </AppLayout>
   )
@@ -276,7 +293,7 @@ export default function SalesListPage() {
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
 
-function TabBtn({
+function TabButton({
   active,
   onClick,
   children,
@@ -289,10 +306,10 @@ function TabBtn({
     <button
       onClick={onClick}
       className={[
-        'h-9 rounded-[9px] px-3.5 text-[13px] font-bold border transition-colors',
+        'px-4 py-2 text-[14px] font-bold border-b-2 -mb-px transition-colors',
         active
-          ? 'bg-indigo text-white border-indigo'
-          : 'border-border text-[#94a3b8] hover:bg-hover',
+          ? 'border-primary text-text-strong'
+          : 'border-transparent text-[#94a3b8] hover:text-[#e2e8f0]',
       ].join(' ')}
     >
       {children}
@@ -309,15 +326,30 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-function SummaryCard({ label, value, tint, fg }: { label: string; value: string; tint: string; fg: string }) {
+function SummaryCard({
+  label,
+  value,
+  tint,
+  fg,
+  sub,
+  icon,
+}: {
+  label: string
+  value: string
+  tint: string
+  fg: string
+  sub?: string
+  icon?: React.ReactNode
+}) {
   return (
     <div className="rounded-[12px] border border-border bg-card p-4 flex items-center gap-3">
       <div className="h-[38px] w-[38px] rounded-[11px] flex items-center justify-center text-lg font-black" style={{ background: tint, color: fg }}>
-        ₩
+        {icon ?? '₩'}
       </div>
       <div>
         <div className="text-[13px] font-semibold text-[#64748b]">{label}</div>
         <div className="text-[18px] font-extrabold text-text-strong leading-tight tabular">{value}</div>
+        {sub && <div className="text-[11px] text-[#64748b] mt-0.5">{sub}</div>}
       </div>
     </div>
   )

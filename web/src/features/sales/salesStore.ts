@@ -3,7 +3,7 @@
 import type { Sale, SalesFilter } from '../../types/sales'
 import { listContracts } from '../contract/contractStore'
 import { EMPTY_FILTER, type Contract } from '../../types/contract'
-import { createSaleApi, deleteSaleApi, fetchSale, fetchSales } from '../../lib/api'
+import { createSaleApi, deleteSaleApi, fetchSale, fetchSales, updateSaleApi } from '../../lib/api'
 import { getContract } from '../contract/contractStore'
 
 /** 계약(보증금 결재) → 매출(점주보증금) 변환 */
@@ -77,6 +77,12 @@ export async function getSale(id: string): Promise<Sale | undefined> {
 
 export function createSale(sale: Omit<Sale, 'id' | 'source'>): Promise<Sale> {
   return createSaleApi({ ...sale, source: 'sale' })
+}
+
+/** 직접등록 매출만 수정 가능. 계약연동분은 계약관리에서 관리. */
+export function updateSale(id: string, sale: Omit<Sale, 'id' | 'source'>): Promise<Sale> {
+  if (id.startsWith('CS-')) return Promise.reject(new Error('계약 보증금 연동 항목입니다. 계약관리에서 관리하세요.'))
+  return updateSaleApi(id, { ...sale, source: 'sale' })
 }
 
 /** 직접등록 매출만 삭제 가능. 계약연동분은 계약관리에서 관리. */

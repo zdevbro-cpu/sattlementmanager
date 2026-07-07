@@ -14,8 +14,10 @@ const repo = require('./contractRepo')
 const appointmentRepo = require('./appointmentRepo')
 const salesRepo = require('./salesRepo')
 const extraPayoutRepo = require('./extraPayoutRepo')
+const textbookRepo = require('./textbookRepo')
 const drive = require('./services/driveService')
 const ocr = require('./services/ocrService')
+const pdfService = require('./services/pdfService')
 
 const app = express()
 app.use(cors())
@@ -244,6 +246,15 @@ app.post('/api/sales', async (req, res) => {
   }
 })
 
+app.patch('/api/sales/:id', async (req, res) => {
+  try {
+    const s = await salesRepo.updateSale(req.params.id, req.body)
+    res.json({ ok: true, data: s })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 app.delete('/api/sales/:id', async (req, res) => {
   try {
     await salesRepo.deleteSale(req.params.id)
@@ -302,6 +313,88 @@ app.delete('/api/extra-payouts/:id', async (req, res) => {
     await extraPayoutRepo.deleteExtraPayout(req.params.id)
     res.json({ ok: true })
   } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// ── 교재구매 신청 관리 (교재구입 정보만 — 결제/입금은 매출관리에서 별도 처리) ──
+app.get('/api/textbook-applications', async (req, res) => {
+  try {
+    const list = await textbookRepo.listApplications({
+      startDate: req.query.startDate || '',
+      endDate: req.query.endDate || '',
+      buyer: req.query.buyer || '',
+    })
+    res.json({ ok: true, data: list })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.get('/api/textbook-applications/:id', async (req, res) => {
+  try {
+    const a = await textbookRepo.getApplication(req.params.id)
+    if (!a) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: a })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.post('/api/textbook-applications', async (req, res) => {
+  try {
+    const a = await textbookRepo.createApplication(req.body)
+    res.status(201).json({ ok: true, data: a })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.delete('/api/textbook-applications/:id', async (req, res) => {
+  try {
+    await textbookRepo.deleteApplication(req.params.id)
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// 수기 신청서 원본 사진 → Google Drive 업로드 + DB 기록
+app.post('/api/textbook-applications/:id/photo', async (req, res) => {
+  try {
+    const { filename, data, mimeType } = req.body || {}
+    if (!data) return res.status(400).json({ ok: false, error: 'no data' })
+    const base64 = data.includes(',') ? data.split(',')[1] : data
+    const buffer = Buffer.from(base64, 'base64')
+    const up = await drive.uploadFile({
+      filename,
+      buffer,
+      mimeType,
+      year: new Date().getFullYear(),
+    })
+    await textbookRepo.setPhoto(req.params.id, up.driveFileId, up.driveViewUrl)
+    res.json({ ok: true, ...up })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// 수기신청서가 없는 신청건 — 입력된 정보로 양식 PDF 생성 → Drive 업로드 + DB 기록
+app.post('/api/textbook-applications/:id/generate-pdf', async (req, res) => {
+  try {
+    const a = await textbookRepo.getApplication(req.params.id)
+    if (!a) return res.status(404).json({ ok: false, error: 'not found' })
+    const buffer = await pdfService.generateApplicationPdf(a)
+    const up = await drive.uploadFile({
+      filename: `교재구매신청서_${a.buyerName}_${a.id}.pdf`,
+      buffer,
+      mimeType: 'application/pdf',
+      year: new Date().getFullYear(),
+    })
+    await textbookRepo.setPdf(req.params.id, up.driveFileId, up.driveViewUrl)
+    res.json({ ok: true, ...up })
+  } catch (e) {
+    console.error('[textbook-applications/generate-pdf] 실패:', e.message)
     res.status(500).json({ ok: false, error: e.message })
   }
 })

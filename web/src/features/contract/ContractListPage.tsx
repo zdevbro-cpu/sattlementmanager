@@ -241,7 +241,10 @@ export default function ContractListPage() {
             계약 목록{' '}
             <span className="text-[#64748b] font-semibold">({rows.length})</span>
           </span>
-          <button onClick={onExcelDownload} className="text-[13px] font-bold text-success">
+          <button
+            onClick={onExcelDownload}
+            className="h-10 rounded-[10px] bg-success px-4 text-sm font-bold text-white hover:brightness-110"
+          >
             ⭳ 엑셀 다운로드
           </button>
         </div>

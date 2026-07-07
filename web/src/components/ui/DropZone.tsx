@@ -39,6 +39,7 @@ export default function DropZone({
   capture,
   hint,
   compact,
+  className,
   children,
 }: {
   onFile: (file: File) => void
@@ -46,6 +47,7 @@ export default function DropZone({
   capture?: 'environment' | 'user'
   hint?: string
   compact?: boolean
+  className?: string
   children?: ReactNode
 }) {
   const ref = useRef<HTMLInputElement>(null)
@@ -76,6 +78,7 @@ export default function DropZone({
         over
           ? 'border-primary bg-primary/10'
           : 'border-border bg-input/40 hover:bg-hover',
+        className ?? '',
       ].join(' ')}
     >
       <input

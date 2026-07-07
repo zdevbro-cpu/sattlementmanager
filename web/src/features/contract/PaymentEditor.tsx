@@ -10,6 +10,7 @@ import { ocrImage, uploadReceiptImage, type CardOcrResult, type CashOcrResult } 
 import DropZone from '../../components/ui/DropZone'
 
 const SPLIT_OPTS = [2, 3, 4, 5, 6] // 분할은 2회부터
+const MIXED_SPLIT_OPTS = [1, 2, 3, 4, 5, 6] // (카드+현금)분할은 한쪽만 1회여도 허용
 
 /** 결재구분 모드 */
 export type PayMode =
@@ -133,7 +134,7 @@ export default function PaymentEditor({
       case '현금분할':
         return buildCounts(0, Math.max(2, curCash))
       case '카드+현금분할':
-        return buildCounts(Math.max(2, curCard), Math.max(2, curCash))
+        return buildCounts(curCard > 0 ? curCard : 1, curCash > 1 ? curCash : 2)
     }
   }
 
@@ -174,7 +175,7 @@ export default function PaymentEditor({
                 onChange={(e) => setCardCount(Number(e.target.value))}
                 className={selCls}
               >
-                {SPLIT_OPTS.map((n) => (
+                {(mode === '카드+현금분할' ? MIXED_SPLIT_OPTS : SPLIT_OPTS).map((n) => (
                   <option key={n} value={n}>
                     {n}회
                   </option>
@@ -190,7 +191,7 @@ export default function PaymentEditor({
                 onChange={(e) => setCashCount(Number(e.target.value))}
                 className={selCls}
               >
-                {SPLIT_OPTS.map((n) => (
+                {(mode === '카드+현금분할' ? MIXED_SPLIT_OPTS : SPLIT_OPTS).map((n) => (
                   <option key={n} value={n}>
                     {n}회
                   </option>
@@ -367,22 +368,31 @@ function CardRow({
           </span>
         )}
       </div>
-      <div className="flex flex-col gap-2.5 sm:grid sm:grid-cols-[1fr_200px] sm:items-start">
-        <div className="order-1 sm:order-2">
+      <div className="flex flex-col gap-2.5 sm:grid sm:grid-cols-[200px_1fr] sm:items-stretch">
+        <div className="order-1 flex flex-col">
           <span className="mb-0.5 block text-[10.5px] text-[#64748b]">
             카드결재 이미지
           </span>
           {preview && (
-            <img
-              src={preview}
-              alt="카드결재 이미지 미리보기"
-              className="mb-1.5 h-24 w-full rounded-[6px] border border-border object-cover"
-            />
+            <div className="relative mb-1.5">
+              <img
+                src={preview}
+                alt="카드결재 이미지 미리보기"
+                className="h-24 w-full rounded-[6px] border border-border object-cover"
+              />
+              {busy && <div className="scan-overlay" />}
+            </div>
           )}
           <DropZone onFile={onFile} accept="image/*" capture="environment" compact
-            hint={busy ? '인식중…' : 'OCR 자동추출'}>
-            <div className="text-[11.5px] text-[#94a3b8]">
-              {busy ? '인식중…' : preview ? '📷 다시 촬영' : '📷 이미지 드래그드롭 / 탐색기'}
+            className="flex-1" hint={busy ? '이미지 스캐닝 중…' : 'OCR 자동추출'}>
+            <div className="flex h-full items-center justify-center text-[11.5px] text-[#94a3b8]">
+              {busy ? (
+                <span className="animate-pulse">🔍 이미지 스캐닝 중…</span>
+              ) : preview ? (
+                '📷 다시 촬영'
+              ) : (
+                '📷 이미지 드래그&드롭 / 탐색기'
+              )}
             </div>
           </DropZone>
           {err && <div className="mt-1 text-[11px] text-danger">{err}</div>}
@@ -392,7 +402,7 @@ function CardRow({
             </div>
           )}
         </div>
-        <div className="order-2 sm:order-1 grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-1.5">
+        <div className="order-2 grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-1.5">
           <NumCell label="금액" value={item.amount} onChange={(amount) => onChange({ amount })} />
           <TextCell label="카드사" value={item.issuer} onChange={(issuer) => onChange({ issuer })} />
           <TextCell label="카드번호" value={item.cardNumber} onChange={(cardNumber) => onChange({ cardNumber })} />
@@ -515,22 +525,31 @@ function CashRow({
           </span>
         )}
       </div>
-      <div className="flex flex-col gap-2.5 sm:grid sm:grid-cols-[1fr_200px] sm:items-start">
-        <div className="order-1 sm:order-2">
+      <div className="flex flex-col gap-2.5 sm:grid sm:grid-cols-[200px_1fr] sm:items-stretch">
+        <div className="order-1 flex flex-col">
           <span className="mb-0.5 block text-[10.5px] text-[#64748b]">
             현금입금 이미지
           </span>
           {preview && (
-            <img
-              src={preview}
-              alt="현금입금 이미지 미리보기"
-              className="mb-1.5 h-24 w-full rounded-[6px] border border-border object-cover"
-            />
+            <div className="relative mb-1.5">
+              <img
+                src={preview}
+                alt="현금입금 이미지 미리보기"
+                className="h-24 w-full rounded-[6px] border border-border object-cover"
+              />
+              {busy && <div className="scan-overlay" />}
+            </div>
           )}
           <DropZone onFile={onFile} accept="image/*" capture="environment" compact
-            hint={busy ? '인식중…' : 'OCR 자동추출'}>
-            <div className="text-[11.5px] text-[#94a3b8]">
-              {busy ? '인식중…' : preview ? '📷 다시 촬영' : '📷 이미지 드래그드롭 / 탐색기'}
+            className="flex-1" hint={busy ? '이미지 스캐닝 중…' : 'OCR 자동추출'}>
+            <div className="flex h-full items-center justify-center text-[11.5px] text-[#94a3b8]">
+              {busy ? (
+                <span className="animate-pulse">🔍 이미지 스캐닝 중…</span>
+              ) : preview ? (
+                '📷 다시 촬영'
+              ) : (
+                '📷 이미지 드래그&드롭 / 탐색기'
+              )}
             </div>
           </DropZone>
           {err && <div className="mt-1 text-[11px] text-danger">{err}</div>}
@@ -540,7 +559,7 @@ function CashRow({
             </div>
           )}
         </div>
-        <div className="order-2 sm:order-1 grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-1.5">
+        <div className="order-2 grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-1.5">
           <NumCell label="금액" value={item.amount} onChange={(amount) => onChange({ amount })} />
           <TextCell label="은행" value={item.bank ?? ''} onChange={(bank) => onChange({ bank })} />
           <TextCell label="입금자" value={item.depositor ?? ''} onChange={(depositor) => onChange({ depositor })} />

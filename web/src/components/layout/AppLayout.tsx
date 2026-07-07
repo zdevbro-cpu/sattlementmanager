@@ -20,24 +20,24 @@ const NAV_GROUPS: NavGroup[] = [
     title: '운영',
     items: [
       { to: '/dashboard', label: '대시보드', glyph: '▦', enabled: true },
-      { to: '/base', label: '조직관리', glyph: '◱', enabled: true },
       { to: '/contracts', label: '계약관리', glyph: '▤', enabled: true },
       { to: '/sales', label: '매출관리', glyph: '▧', enabled: true },
+      { to: '/base', label: '조직관리', glyph: '◱', enabled: true },
     ],
   },
   {
     title: '정산 & 회계',
     items: [
-      { to: '/settlement', label: '정산센터', glyph: '∑' },
       { to: '/payment', label: '지급관리', glyph: '₩', enabled: true },
+      { to: '/settlement', label: '정산센터', glyph: '∑' },
       { to: '/accounting', label: '회계관리', glyph: '▥' },
     ],
   },
   {
     title: '인사이트',
     items: [
-      { to: '/stats', label: '통계', glyph: '◔' },
       { to: '/system', label: '시스템관리', glyph: '⚙', enabled: true },
+      { to: '/stats', label: '통계', glyph: '◔' },
     ],
   },
 ]

@@ -60,6 +60,42 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* 이미지 OCR 스캐닝 애니메이션 (결재정보 카드/현금 이미지 인식중 오버레이) */
+@keyframes scan-sweep {
+  0% {
+    top: 0%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+.scan-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  pointer-events: none;
+  background: rgba(37, 99, 235, 0.08);
+}
+.scan-overlay::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+  box-shadow: 0 0 8px 2px var(--color-primary);
+  animation: scan-sweep 1.4s ease-in-out infinite;
+}
+
 /* 스크롤바(다크) */
 *::-webkit-scrollbar {
   width: 10px;

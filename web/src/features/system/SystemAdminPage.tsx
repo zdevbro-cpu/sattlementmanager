@@ -54,6 +54,11 @@ const GROUPS: { kind: CodeKind; title: string; desc: string }[] = [
     title: '계약상태',
     desc: '신규 / 증액 / 양수 / 양도 / 해지 / 폐기',
   },
+  {
+    kind: 'businessUnits',
+    title: '사업부',
+    desc: '매출등록 사업부 드롭다운 (예: 교육사업부, LAS-On)',
+  },
 ]
 
 type Tab = 'codes' | 'users'

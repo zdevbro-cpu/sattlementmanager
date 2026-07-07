@@ -134,8 +134,10 @@ async function createSale(s) {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
-    const { rows: n } = await client.query(`SELECT COUNT(*)::int AS c FROM sales`)
-    const id = `S${String(n[0].c + 1).padStart(4, '0')}`
+    const { rows: n } = await client.query(
+      `SELECT COALESCE(MAX(CAST(SUBSTRING(id FROM 2) AS INT)), 0)::int AS maxnum FROM sales WHERE id ~ '^S[0-9]+$'`,
+    )
+    const id = `S${String(n[0].maxnum + 1).padStart(4, '0')}`
     const p = s.payment || {}
     await client.query(
       `INSERT INTO sales
@@ -214,6 +216,90 @@ async function createSale(s) {
   }
 }
 
+/** 기존 매출 수정 (매출정보 + 결재/입금 회차 전체 교체) */
+async function updateSale(id, s) {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const p = s.payment || {}
+    const { rowCount } = await client.query(
+      `UPDATE sales SET
+         date=$2, category=$3, business_unit=$4, buyer=$5, manager=$6,
+         inputter_org=$7, inputter_name=$8, payment_method=$9, payment_total=$10,
+         verified=$11, memo=$12
+       WHERE id=$1`,
+      [
+        id,
+        nn(s.date),
+        s.category || '',
+        s.businessUnit || '',
+        s.buyer || '',
+        s.manager || '',
+        s.inputterOrg || '',
+        s.inputterName || '',
+        p.method || deriveMethod(p),
+        p.totalAmount || 0,
+        s.verified || false,
+        s.memo || '',
+      ],
+    )
+    if (rowCount === 0) throw new Error('매출을 찾을 수 없습니다.')
+
+    await client.query(`DELETE FROM sales_installments WHERE sale_id = $1`, [id])
+    const cards = p.cardInstallments || []
+    const cash = p.cashInstallments || []
+    for (const c of cards) {
+      await client.query(
+        `INSERT INTO sales_installments
+          (sale_id,method,seq,amount,issuer,card_number,approval_no,terminal_no,serial_no,transaction_date,drive_file_id,drive_view_url)
+         VALUES ($1,'카드',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [
+          id,
+          c.seq,
+          c.amount || 0,
+          c.issuer,
+          c.cardNumber,
+          c.approvalNo,
+          c.terminalNo,
+          c.serialNo,
+          nn(c.transactionDate),
+          c.driveFileId || null,
+          c.driveViewUrl || null,
+        ],
+      )
+    }
+    for (const c of cash) {
+      await client.query(
+        `INSERT INTO sales_installments
+          (sale_id,method,seq,amount,approval_no,transaction_date,identifier_type,identifier_no,merchant_name,merchant_biz_no,bank,depositor,drive_file_id,drive_view_url)
+         VALUES ($1,'현금',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+        [
+          id,
+          c.seq,
+          c.amount || 0,
+          c.approvalNo,
+          nn(c.transactionDate),
+          c.identifierType,
+          c.identifierNo,
+          c.merchantName,
+          c.merchantBizNo,
+          c.bank,
+          c.depositor,
+          c.driveFileId || null,
+          c.driveViewUrl || null,
+        ],
+      )
+    }
+    await client.query('COMMIT')
+    return await getSale(id)
+  } catch (e) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
 async function deleteSale(id) {
   await pool.query(`DELETE FROM sales WHERE id = $1`, [id])
 }
@@ -231,6 +317,7 @@ module.exports = {
   listSales,
   getSale,
   createSale,
+  updateSale,
   deleteSale,
   addSaleDocument,
 }

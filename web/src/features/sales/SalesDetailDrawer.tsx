@@ -7,9 +7,12 @@ import Badge, { methodTone } from '../../components/ui/Badge'
 export default function SalesDetailDrawer({
   saleId,
   onClose,
+  onEdit,
 }: {
   saleId: string
   onClose: () => void
+  /** 지정 시 헤더에 "수정" 버튼이 노출되며, 클릭 시 현재 매출을 인자로 전달한다. */
+  onEdit?: (sale: Sale) => void
 }) {
   const [s, setS] = useState<Sale | undefined>(undefined)
 
@@ -35,7 +38,17 @@ export default function SalesDetailDrawer({
             <Badge tone={methodTone(p.method)}>{salesMethodLabel(p.method)}</Badge>
             <span className="text-[12px] text-[#64748b]">#{s.id}</span>
           </div>
-          <button onClick={onClose} className="text-[#94a3b8] hover:text-white">✕</button>
+          <div className="flex items-center gap-3">
+            {onEdit && s.source === 'sale' && (
+              <button
+                onClick={() => onEdit(s)}
+                className="h-8 rounded-[8px] border border-border px-3 text-[12.5px] font-bold text-[#c2cde0] hover:bg-hover"
+              >
+                수정
+              </button>
+            )}
+            <button onClick={onClose} className="text-[#94a3b8] hover:text-white">✕</button>
+          </div>
         </div>
 
         <div className="px-6 py-5 space-y-6">

@@ -38,6 +38,22 @@ const PROMPTS = {
   "merchantName": "가맹점명",
   "merchantBizNo": "가맹점 사업자번호"
 }`,
+  // 교재구매·회원가입 수기 신청서 (교재구입 정보만 — 결제/입금 정보는 매출관리에서 별도 처리)
+  textbook_application: `이 이미지는 한국어로 손으로 작성한 "교재구매, 회원가입 신청서"입니다. 아래 필드를 JSON으로만 추출하세요.
+값이 없으면 빈 문자열("")로.
+{
+  "applyDate": "신청 날짜(YYYY-MM-DD)",
+  "buyerName": "구매자 성명",
+  "childName": "자녀 성명",
+  "childBirthdate": "자녀 생년월일(YYYY-MM-DD)",
+  "phone": "전화번호",
+  "address": "배송지 주소",
+  "deliveryMemo": "배송메모",
+  "book1Name": "교재구입1 교재명",
+  "book2Name": "교재구입2 교재명",
+  "subscriptionType": "구독회원 구분(상품구분)",
+  "managementType": "관리회원 구분(상품구분)"
+}`,
 }
 
 /** 이미지 버퍼 → OCR 추출 객체. Gemini 미설정 시 {} */

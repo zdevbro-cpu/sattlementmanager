@@ -53,3 +53,11 @@ export function formatYyMmDd(digits: string): string | null {
   const dd = digits.slice(4, 6)
   return `20${yy}-${mm}-${dd}`
 }
+
+/** 전화번호 입력값 자동 포맷 (010-XXXX-XXXX). 입력 중에도 실시간으로 하이픈을 붙인다. */
+export function phoneFmt(v: string): string {
+  const n = v.replace(/\D/g, '').slice(0, 11)
+  if (n.length < 4) return n
+  if (n.length < 8) return `${n.slice(0, 3)}-${n.slice(3)}`
+  return `${n.slice(0, 3)}-${n.slice(3, 7)}-${n.slice(7)}`
+}

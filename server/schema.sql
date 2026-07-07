@@ -222,3 +222,31 @@ CREATE TABLE IF NOT EXISTS app_settings (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL DEFAULT ''
 );
+
+-- ══════════════════════════════════════════════════════════════
+-- 교재구매 신청 관리 (교재구입 정보만 — 결제/입금은 매출관리에서 별도 처리)
+--   · 수기 신청서 사진 원본 / 양식 기반 생성 PDF → Google Drive, 여기엔 링크만 저장
+-- ══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS textbook_applications (
+  id                    TEXT PRIMARY KEY,
+  apply_date            DATE,
+  buyer_name            TEXT NOT NULL,
+  child_name            TEXT,
+  child_birthdate       TEXT,
+  phone                 TEXT,
+  address               TEXT,
+  delivery_memo         TEXT,
+  book1_name            TEXT,
+  book2_name            TEXT,
+  subscription_type     TEXT,
+  management_type       TEXT,
+  seller_name           TEXT,
+  seller_phone          TEXT,
+  drive_photo_file_id   TEXT,
+  drive_photo_view_url  TEXT,
+  drive_pdf_file_id     TEXT,
+  drive_pdf_view_url    TEXT,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_textbook_app_date ON textbook_applications(apply_date);

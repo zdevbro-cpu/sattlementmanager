@@ -9,6 +9,9 @@ import MobileSalesRegisterPage from './features/sales/MobileSalesRegisterPage'
 import DashboardPage from './features/dashboard/DashboardPage'
 import { AuthProvider, useAuth } from './features/auth/AuthContext'
 import LoginPage from './features/auth/LoginPage'
+import TextbookApplyPage from './features/textbook/TextbookApplyPage'
+import TextbookApplyMobilePage from './features/textbook/TextbookApplyMobilePage'
+import MobileHomePage from './features/mobile/MobileHomePage'
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -28,10 +31,13 @@ function isMobileDevice(): boolean {
 
 function AuthedApp() {
   if (isMobileDevice()) {
-    // 모바일 접속 시 매출 등록(카메라 촬영) 화면만 사용 — 다른 경로로 접근해도 항상 이 화면으로 이동
+    // 모바일 접속 — 기존 주소 그대로 접속 시 결재/교재신청 중 선택하는 첫 화면을 보여주고,
+    // 각 기능은 별도 경로에서 담당 화면으로 연결한다.
     return (
       <Routes>
-        <Route path="*" element={<MobileSalesRegisterPage />} />
+        <Route path="/mobile-sales" element={<MobileSalesRegisterPage />} />
+        <Route path="/textbook-apply" element={<TextbookApplyMobilePage />} />
+        <Route path="*" element={<MobileHomePage />} />
       </Routes>
     )
   }
@@ -40,6 +46,7 @@ function AuthedApp() {
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/mobile-sales" element={<MobileSalesRegisterPage />} />
+      <Route path="/textbook-apply" element={<TextbookApplyPage />} />
       <Route path="/contracts" element={<ContractListPage />} />
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/base" element={<AppointmentListPage />} />

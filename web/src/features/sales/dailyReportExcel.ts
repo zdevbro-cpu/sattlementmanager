@@ -63,7 +63,7 @@ function toLegs(s: Sale): Leg[] {
 interface PlanRow {
   no: number | null // null = 분할결제 회차행(번호 없음)
   date?: string
-  method?: string // 결재구분(카드/현금) — 합계행은 회차가 섞일 수 있어 비움
+  method?: string // 결재구분(카드/현금/카드+현금)
   terminalNo?: string
   businessUnit?: string
   buyer?: string
@@ -103,9 +103,14 @@ function buildPlan(sales: Sale[]): PlanRow[] {
       return
     }
 
+    const hasCard = legs.some((l) => l.method === '카드')
+    const hasCash = legs.some((l) => l.method === '현금')
+    const summaryMethod = hasCard && hasCash ? '카드+현금' : hasCard ? '카드' : '현금'
+
     plan.push({
       no,
       date: s.date,
+      method: summaryMethod,
       businessUnit: s.businessUnit,
       buyer: s.buyer,
       category: s.category,
@@ -183,6 +188,7 @@ function fillRows(ws: ExcelJS.Worksheet, sales: Sale[]): number {
     }
     row.commit?.()
   })
+
   return plan.length
 }
 

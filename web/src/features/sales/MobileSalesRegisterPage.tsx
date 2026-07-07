@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { PaymentInfo } from '../../types/contract'
 import { BUSINESS_UNITS, SALES_MANAGERS } from '../../data/mockSales'
 import { createSale } from './salesStore'
@@ -11,6 +12,7 @@ const inputCls =
 
 /** 매출등록 전용 모바일 화면 — 사이드바/메뉴 없이 매출 등록 폼만 단독으로 표시한다. */
 export default function MobileSalesRegisterPage() {
+  const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const categories = useSalesCategories()
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
@@ -63,6 +65,11 @@ export default function MobileSalesRegisterPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] px-4 py-5">
+      <div className="mb-3">
+        <button onClick={() => navigate('/')} className="text-[12px] text-[#94a3b8] hover:text-white">
+          ‹ 처음으로
+        </button>
+      </div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-[18px] font-extrabold text-text-strong">📷 매출 등록</h1>
         <div className="flex items-center gap-2">
