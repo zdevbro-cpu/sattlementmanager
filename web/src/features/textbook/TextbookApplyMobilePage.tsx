@@ -6,6 +6,7 @@ import { ocrImage, uploadReceiptImage, type TextbookOcrResult } from '../../lib/
 import { phoneFmt } from '../../lib/format'
 import { createApplication } from './textbookStore'
 import { useAuth } from '../auth/AuthContext'
+import { AlertTriangle, Camera, CheckCircle2, ChevronLeft } from 'lucide-react'
 
 const inputCls =
   'h-11 w-full rounded-[8px] bg-input border border-border px-3 text-[14px] text-input-text outline-none focus:border-primary'
@@ -131,8 +132,8 @@ export default function TextbookApplyMobilePage() {
   return (
     <div className="min-h-screen bg-[#0a0e1a] px-4 py-5">
       <div className="mb-3 flex items-center justify-between">
-        <button onClick={() => navigate('/')} className="text-[12px] text-[#94a3b8] hover:text-white">
-          ‹ 처음으로
+        <button onClick={() => navigate('/')} className="inline-flex items-center gap-0.5 text-[12px] text-[#94a3b8] hover:text-white">
+          <ChevronLeft size={14} /> 처음으로
         </button>
         <div className="flex items-center gap-2">
           <span className="max-w-[120px] truncate text-[11px] text-[#64748b]">{user?.email}</span>
@@ -153,7 +154,7 @@ export default function TextbookApplyMobilePage() {
           {!preview ? (
             <DropZone onFile={onPhoto} accept="image/*" capture="environment">
               <div className="py-4 text-center">
-                <div className="mb-1 text-[26px]">📷</div>
+                <div className="mb-1 flex justify-center text-primary"><Camera size={26} /></div>
                 <div className="text-[13.5px] font-bold text-text-strong">수기 신청서 사진 촬영/업로드</div>
                 <div className="mt-1 text-[11.5px] text-[#94a3b8]">종이 신청서를 촬영하여 자동완성 하세요</div>
               </div>
@@ -176,7 +177,7 @@ export default function TextbookApplyMobilePage() {
             </div>
           )}
           {driveErr && (
-            <div className="mt-1.5 text-[11px] text-warning">⚠ 이미지 Drive 저장 실패 (정보입력은 정상): {driveErr}</div>
+            <div className="mt-1.5 flex items-center gap-1 text-[11px] text-warning"><AlertTriangle size={11} /> 이미지 Drive 저장 실패 (정보입력은 정상): {driveErr}</div>
           )}
         </section>
 
@@ -232,7 +233,7 @@ export default function TextbookApplyMobilePage() {
         </section>
 
         {err && <div className="text-[13px] text-danger">{err}</div>}
-        {doneMsg && <div className="text-[13px] font-bold text-success">✓ {doneMsg}</div>}
+        {doneMsg && <div className="flex items-center gap-1 text-[13px] font-bold text-success"><CheckCircle2 size={14} /> {doneMsg}</div>}
 
         <button
           onClick={submit}

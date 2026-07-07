@@ -12,6 +12,7 @@ import DocUploadList from './DocUploadList'
 import { usePositionSalaries } from './positionSalaryStore'
 import { todayIso } from '../../lib/format'
 import DateTextInput from '../../components/ui/DateTextInput'
+import { X } from 'lucide-react'
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
 
@@ -152,7 +153,7 @@ export default function AppointmentRegisterModal({
       <div className="w-full max-w-[960px] rounded-[14px] border border-border bg-card shadow-xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-[17px] font-extrabold text-text-strong">임용계약 등록</h2>
-          <button onClick={onClose} className="text-[#94a3b8] hover:text-white">✕</button>
+          <button onClick={onClose} className="text-[#94a3b8] hover:text-white"><X size={18} /></button>
         </div>
 
         <div className="px-6 py-5 space-y-5 max-h-[74vh] overflow-y-auto">

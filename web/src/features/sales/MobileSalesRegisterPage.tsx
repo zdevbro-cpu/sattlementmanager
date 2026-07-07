@@ -8,6 +8,7 @@ import { useSalesCategories } from './salesCategoryStore'
 import PaymentEditor, { emptyPayment } from '../contract/PaymentEditor'
 import { useAuth } from '../auth/AuthContext'
 import DateTextInput from '../../components/ui/DateTextInput'
+import { Camera, CheckCircle2, ChevronLeft } from 'lucide-react'
 
 const inputCls =
   'h-11 w-full rounded-[8px] bg-input border border-border px-3 text-[14px] text-input-text outline-none focus:border-primary'
@@ -23,7 +24,7 @@ export default function MobileSalesRegisterPage() {
   const [category, setCategory] = useState(categories[0]?.name ?? '')
   const [businessUnit, setBusinessUnit] = useState(BUSINESS_UNITS[0])
   const [buyer, setBuyer] = useState('')
-  const [manager, setManager] = useState(SALES_MANAGERS[0])
+  const [manager, setManager] = useState('')
   const [memo, setMemo] = useState('')
   const [payment, setPayment] = useState<PaymentInfo>(emptyPayment())
   const [saving, setSaving] = useState(false)
@@ -71,12 +72,12 @@ export default function MobileSalesRegisterPage() {
   return (
     <div className="min-h-screen bg-[#0a0e1a] px-4 py-5">
       <div className="mb-3">
-        <button onClick={() => navigate('/')} className="text-[12px] text-[#94a3b8] hover:text-white">
-          ‹ 처음으로
+        <button onClick={() => navigate('/')} className="inline-flex items-center gap-0.5 text-[12px] text-[#94a3b8] hover:text-white">
+          <ChevronLeft size={14} /> 처음으로
         </button>
       </div>
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-[18px] font-extrabold text-text-strong">📷 매출 등록</h1>
+        <h1 className="flex items-center gap-1.5 text-[18px] font-extrabold text-text-strong"><Camera size={18} /> 매출 등록</h1>
         <div className="flex items-center gap-2">
           <span className="max-w-[140px] truncate text-[11px] text-[#64748b]">{user?.email}</span>
           <button onClick={() => signOut()} className="text-[11px] font-semibold text-[#94a3b8] hover:text-white">
@@ -113,11 +114,12 @@ export default function MobileSalesRegisterPage() {
               </select>
             </Field>
             <Field label="담당">
-              <select value={manager} onChange={(e) => setManager(e.target.value)} className={inputCls}>
+              <input value={manager} onChange={(e) => setManager(e.target.value)} className={inputCls} list="manager-list" />
+              <datalist id="manager-list">
                 {SALES_MANAGERS.map((m) => (
-                  <option key={m}>{m}</option>
+                  <option key={m} value={m} />
                 ))}
-              </select>
+              </datalist>
             </Field>
           </div>
           <div className="mt-3">
@@ -138,7 +140,7 @@ export default function MobileSalesRegisterPage() {
         </section>
 
         {err && <div className="text-[13px] text-danger">{err}</div>}
-        {doneMsg && <div className="text-[13px] font-bold text-success">✓ {doneMsg}</div>}
+        {doneMsg && <div className="flex items-center gap-1 text-[13px] font-bold text-success"><CheckCircle2 size={14} /> {doneMsg}</div>}
 
         <button
           onClick={submit}

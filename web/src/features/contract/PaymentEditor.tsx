@@ -8,6 +8,7 @@ import type {
 import { comma } from '../../lib/format'
 import { ocrImage, uploadReceiptImage, type CardOcrResult, type CashOcrResult } from '../../lib/api'
 import DropZone from '../../components/ui/DropZone'
+import { AlertTriangle, Camera, Paperclip, ScanLine } from 'lucide-react'
 
 const SPLIT_OPTS = [2, 3, 4, 5, 6] // 분할은 2회부터
 const MIXED_SPLIT_OPTS = [1, 2, 3, 4, 5, 6] // (카드+현금)분할은 한쪽만 1회여도 허용
@@ -334,12 +335,12 @@ function CardRow({
           busy={busy}
           onFile={onFile}
           onClear={clearPhoto}
-          hint="📷 사진 촬영 → 금액/카드사/카드번호/승인번호 자동 입력"
+          hint={<span className="inline-flex items-center gap-1"><Camera size={14} /> 사진 촬영 → 금액/카드사/카드번호/승인번호 자동 입력</span>}
         />
         {err && <div className="mt-1.5 text-[11.5px] text-danger">{err}</div>}
         {driveErr && (
-          <div className="mt-1.5 text-[11.5px] text-warning">
-            ⚠ 이미지 Drive 저장 실패 (텍스트 인식은 정상): {driveErr}
+          <div className="mt-1.5 flex items-center gap-1 text-[11.5px] text-warning">
+            <AlertTriangle size={12} /> 이미지 Drive 저장 실패 (텍스트 인식은 정상): {driveErr}
           </div>
         )}
         <div className="mt-3 flex flex-col gap-2.5">
@@ -362,8 +363,8 @@ function CardRow({
           카드 {item.seq}회차
         </span>
         {item.imageName && (
-          <span className="text-[11px] text-[#64748b]">
-            {item.driveFileId ? '📎 ' : '⚠ '}
+          <span className="inline-flex items-center gap-1 text-[11px] text-[#64748b]">
+            {item.driveFileId ? <Paperclip size={11} /> : <AlertTriangle size={11} />}
             {item.imageName}
           </span>
         )}
@@ -385,20 +386,20 @@ function CardRow({
           )}
           <DropZone onFile={onFile} accept="image/*" capture="environment" compact
             className="flex-1" hint={busy ? '이미지 스캐닝 중…' : 'OCR 자동추출'}>
-            <div className="flex h-full items-center justify-center text-[11.5px] text-[#94a3b8]">
+            <div className="flex h-full items-center justify-center gap-1 text-[11.5px] text-[#94a3b8]">
               {busy ? (
-                <span className="animate-pulse">🔍 이미지 스캐닝 중…</span>
+                <span className="flex animate-pulse items-center gap-1"><ScanLine size={13} /> 이미지 스캐닝 중…</span>
               ) : preview ? (
-                '📷 다시 촬영'
+                <><Camera size={13} /> 다시 촬영</>
               ) : (
-                '📷 이미지 드래그&드롭 / 탐색기'
+                <><Camera size={13} /> 이미지 드래그&드롭 / 탐색기</>
               )}
             </div>
           </DropZone>
           {err && <div className="mt-1 text-[11px] text-danger">{err}</div>}
           {driveErr && (
-            <div className="mt-1 text-[11px] text-warning">
-              ⚠ 이미지 Drive 저장 실패 (텍스트 인식은 정상): {driveErr}
+            <div className="mt-1 flex items-center gap-1 text-[11px] text-warning">
+              <AlertTriangle size={11} /> 이미지 Drive 저장 실패 (텍스트 인식은 정상): {driveErr}
             </div>
           )}
         </div>
@@ -490,12 +491,12 @@ function CashRow({
           busy={busy}
           onFile={onFile}
           onClear={clearPhoto}
-          hint="📷 사진 촬영 → 금액/은행/입금자/승인번호 자동 입력"
+          hint={<span className="inline-flex items-center gap-1"><Camera size={14} /> 사진 촬영 → 금액/은행/입금자/승인번호 자동 입력</span>}
         />
         {err && <div className="mt-1.5 text-[11.5px] text-danger">{err}</div>}
         {driveErr && (
-          <div className="mt-1.5 text-[11.5px] text-warning">
-            ⚠ 이미지 Drive 저장 실패 (텍스트 인식은 정상): {driveErr}
+          <div className="mt-1.5 flex items-center gap-1 text-[11.5px] text-warning">
+            <AlertTriangle size={12} /> 이미지 Drive 저장 실패 (텍스트 인식은 정상): {driveErr}
           </div>
         )}
         <div className="mt-3 flex flex-col gap-2.5">
@@ -519,8 +520,8 @@ function CashRow({
           현금 {item.seq}회차
         </span>
         {item.imageName && (
-          <span className="text-[11px] text-[#64748b]">
-            {item.driveFileId ? '📎 ' : '⚠ '}
+          <span className="inline-flex items-center gap-1 text-[11px] text-[#64748b]">
+            {item.driveFileId ? <Paperclip size={11} /> : <AlertTriangle size={11} />}
             {item.imageName}
           </span>
         )}
@@ -542,20 +543,20 @@ function CashRow({
           )}
           <DropZone onFile={onFile} accept="image/*" capture="environment" compact
             className="flex-1" hint={busy ? '이미지 스캐닝 중…' : 'OCR 자동추출'}>
-            <div className="flex h-full items-center justify-center text-[11.5px] text-[#94a3b8]">
+            <div className="flex h-full items-center justify-center gap-1 text-[11.5px] text-[#94a3b8]">
               {busy ? (
-                <span className="animate-pulse">🔍 이미지 스캐닝 중…</span>
+                <span className="flex animate-pulse items-center gap-1"><ScanLine size={13} /> 이미지 스캐닝 중…</span>
               ) : preview ? (
-                '📷 다시 촬영'
+                <><Camera size={13} /> 다시 촬영</>
               ) : (
-                '📷 이미지 드래그&드롭 / 탐색기'
+                <><Camera size={13} /> 이미지 드래그&드롭 / 탐색기</>
               )}
             </div>
           </DropZone>
           {err && <div className="mt-1 text-[11px] text-danger">{err}</div>}
           {driveErr && (
-            <div className="mt-1 text-[11px] text-warning">
-              ⚠ 이미지 Drive 저장 실패 (텍스트 인식은 정상): {driveErr}
+            <div className="mt-1 flex items-center gap-1 text-[11px] text-warning">
+              <AlertTriangle size={11} /> 이미지 Drive 저장 실패 (텍스트 인식은 정상): {driveErr}
             </div>
           )}
         </div>
@@ -586,7 +587,7 @@ function ScanSlot({
   busy: boolean
   onFile: (file: File) => void
   onClear: () => void
-  hint: string
+  hint: React.ReactNode
 }) {
   if (!preview) {
     return (

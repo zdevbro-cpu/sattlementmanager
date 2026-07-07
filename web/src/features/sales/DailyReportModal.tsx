@@ -6,6 +6,7 @@ import { parseEmails, useReportEmails } from './reportStore'
 import { dailyReportAttachment, downloadDailyReport } from './dailyReportExcel'
 import { sendDailyReport } from '../../lib/api'
 import DateTextInput from '../../components/ui/DateTextInput'
+import { Download, X } from 'lucide-react'
 
 /**
  * 일일보고 미리보기 — 선택일의 매출내용을 메일 양식으로 렌더링.
@@ -82,7 +83,7 @@ export default function DailyReportModal({
           <h2 className="text-[17px] font-extrabold text-text-strong">
             일일보고 미리보기 <span className="text-[12px] font-semibold text-[#64748b]">(매일 22:00 자동 발송 양식)</span>
           </h2>
-          <button onClick={onClose} className="text-[#94a3b8] hover:text-white">✕</button>
+          <button onClick={onClose} className="text-[#94a3b8] hover:text-white"><X size={18} /></button>
         </div>
 
         <div className="px-6 py-5 space-y-4 max-h-[74vh] overflow-y-auto">
@@ -157,9 +158,9 @@ export default function DailyReportModal({
           <button
             onClick={onDownload}
             disabled={busy !== ''}
-            className="h-10 rounded-[10px] bg-success px-4 text-sm font-bold text-white hover:brightness-110 disabled:opacity-60"
+            className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-success px-4 text-sm font-bold text-white hover:brightness-110 disabled:opacity-60"
           >
-            {busy === 'excel' ? '생성 중…' : '⭳ 엑셀 양식 다운로드'}
+            {busy === 'excel' ? '생성 중…' : (<><Download size={15} /> 엑셀 양식 다운로드</>)}
           </button>
           <button
             onClick={onSend}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Eye, Trash2 } from 'lucide-react'
+import { Download, Eye, FileText, Plus, PlusCircle, Trash2, XCircle } from 'lucide-react'
+import type { ComponentType } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import StatusBadge from '../../components/ui/StatusBadge'
 import Badge, { methodTone } from '../../components/ui/Badge'
@@ -143,32 +144,35 @@ export default function ContractListPage() {
         </div>
         <button
           onClick={() => setRegisterOpen(true)}
-          className="h-10 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110"
+          className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110"
         >
-          ＋ 계약 등록
+          <Plus size={15} /> 계약 등록
         </button>
       </div>
 
       {/* 요약 카드 */}
       <div className="grid grid-cols-4 gap-4 mb-4">
-        <SummaryCard label="전체 계약" value={sum.total} tint="#e0edff" fg="#2563eb" />
+        <SummaryCard label="전체 계약" value={sum.total} tint="#e0edff" fg="#2563eb" icon={FileText} />
         <SummaryCard
           label="진행중"
           value={sum.active}
           tint="#e2f7ec"
           fg="#16a34a"
+          icon={FileText}
         />
         <SummaryCard
           label="이번달 신규"
           value={sum.newThisMonth}
           tint="#fff1e0"
           fg="#f59e0b"
+          icon={PlusCircle}
         />
         <SummaryCard
           label="해지·폐기"
           value={sum.terminated}
           tint="#fee2e2"
           fg="#ef4444"
+          icon={XCircle}
         />
       </div>
 
@@ -261,9 +265,9 @@ export default function ContractListPage() {
           </span>
           <button
             onClick={onExcelDownload}
-            className="h-10 rounded-[10px] bg-success px-4 text-sm font-bold text-white hover:brightness-110"
+            className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-success px-4 text-sm font-bold text-white hover:brightness-110"
           >
-            ⭳ 엑셀 다운로드
+            <Download size={15} /> 엑셀 다운로드
           </button>
         </div>
         <div className="overflow-x-auto">
@@ -386,19 +390,21 @@ function SummaryCard({
   value,
   tint,
   fg,
+  icon: Icon,
 }: {
   label: string
   value: number
   tint: string
   fg: string
+  icon: ComponentType<{ size?: number }>
 }) {
   return (
     <div className="rounded-[12px] border border-border bg-card p-4 flex items-center gap-3">
       <div
-        className="h-[38px] w-[38px] rounded-[11px] flex items-center justify-center text-lg font-black"
+        className="h-[38px] w-[38px] rounded-[11px] flex items-center justify-center"
         style={{ background: tint, color: fg }}
       >
-        ▤
+        <Icon size={18} />
       </div>
       <div>
         <div className="text-[13px] font-semibold text-[#64748b]">{label}</div>

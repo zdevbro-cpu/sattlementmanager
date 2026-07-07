@@ -7,6 +7,7 @@ import { createSale, updateSale } from './salesStore'
 import { useSalesCategories } from './salesCategoryStore'
 import PaymentEditor, { emptyPayment } from '../contract/PaymentEditor'
 import DateTextInput from '../../components/ui/DateTextInput'
+import { AlertTriangle, X } from 'lucide-react'
 
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
@@ -101,7 +102,7 @@ export default function SalesRegisterModal({
       <div className="w-full max-w-[1000px] rounded-[14px] border border-border bg-card shadow-xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-[17px] font-extrabold text-text-strong">{isEdit ? '매출 수정' : '매출 등록'}</h2>
-          <button onClick={onClose} className="text-[#94a3b8] hover:text-white">✕</button>
+          <button onClick={onClose} className="text-[#94a3b8] hover:text-white"><X size={18} /></button>
         </div>
 
         <div className="px-6 py-5 space-y-5 max-h-[74vh] overflow-y-auto">
@@ -180,7 +181,7 @@ export default function SalesRegisterModal({
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
           <div className="w-full max-w-[380px] rounded-[14px] border border-border bg-card p-5 shadow-xl">
             <div className="mb-3 flex items-center gap-2">
-              <span className="text-[18px]">⚠️</span>
+              <AlertTriangle size={18} className="text-warning" />
               <h3 className="text-[15px] font-extrabold text-text-strong">회차 금액 확인 필요</h3>
             </div>
             <p className="whitespace-pre-line text-[13px] text-[#c2cde0]">{warnMsg}</p>

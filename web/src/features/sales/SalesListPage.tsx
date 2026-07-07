@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { AlertTriangle, Banknote, CreditCard, Eye, Layers, Trash2 } from 'lucide-react'
+import { AlertTriangle, Banknote, CreditCard, Download, Eye, Layers, Plus, RefreshCw, Trash2, Wallet } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import Badge, { categoryTone } from '../../components/ui/Badge'
 import DateTextInput from '../../components/ui/DateTextInput'
@@ -130,22 +130,22 @@ export default function SalesListPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => setRefresh((n) => n + 1)}
-                className="h-10 rounded-[10px] border border-border px-4 text-sm font-bold text-[#c2cde0] hover:bg-hover"
+                className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-border px-4 text-sm font-bold text-[#c2cde0] hover:bg-hover"
               >
-                ↻ 새로고침
+                <RefreshCw size={14} /> 새로고침
               </button>
               <button
                 onClick={onExcelDownload}
                 disabled={excelBusy}
-                className="h-10 rounded-[10px] bg-success px-4 text-sm font-bold text-white hover:brightness-110 disabled:opacity-60"
+                className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-success px-4 text-sm font-bold text-white hover:brightness-110 disabled:opacity-60"
               >
-                {excelBusy ? '다운로드 중…' : '⭳ 엑셀 다운로드'}
+                {excelBusy ? '다운로드 중…' : (<><Download size={15} /> 엑셀 다운로드</>)}
               </button>
               <button
                 onClick={() => setEditingSale('new')}
-                className="h-10 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110"
+                className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110"
               >
-                ＋ 매출 등록
+                <Plus size={15} /> 매출 등록
               </button>
             </div>
           </div>
@@ -344,7 +344,7 @@ function SummaryCard({
   return (
     <div className="rounded-[12px] border border-border bg-card p-4 flex items-center gap-3">
       <div className="h-[38px] w-[38px] rounded-[11px] flex items-center justify-center text-lg font-black" style={{ background: tint, color: fg }}>
-        {icon ?? '₩'}
+        {icon ?? <Wallet size={18} />}
       </div>
       <div>
         <div className="text-[13px] font-semibold text-[#64748b]">{label}</div>
@@ -385,10 +385,10 @@ function Row({
           <span className="tabular text-[#c2cde0]">{no}</span>
           {hasSplit && (
             <span
-              className="inline-flex items-center rounded-md bg-[#fff1e0] px-1.5 py-0.5 text-[10.5px] font-bold text-[#b45309]"
+              className="inline-flex items-center gap-0.5 rounded-md bg-[#fff1e0] px-1.5 py-0.5 text-[10.5px] font-bold text-[#b45309]"
               title={`${splitN}회 분할결제`}
             >
-              📋{splitN}
+              <Layers size={10} />{splitN}
             </span>
           )}
         </div>

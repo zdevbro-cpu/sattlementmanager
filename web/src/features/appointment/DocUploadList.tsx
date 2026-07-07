@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ExternalLink, Paperclip } from 'lucide-react'
 import DropZone from '../../components/ui/DropZone'
 import { uploadAppointmentDoc } from '../../lib/api'
 import type { AppointmentDoc } from '../../types/appointment'
@@ -73,8 +74,8 @@ export default function DocUploadList({
                 rel="noreferrer"
                 className="flex items-center justify-between rounded-[6px] bg-input px-2.5 py-1.5 text-[12px] hover:bg-hover"
               >
-                <span className="text-[#c2cde0]">📎 {doc.fileName}</span>
-                <span className="text-primary font-bold">Drive 열기 →</span>
+                <span className="inline-flex items-center gap-1 text-[#c2cde0]"><Paperclip size={12} /> {doc.fileName}</span>
+                <span className="inline-flex items-center gap-1 text-primary font-bold">Drive 열기 <ExternalLink size={12} /></span>
               </a>
             ) : (
               <DropZone

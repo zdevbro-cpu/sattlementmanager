@@ -11,6 +11,7 @@ import PaymentEditor, { emptyPayment } from './PaymentEditor'
 import { uploadToDrive } from '../../lib/api'
 import DropZone from '../../components/ui/DropZone'
 import DateTextInput from '../../components/ui/DateTextInput'
+import { CheckCircle2, Paperclip, X, XCircle } from 'lucide-react'
 
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
@@ -143,7 +144,7 @@ export default function ContractRegisterModal({
             신규 계약 등록
           </h2>
           <button onClick={onClose} className="text-[#94a3b8] hover:text-white">
-            ✕
+            <X size={18} />
           </button>
         </div>
 
@@ -259,12 +260,16 @@ export default function ContractRegisterModal({
             <div className="mb-2.5 flex items-center justify-between">
               <SectionTitle>결재정보</SectionTitle>
               <span
-                className="text-[12px] font-semibold"
+                className="inline-flex items-center gap-1 text-[12px] font-semibold"
                 style={{ color: depositMatched ? '#16a34a' : '#ef4444' }}
               >
                 결재합계 {payTotal.toLocaleString('ko-KR')}원 / 보증금{' '}
                 {f.deposit.toLocaleString('ko-KR')}원{' '}
-                {depositMatched ? '✓ 일치' : '✗ 불일치'}
+                {depositMatched ? (
+                  <><CheckCircle2 size={13} /> 일치</>
+                ) : (
+                  <><XCircle size={13} /> 불일치</>
+                )}
               </span>
             </div>
             <PaymentEditor value={payment} onChange={setPayment} />
@@ -279,8 +284,8 @@ export default function ContractRegisterModal({
               hint="계약서 스캔본(PDF/이미지) — 드래그드롭 또는 탐색기 선택"
             >
               {contractFile ? (
-                <div className="text-[13px] text-[#c2cde0]">
-                  📎 {contractFile.name}{' '}
+                <div className="inline-flex items-center gap-1.5 text-[13px] text-[#c2cde0]">
+                  <Paperclip size={13} /> {contractFile.name}{' '}
                   <span className="text-[#64748b]">(다시 등록하려면 클릭/드롭)</span>
                 </div>
               ) : (

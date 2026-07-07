@@ -1,4 +1,6 @@
 import { useNavigate } from 'react-router-dom'
+import type { ComponentType } from 'react'
+import { ChevronRight, NotebookPen, Wallet } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 
 /** 모바일 접속 시 첫 화면 — 결재/교재신청 중 사용할 기능을 선택한다. */
@@ -28,7 +30,7 @@ export default function MobileHomePage() {
 
       <div className="flex flex-col gap-3">
         <MenuCard
-          glyph="₩"
+          icon={Wallet}
           title="결재"
           sub="카드/현금 매출 등록 (카메라 촬영 → OCR 자동추출)"
           tint="#fff1e0"
@@ -36,7 +38,7 @@ export default function MobileHomePage() {
           onClick={() => navigate('/mobile-sales')}
         />
         <MenuCard
-          glyph="📝"
+          icon={NotebookPen}
           title="교재신청"
           sub="교재구매, 회원가입 신청서 접수 (수기신청서 촬영 → 자동입력)"
           tint="#e2f7ec"
@@ -49,14 +51,14 @@ export default function MobileHomePage() {
 }
 
 function MenuCard({
-  glyph,
+  icon: Icon,
   title,
   sub,
   tint,
   fg,
   onClick,
 }: {
-  glyph: string
+  icon: ComponentType<{ size?: number }>
   title: string
   sub: string
   tint: string
@@ -69,16 +71,18 @@ function MenuCard({
       className="flex items-center gap-3 rounded-[14px] border border-border bg-card p-4 text-left transition-colors active:bg-hover"
     >
       <div
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] text-lg font-black"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px]"
         style={{ background: tint, color: fg }}
       >
-        {glyph}
+        <Icon size={20} />
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-[14.5px] font-bold text-text-strong">{title}</div>
         <div className="mt-0.5 text-[11.5px] text-[#94a3b8]">{sub}</div>
       </div>
-      <div className="shrink-0 text-[#5f7ba6]">›</div>
+      <div className="shrink-0 text-[#5f7ba6]">
+        <ChevronRight size={18} />
+      </div>
     </button>
   )
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ArrowRight, Pencil, X } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
 import { dateText, todayIso, won } from '../../lib/format'
 import { appointmentStatusTone, type Appointment } from '../../types/appointment'
@@ -63,11 +64,11 @@ export default function AppointmentDetailDrawer({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setEditOpen((v) => !v)}
-              className="h-9 rounded-[8px] bg-indigo px-3 text-[13px] font-bold text-white hover:brightness-110"
+              className="inline-flex h-9 items-center gap-1.5 rounded-[8px] bg-indigo px-3 text-[13px] font-bold text-white hover:brightness-110"
             >
-              {editOpen ? '수정 취소' : '✎ 수정'}
+              {editOpen ? '수정 취소' : (<><Pencil size={13} /> 수정</>)}
             </button>
-            <button onClick={onClose} className="text-[#94a3b8] hover:text-white">✕</button>
+            <button onClick={onClose} className="text-[#94a3b8] hover:text-white"><X size={18} /></button>
           </div>
         </div>
         <div className="px-6 py-5 space-y-6">
@@ -145,7 +146,7 @@ export default function AppointmentDetailDrawer({
                         <div key={i} className="flex items-center gap-2 text-[12px]">
                           <span className="text-[#94a3b8] min-w-[72px]">{c.label}</span>
                           <span className="text-[#64748b] line-through tabular">{c.before || '-'}</span>
-                          <span className="text-[#64748b]">→</span>
+                          <span className="text-[#64748b]"><ArrowRight size={12} /></span>
                           <span className="text-[#e2e8f0] font-semibold tabular">{c.after || '-'}</span>
                         </div>
                       ))}

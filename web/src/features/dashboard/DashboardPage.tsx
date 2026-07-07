@@ -1,6 +1,8 @@
 // 대시보드 — 계약/매출/조직관리 실데이터를 집계해 KPI·최근 계약·정산 파이프라인·추천인 순위를 보여준다.
 import { useEffect, useState } from 'react'
+import type { ComponentType } from 'react'
 import { Link } from 'react-router-dom'
+import { ArrowRight, Coins, FileText, Landmark, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import Badge from '../../components/ui/Badge'
 import { comma, dateText } from '../../lib/format'
@@ -133,8 +135,8 @@ export default function DashboardPage() {
           value={`${activeContracts.length}건`}
           tint="#e0edff"
           fg="#2563eb"
-          glyph="▤"
-          trend={newThisWeek > 0 ? `▲ ${newThisWeek}건 (이번 주)` : '이번 주 신규 없음'}
+          icon={FileText}
+          trend={newThisWeek > 0 ? `${newThisWeek}건 (이번 주)` : '이번 주 신규 없음'}
           trendUp={newThisWeek > 0}
         />
         <KpiCard
@@ -142,11 +144,11 @@ export default function DashboardPage() {
           value={`${comma(monthSales)}원`}
           tint="#e2f7ec"
           fg="#16a34a"
-          glyph="₩"
+          icon={Wallet}
           trend={
             salesTrendPct === null
               ? '전월 실적 없음'
-              : `${salesTrendPct >= 0 ? '▲' : '▼'} ${Math.abs(salesTrendPct)}% vs 전월`
+              : `${Math.abs(salesTrendPct)}% vs 전월`
           }
           trendUp={salesTrendPct === null ? undefined : salesTrendPct >= 0}
         />
@@ -155,7 +157,7 @@ export default function DashboardPage() {
           value={`${comma(monthAllowance)}원`}
           tint="#fff1e0"
           fg="#f59e0b"
-          glyph="◆"
+          icon={Coins}
           trend={`대상 ${allowanceTargets.length}건`}
         />
         <KpiCard
@@ -163,7 +165,7 @@ export default function DashboardPage() {
           value={`${comma(monthSalary)}원`}
           tint="#f3e8ff"
           fg="#7c3aed"
-          glyph="●"
+          icon={Landmark}
           trend={`정상운영 ${salaryTargets.length}건 기준`}
         />
       </div>
@@ -172,8 +174,8 @@ export default function DashboardPage() {
         <div className="rounded-[14px] border border-border bg-card overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <span className="text-[15px] font-extrabold text-text-strong">최근 계약 현황</span>
-            <Link to="/contracts" className="text-[12.5px] font-bold text-primary hover:brightness-110">
-              전체보기 →
+            <Link to="/contracts" className="flex items-center gap-1 text-[12.5px] font-bold text-primary hover:brightness-110">
+              전체보기 <ArrowRight size={13} />
             </Link>
           </div>
           <table className="w-full text-[13px]">
@@ -291,7 +293,7 @@ function KpiCard({
   value,
   tint,
   fg,
-  glyph,
+  icon: Icon,
   trend,
   trendUp,
 }: {
@@ -299,7 +301,7 @@ function KpiCard({
   value: string
   tint: string
   fg: string
-  glyph: string
+  icon: ComponentType<{ size?: number }>
   trend: string
   trendUp?: boolean
 }) {
@@ -307,18 +309,19 @@ function KpiCard({
     <div className="rounded-[12px] border border-border bg-card p-4">
       <div className="flex items-center gap-3 mb-2">
         <div
-          className="h-[38px] w-[38px] rounded-[11px] flex items-center justify-center text-lg font-black shrink-0"
+          className="h-[38px] w-[38px] rounded-[11px] flex items-center justify-center shrink-0"
           style={{ background: tint, color: fg }}
         >
-          {glyph}
+          <Icon size={18} />
         </div>
         <div className="text-[13px] font-semibold text-[#64748b]">{label}</div>
       </div>
       <div className="text-[21px] font-extrabold text-text-strong leading-tight">{value}</div>
       <div
-        className="text-[11.5px] font-semibold mt-1"
+        className="flex items-center gap-1 text-[11.5px] font-semibold mt-1"
         style={{ color: trendUp === undefined ? '#64748b' : trendUp ? '#22c55e' : '#f87171' }}
       >
+        {trendUp !== undefined && (trendUp ? <TrendingUp size={13} /> : <TrendingDown size={13} />)}
         {trend}
       </div>
     </div>

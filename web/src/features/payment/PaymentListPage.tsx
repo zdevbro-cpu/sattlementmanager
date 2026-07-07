@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Calendar, DollarSign, Landmark, Wallet } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, DollarSign, Landmark, Plus, Wallet, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import { comma, dateText, won } from '../../lib/format'
@@ -182,9 +182,9 @@ function RevenuePayoutView() {
         </div>
         <button
           onClick={() => setAddOpen(true)}
-          className="h-10 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110"
+          className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110"
         >
-          ＋ 추가지급 대상자
+          <Plus size={15} /> 추가지급 대상자
         </button>
       </div>
 
@@ -279,7 +279,7 @@ function RevenuePayoutView() {
                       title="삭제"
                       className="h-7 w-7 rounded-md border border-border inline-flex items-center justify-center text-danger hover:bg-hover"
                     >
-                      ✕
+                      <X size={14} />
                     </button>
                   </td>
                 </tr>
@@ -389,7 +389,7 @@ function AddExtraPayeeModal({
       <div className="w-full max-w-[520px] rounded-[14px] border border-border bg-card shadow-xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h3 className="text-[16px] font-extrabold text-text-strong">추가지급 대상자 등록</h3>
-          <button onClick={onClose} className="text-[#94a3b8] hover:text-white">✕</button>
+          <button onClick={onClose} className="text-[#94a3b8] hover:text-white"><X size={18} /></button>
         </div>
         <div className="px-6 py-5 space-y-3">
           <input
@@ -677,7 +677,7 @@ function SalaryPayoutView() {
         {targets.length > 0 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border">
             <div className="flex gap-1">
-              <button onClick={() => setPage(Math.max(1, safePage - 1))} className="h-8 w-8 rounded-md border border-border text-[#94a3b8] hover:bg-hover">‹</button>
+              <button onClick={() => setPage(Math.max(1, safePage - 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronLeft size={16} /></button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
                 <button
                   key={n}
@@ -687,7 +687,7 @@ function SalaryPayoutView() {
                   {n}
                 </button>
               ))}
-              <button onClick={() => setPage(Math.min(totalPages, safePage + 1))} className="h-8 w-8 rounded-md border border-border text-[#94a3b8] hover:bg-hover">›</button>
+              <button onClick={() => setPage(Math.min(totalPages, safePage + 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronRight size={16} /></button>
             </div>
             <div className="flex gap-1">
               {PAGE_SIZES.map((n) => (
@@ -797,7 +797,7 @@ function SummaryCard({ label, value, tint, fg, sub, icon }: { label: string; val
   return (
     <div className="rounded-[12px] border border-border bg-card p-4 flex items-center gap-3">
       <div className="h-[38px] w-[38px] rounded-[11px] flex items-center justify-center text-lg font-black" style={{ background: tint, color: fg }}>
-        {icon ?? '₩'}
+        {icon ?? <Wallet size={18} />}
       </div>
       <div>
         <div className="text-[13px] font-semibold text-[#64748b]">{label}</div>

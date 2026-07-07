@@ -7,6 +7,7 @@ import { ocrImage, uploadReceiptImage, type TextbookOcrResult } from '../../lib/
 import { phoneFmt } from '../../lib/format'
 import { createApplication } from './textbookStore'
 import { useAuth } from '../auth/AuthContext'
+import { AlertTriangle, ArrowLeft, Camera, CheckCircle2 } from 'lucide-react'
 
 const inputCls =
   'h-10 w-full rounded-[8px] bg-input border border-border px-3 text-[13.5px] text-input-text outline-none focus:border-primary'
@@ -142,9 +143,9 @@ export default function TextbookApplyPage() {
         </div>
         <button
           onClick={() => navigate('/sales?tab=textbook')}
-          className="h-10 shrink-0 rounded-[10px] border border-border px-4 text-sm font-bold text-[#c2cde0] hover:bg-hover"
+          className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-[10px] border border-border px-4 text-sm font-bold text-[#c2cde0] hover:bg-hover"
         >
-          ← 목록으로 가기
+          <ArrowLeft size={15} /> 목록으로 가기
         </button>
       </div>
 
@@ -155,7 +156,7 @@ export default function TextbookApplyPage() {
           {!preview ? (
             <DropZone onFile={onPhoto} accept="image/*">
               <div className="py-8 text-center">
-                <div className="mb-1 text-[26px]">📷</div>
+                <div className="mb-1 flex justify-center text-primary"><Camera size={26} /></div>
                 <div className="text-[13.5px] font-bold text-text-strong">사진 촬영/업로드</div>
                 <div className="mt-1 text-[11.5px] text-[#94a3b8]">종이 신청서를 촬영하여 자동완성 하세요</div>
               </div>
@@ -178,11 +179,11 @@ export default function TextbookApplyPage() {
             </div>
           )}
           {driveErr && (
-            <div className="mt-1.5 text-[11px] text-warning">⚠ 이미지 Drive 저장 실패 (정보입력은 정상): {driveErr}</div>
+            <div className="mt-1.5 flex items-center gap-1 text-[11px] text-warning"><AlertTriangle size={11} /> 이미지 Drive 저장 실패 (정보입력은 정상): {driveErr}</div>
           )}
 
           {err && <div className="mt-3 text-[13px] text-danger">{err}</div>}
-          {doneMsg && <div className="mt-3 text-[13px] font-bold text-success">✓ {doneMsg}</div>}
+          {doneMsg && <div className="mt-3 flex items-center gap-1 text-[13px] font-bold text-success"><CheckCircle2 size={14} /> {doneMsg}</div>}
 
           {/* 우측 컬럼 하단과 정렬되도록 버튼을 카드 맨 아래로 고정 */}
           <div className="flex-1" />

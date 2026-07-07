@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ChevronDown, ChevronUp, ExternalLink, Paperclip, Plus, X } from 'lucide-react'
 import StatusBadge from '../../components/ui/StatusBadge'
 import { comma, dateText, won } from '../../lib/format'
 import type { Contract, ContractSnapshot } from '../../types/contract'
@@ -47,12 +48,12 @@ export default function ContractDetailDrawer({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setAddOpen((v) => !v)}
-              className="h-9 rounded-[8px] bg-indigo px-3 text-[13px] font-bold text-white hover:brightness-110"
+              className="inline-flex h-9 items-center gap-1.5 rounded-[8px] bg-indigo px-3 text-[13px] font-bold text-white hover:brightness-110"
             >
-              {addOpen ? '변경 취소' : '＋ 상태 변경 / 이력 추가'}
+              {addOpen ? '변경 취소' : (<><Plus size={14} /> 상태 변경 / 이력 추가</>)}
             </button>
             <button onClick={onClose} className="text-[#94a3b8] hover:text-white">
-              ✕
+              <X size={18} />
             </button>
           </div>
         </div>
@@ -137,8 +138,8 @@ export default function ContractDetailDrawer({
                         </span>
                       )}
                     </div>
-                    <span className="text-[12px] text-[#64748b]">
-                      {openHistory === h.historyId ? '▲' : '▼'}
+                    <span className="text-[#64748b]">
+                      {openHistory === h.historyId ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                     </span>
                   </button>
                   {openHistory === h.historyId && (
@@ -244,7 +245,7 @@ function PaymentView({ s }: { s: ContractSnapshot }) {
               rel="noreferrer"
               className="mt-1.5 inline-flex items-center gap-1 text-[11.5px] font-bold text-primary hover:brightness-110"
             >
-              📎 등록된 전표 원본 보기 →
+              <Paperclip size={12} /> 등록된 전표 원본 보기 <ExternalLink size={12} />
             </a>
           )}
         </div>
@@ -275,7 +276,7 @@ function PaymentView({ s }: { s: ContractSnapshot }) {
               rel="noreferrer"
               className="mt-1.5 inline-flex items-center gap-1 text-[11.5px] font-bold text-primary hover:brightness-110"
             >
-              📎 등록된 입금증 원본 보기 →
+              <Paperclip size={12} /> 등록된 입금증 원본 보기 <ExternalLink size={12} />
             </a>
           )}
         </div>
@@ -302,7 +303,7 @@ function DocsView({ docs }: { docs: ContractSnapshot['documents'] }) {
             </span>
             <span className="text-[#c2cde0]">{d.fileName}</span>
           </span>
-          <span className="text-primary font-bold">Drive 열기 →</span>
+          <span className="inline-flex items-center gap-1 text-primary font-bold">Drive 열기 <ExternalLink size={12} /></span>
         </a>
       ))}
     </div>

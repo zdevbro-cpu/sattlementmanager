@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ExternalLink, Paperclip, X } from 'lucide-react'
 import { dateText, won } from '../../lib/format'
 import { salesMethodLabel, type Sale } from '../../types/sales'
 import { getSale } from './salesStore'
@@ -47,7 +48,7 @@ export default function SalesDetailDrawer({
                 수정
               </button>
             )}
-            <button onClick={onClose} className="text-[#94a3b8] hover:text-white">✕</button>
+            <button onClick={onClose} className="text-[#94a3b8] hover:text-white"><X size={18} /></button>
           </div>
         </div>
 
@@ -102,7 +103,7 @@ export default function SalesDetailDrawer({
                         rel="noreferrer"
                         className="mt-1.5 inline-flex items-center gap-1 text-[11.5px] font-bold text-primary hover:brightness-110"
                       >
-                        📎 등록된 전표 원본 보기 →
+                        <Paperclip size={12} /> 등록된 전표 원본 보기 <ExternalLink size={12} />
                       </a>
                     )}
                   </div>
@@ -138,7 +139,7 @@ export default function SalesDetailDrawer({
                         rel="noreferrer"
                         className="mt-1.5 inline-flex items-center gap-1 text-[11.5px] font-bold text-primary hover:brightness-110"
                       >
-                        📎 등록된 입금증 원본 보기 →
+                        <Paperclip size={12} /> 등록된 입금증 원본 보기 <ExternalLink size={12} />
                       </a>
                     )}
                   </div>

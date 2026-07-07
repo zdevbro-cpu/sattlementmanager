@@ -1,12 +1,24 @@
 import { NavLink, useLocation } from 'react-router-dom'
+import type { ComponentType } from 'react'
 import type { ReactNode } from 'react'
+import {
+  BarChart3,
+  Calculator,
+  FileText,
+  LayoutDashboard,
+  Landmark,
+  Receipt,
+  Settings,
+  Users,
+  Wallet,
+} from 'lucide-react'
 import { useAuth } from '../../features/auth/AuthContext'
 import { todayLabel } from '../../lib/format'
 
 interface NavItem {
   to: string
   label: string
-  glyph: string
+  icon: ComponentType<{ size?: number }>
   enabled?: boolean
 }
 
@@ -19,25 +31,25 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: '운영',
     items: [
-      { to: '/dashboard', label: '대시보드', glyph: '▦', enabled: true },
-      { to: '/contracts', label: '계약관리', glyph: '▤', enabled: true },
-      { to: '/sales', label: '매출관리', glyph: '▧', enabled: true },
-      { to: '/base', label: '조직관리', glyph: '◱', enabled: true },
+      { to: '/dashboard', label: '대시보드', icon: LayoutDashboard, enabled: true },
+      { to: '/contracts', label: '계약관리', icon: FileText, enabled: true },
+      { to: '/sales', label: '매출관리', icon: Receipt, enabled: true },
+      { to: '/base', label: '조직관리', icon: Users, enabled: true },
     ],
   },
   {
     title: '정산 & 회계',
     items: [
-      { to: '/payment', label: '지급관리', glyph: '₩', enabled: true },
-      { to: '/settlement', label: '정산센터', glyph: '∑' },
-      { to: '/accounting', label: '회계관리', glyph: '▥' },
+      { to: '/payment', label: '지급관리', icon: Wallet, enabled: true },
+      { to: '/settlement', label: '정산센터', icon: Calculator },
+      { to: '/accounting', label: '회계관리', icon: Landmark },
     ],
   },
   {
     title: '인사이트',
     items: [
-      { to: '/system', label: '시스템관리', glyph: '⚙', enabled: true },
-      { to: '/stats', label: '통계', glyph: '◔' },
+      { to: '/system', label: '시스템관리', icon: Settings, enabled: true },
+      { to: '/stats', label: '통계', icon: BarChart3 },
     ],
   },
 ]
@@ -111,7 +123,9 @@ export default function AppLayout({
                       .join(' ')
                   }
                 >
-                  <span className="w-4 text-center">{it.glyph}</span>
+                  <span className="flex w-4 shrink-0 items-center justify-center">
+                    <it.icon size={16} />
+                  </span>
                   <span>{it.label}</span>
                 </NavLink>
               ))}

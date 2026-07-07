@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Eye } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Eye, Plus } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import Badge from '../../components/ui/Badge'
 import DateTextInput from '../../components/ui/DateTextInput'
@@ -85,9 +85,9 @@ export default function AppointmentListPage() {
         </div>
         <button
           onClick={() => setRegisterOpen(true)}
-          className="h-10 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110"
+          className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110"
         >
-          ＋ 임용계약등록
+          <Plus size={15} /> 임용계약등록
         </button>
       </div>
 
@@ -184,7 +184,7 @@ export default function AppointmentListPage() {
         {rows.length > 0 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border">
             <div className="flex gap-1">
-              <button onClick={() => setPage(Math.max(1, safePage - 1))} className="h-8 w-8 rounded-md border border-border text-[#94a3b8] hover:bg-hover">‹</button>
+              <button onClick={() => setPage(Math.max(1, safePage - 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronLeft size={16} /></button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
                 <button
                   key={n}
@@ -194,7 +194,7 @@ export default function AppointmentListPage() {
                   {n}
                 </button>
               ))}
-              <button onClick={() => setPage(Math.min(totalPages, safePage + 1))} className="h-8 w-8 rounded-md border border-border text-[#94a3b8] hover:bg-hover">›</button>
+              <button onClick={() => setPage(Math.min(totalPages, safePage + 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronRight size={16} /></button>
             </div>
             <div className="flex gap-1">
               {PAGE_SIZES.map((n) => (
