@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS contract_history (
   status                   TEXT NOT NULL,          -- 신규/증액/양수/양도/해지/폐기
   event_date               DATE,
   org                      TEXT,                   -- 소속 (A/B, 시스템관리에서 추가)
+  business_unit            TEXT,                   -- 사업부 (매출관리와 별개 필드, 시스템관리에서 추가)
   contractor_name          TEXT,                   -- 계약자
   contract_type            TEXT,                   -- 계약구분 (LAS매장점주/직원/LAS-On파트장/LAS-On파트너)
   contract_date            DATE,                   -- 계약일
@@ -145,6 +146,7 @@ CREATE TABLE IF NOT EXISTS sales (
   id               TEXT PRIMARY KEY,
   date             DATE,                 -- 매출일
   category         TEXT,                 -- 매출구분 (시스템관리 salesCategories)
+  org              TEXT,                 -- 소속 (A/B, 계약관리와 동일 코드셋)
   business_unit    TEXT,                 -- 사업부
   buyer            TEXT,                 -- 구매자
   manager          TEXT,                 -- 담당(지점/담당자)

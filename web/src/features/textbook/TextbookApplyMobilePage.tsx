@@ -186,7 +186,7 @@ export default function TextbookApplyMobilePage() {
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <Field label="신청 날짜">
-                <input type="date" value={applyDate} onChange={(e) => setApplyDate(e.target.value)} className={inputCls} />
+                <DateTextInput value={applyDate} onChange={setApplyDate} className={inputCls} />
               </Field>
               <Field label="구매자 성명">
                 <input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} placeholder="구매자명" className={inputCls} />

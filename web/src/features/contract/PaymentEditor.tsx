@@ -214,7 +214,7 @@ export default function PaymentEditor({
           <div className="space-y-2">
             {value.cardInstallments.map((it, i) => (
               <CardRow
-                key={i}
+                key={it.seq}
                 item={it}
                 variant={variant}
                 onChange={(patch) =>
@@ -240,7 +240,7 @@ export default function PaymentEditor({
           <div className="space-y-2">
             {value.cashInstallments.map((it, i) => (
               <CashRow
-                key={i}
+                key={it.seq}
                 item={it}
                 variant={variant}
                 onChange={(patch) =>

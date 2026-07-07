@@ -10,6 +10,7 @@ import { createContract } from './contractStore'
 import PaymentEditor, { emptyPayment } from './PaymentEditor'
 import { uploadToDrive } from '../../lib/api'
 import DropZone from '../../components/ui/DropZone'
+import DateTextInput from '../../components/ui/DateTextInput'
 
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
@@ -18,6 +19,7 @@ const PAY_DAYS = Array.from({ length: 31 }, (_, i) => i + 1) // 1~31
 
 interface FormState {
   org: string
+  businessUnit: string
   contractorName: string
   contractType: string
   contractDate: string
@@ -47,6 +49,7 @@ export default function ContractRegisterModal({
   const codes = useCodes()
   const [f, setF] = useState<FormState>({
     org: codes.orgs[0] ?? '',
+    businessUnit: codes.businessUnits[0] ?? '',
     contractorName: '',
     contractType: codes.contractTypes[0] ?? '',
     contractDate: '',
@@ -93,6 +96,7 @@ export default function ContractRegisterModal({
         status: '신규', // 신규계약등록 페이지 — 상태는 항상 신규
         eventDate: f.contractDate,
         org: f.org,
+        businessUnit: f.businessUnit,
         contractorName: f.contractorName.trim(),
         contractType: f.contractType,
         contractDate: f.contractDate,
@@ -144,10 +148,10 @@ export default function ContractRegisterModal({
         </div>
 
         <div className="px-6 py-5 space-y-5 max-h-[74vh] overflow-y-auto">
-          {/* ── 계약정보 (16필드 4×4, 상태는 신규 고정이라 미표시) ── */}
+          {/* ── 계약정보 (5열 그리드, 상태는 신규 고정이라 미표시) ── */}
           <section>
             <SectionTitle>계약정보</SectionTitle>
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-5 gap-3">
               {/* 1행 */}
               <Field label="소속">
                 <select value={f.org} onChange={(e) => set('org', e.target.value)} className={inputCls}>
@@ -156,7 +160,14 @@ export default function ContractRegisterModal({
                   ))}
                 </select>
               </Field>
-              <Field label="계약자">
+              <Field label="사업부">
+                <select value={f.businessUnit} onChange={(e) => set('businessUnit', e.target.value)} className={inputCls}>
+                  {codes.businessUnits.map((b) => (
+                    <option key={b}>{b}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="계약자명">
                 <input value={f.contractorName} onChange={(e) => set('contractorName', e.target.value)} className={inputCls} placeholder="계약자명" />
               </Field>
               <Field label="계약구분">
@@ -167,7 +178,7 @@ export default function ContractRegisterModal({
                 </select>
               </Field>
               <Field label="계약일">
-                <input type="date" value={f.contractDate} onChange={(e) => set('contractDate', e.target.value)} className={inputCls} />
+                <DateTextInput value={f.contractDate} onChange={(v) => set('contractDate', v)} className={inputCls} />
               </Field>
 
               {/* 2행 */}
@@ -177,7 +188,10 @@ export default function ContractRegisterModal({
               <Field label="수당">
                 <NumInput value={f.allowance} onChange={(v) => set('allowance', v)} />
               </Field>
-              <Field label="수당지급일 (매월)">
+              <Field label="최초수당지급일">
+                <DateTextInput value={f.firstAllowancePayDate} onChange={(v) => set('firstAllowancePayDate', v)} className={inputCls} />
+              </Field>
+              <Field label="수당지급일(매월)">
                 <select value={f.allowancePayDay} onChange={(e) => set('allowancePayDay', Number(e.target.value))} className={inputCls}>
                   {PAY_DAYS.map((d) => (
                     <option key={d} value={d}>
@@ -186,11 +200,43 @@ export default function ContractRegisterModal({
                   ))}
                 </select>
               </Field>
-              <Field label="최초수당지급일">
-                <input type="date" value={f.firstAllowancePayDate} onChange={(e) => set('firstAllowancePayDate', e.target.value)} className={inputCls} />
+              <Field label="종료일">
+                <DateTextInput value={f.contractEndDate} onChange={(v) => set('contractEndDate', v)} className={inputCls} />
               </Field>
 
-              {/* 3행 — 계좌정보 · 주민등록번호 · 전화번호 */}
+              {/* 3행 */}
+              <Field label="연락처">
+                <input value={f.phone} onChange={(e) => set('phone', e.target.value)} className={inputCls} placeholder="예: 010-1234-5678" />
+              </Field>
+              <Field label="주민번호">
+                <input value={f.residentNo} onChange={(e) => set('residentNo', e.target.value)} className={inputCls} placeholder="예: 900101-1******" />
+              </Field>
+              <Field label="지점명">
+                <input value={f.branch} onChange={(e) => set('branch', e.target.value)} className={inputCls} list="branch-list" />
+                <datalist id="branch-list">
+                  {BRANCHES.map((b) => (
+                    <option key={b} value={b} />
+                  ))}
+                </datalist>
+              </Field>
+              <Field label="관리자">
+                <input value={f.manager} onChange={(e) => set('manager', e.target.value)} className={inputCls} list="manager-list" />
+                <datalist id="manager-list">
+                  {MANAGERS.map((m) => (
+                    <option key={m} value={m} />
+                  ))}
+                </datalist>
+              </Field>
+              <Field label="유치자">
+                <input value={f.recruiter} onChange={(e) => set('recruiter', e.target.value)} className={inputCls} list="recruiter-list" />
+                <datalist id="recruiter-list">
+                  {RECRUITERS.map((r) => (
+                    <option key={r} value={r} />
+                  ))}
+                </datalist>
+              </Field>
+
+              {/* 4행 */}
               <Field label="은행명">
                 <input value={f.bankName} onChange={(e) => set('bankName', e.target.value)} className={inputCls} placeholder="예: 국민은행" />
               </Field>
@@ -199,38 +245,6 @@ export default function ContractRegisterModal({
               </Field>
               <Field label="예금주">
                 <input value={f.accountOwner} onChange={(e) => set('accountOwner', e.target.value)} className={inputCls} placeholder="미입력 시 계약자명" />
-              </Field>
-              <Field label="주민등록번호">
-                <input value={f.residentNo} onChange={(e) => set('residentNo', e.target.value)} className={inputCls} placeholder="예: 900101-1******" />
-              </Field>
-              <Field label="전화번호">
-                <input value={f.phone} onChange={(e) => set('phone', e.target.value)} className={inputCls} placeholder="예: 010-1234-5678" />
-              </Field>
-
-              {/* 4행 */}
-              <Field label="계약종료일">
-                <input type="date" value={f.contractEndDate} onChange={(e) => set('contractEndDate', e.target.value)} className={inputCls} />
-              </Field>
-              <Field label="지점명">
-                <select value={f.branch} onChange={(e) => set('branch', e.target.value)} className={inputCls}>
-                  {BRANCHES.map((b) => (
-                    <option key={b}>{b}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="관리자">
-                <select value={f.manager} onChange={(e) => set('manager', e.target.value)} className={inputCls}>
-                  {MANAGERS.map((m) => (
-                    <option key={m}>{m}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="유치자">
-                <select value={f.recruiter} onChange={(e) => set('recruiter', e.target.value)} className={inputCls}>
-                  {RECRUITERS.map((r) => (
-                    <option key={r}>{r}</option>
-                  ))}
-                </select>
               </Field>
             </div>
             <div className="mt-3">

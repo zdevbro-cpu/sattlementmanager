@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { PaymentInfo } from '../../types/contract'
 import { BUSINESS_UNITS, SALES_MANAGERS } from '../../data/mockSales'
+import { useCodes } from '../../lib/codeStore'
 import { createSale } from './salesStore'
 import { useSalesCategories } from './salesCategoryStore'
 import PaymentEditor, { emptyPayment } from '../contract/PaymentEditor'
 import { useAuth } from '../auth/AuthContext'
+import DateTextInput from '../../components/ui/DateTextInput'
 
 const inputCls =
   'h-11 w-full rounded-[8px] bg-input border border-border px-3 text-[14px] text-input-text outline-none focus:border-primary'
@@ -15,6 +17,8 @@ export default function MobileSalesRegisterPage() {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const categories = useSalesCategories()
+  const { orgs } = useCodes()
+  const [org, setOrg] = useState(orgs[0] ?? '')
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [category, setCategory] = useState(categories[0]?.name ?? '')
   const [businessUnit, setBusinessUnit] = useState(BUSINESS_UNITS[0])
@@ -43,6 +47,7 @@ export default function MobileSalesRegisterPage() {
       await createSale({
         date,
         category,
+        org,
         businessUnit,
         buyer: buyer.trim(),
         manager,
@@ -83,8 +88,15 @@ export default function MobileSalesRegisterPage() {
       <div className="space-y-4">
         <section className="rounded-[14px] border border-border bg-card p-4">
           <div className="grid grid-cols-2 gap-3">
+            <Field label="소속">
+              <select value={org} onChange={(e) => setOrg(e.target.value)} className={inputCls}>
+                {orgs.map((o) => (
+                  <option key={o}>{o}</option>
+                ))}
+              </select>
+            </Field>
             <Field label="매출일">
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
+              <DateTextInput value={date} onChange={setDate} className={inputCls} />
             </Field>
             <Field label="매출구분">
               <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls}>

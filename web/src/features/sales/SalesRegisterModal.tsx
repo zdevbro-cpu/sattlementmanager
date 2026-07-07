@@ -6,6 +6,7 @@ import { useCodes } from '../../lib/codeStore'
 import { createSale, updateSale } from './salesStore'
 import { useSalesCategories } from './salesCategoryStore'
 import PaymentEditor, { emptyPayment } from '../contract/PaymentEditor'
+import DateTextInput from '../../components/ui/DateTextInput'
 
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
@@ -22,7 +23,8 @@ export default function SalesRegisterModal({
 }) {
   const isEdit = !!sale
   const categories = useSalesCategories()
-  const { businessUnits } = useCodes()
+  const { orgs, businessUnits } = useCodes()
+  const [org, setOrg] = useState(sale?.org ?? orgs[0] ?? '')
   const [date, setDate] = useState(sale?.date ?? '')
   const [category, setCategory] = useState(sale?.category ?? categories[0]?.name ?? '')
   const [businessUnit, setBusinessUnit] = useState(sale?.businessUnit ?? businessUnits[0] ?? '')
@@ -57,6 +59,7 @@ export default function SalesRegisterModal({
         await updateSale(sale.id, {
           date,
           category,
+          org,
           businessUnit,
           buyer: buyer.trim(),
           manager,
@@ -72,6 +75,7 @@ export default function SalesRegisterModal({
         await createSale({
           date,
           category,
+          org,
           businessUnit,
           buyer: buyer.trim(),
           manager,
@@ -103,9 +107,16 @@ export default function SalesRegisterModal({
         <div className="px-6 py-5 space-y-5 max-h-[74vh] overflow-y-auto">
           <section>
             <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">매출 정보</h3>
-            <div className="grid grid-cols-5 gap-3">
+            <div className="grid grid-cols-6 gap-3">
+              <Field label="소속">
+                <select value={org} onChange={(e) => setOrg(e.target.value)} className={inputCls}>
+                  {orgs.map((o) => (
+                    <option key={o}>{o}</option>
+                  ))}
+                </select>
+              </Field>
               <Field label="매출일">
-                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
+                <DateTextInput value={date} onChange={setDate} className={inputCls} />
               </Field>
               <Field label="매출구분">
                 <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls}>

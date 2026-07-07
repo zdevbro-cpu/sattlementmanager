@@ -3,6 +3,7 @@ import type { ContractSnapshot, PaymentInfo } from '../../types/contract'
 import { useCodes } from '../../lib/codeStore'
 import { addHistory } from './contractStore'
 import PaymentEditor from './PaymentEditor'
+import DateTextInput from '../../components/ui/DateTextInput'
 import { comma } from '../../lib/format'
 
 const inputCls =
@@ -78,7 +79,7 @@ export default function HistoryAddForm({
           </select>
         </Field>
         <Field label="변경일">
-          <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} className={inputCls} />
+          <DateTextInput value={eventDate} onChange={setEventDate} className={inputCls} />
         </Field>
         <Field label="보증금">
           <NumInput value={deposit} onChange={setDeposit} />
@@ -96,7 +97,7 @@ export default function HistoryAddForm({
           </select>
         </Field>
         <Field label="계약종료일">
-          <input type="date" value={contractEndDate} onChange={(e) => setContractEndDate(e.target.value)} className={inputCls} />
+          <DateTextInput value={contractEndDate} onChange={setContractEndDate} className={inputCls} />
         </Field>
       </div>
       <Field label="변경 사유/메모">

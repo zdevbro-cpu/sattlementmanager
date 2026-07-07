@@ -44,6 +44,7 @@ function mapSale(s, installments, documents) {
     id: s.id,
     date: isoDate(s.date),
     category: s.category || '',
+    org: s.org || '',
     businessUnit: s.business_unit || '',
     buyer: s.buyer || '',
     manager: s.manager || '',
@@ -141,13 +142,14 @@ async function createSale(s) {
     const p = s.payment || {}
     await client.query(
       `INSERT INTO sales
-         (id, date, category, business_unit, buyer, manager, inputter_org, inputter_name,
+         (id, date, category, org, business_unit, buyer, manager, inputter_org, inputter_name,
           payment_method, payment_total, verified, memo, source, contract_id, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
       [
         id,
         nn(s.date),
         s.category || '',
+        s.org || '',
         s.businessUnit || '',
         s.buyer || '',
         s.manager || '',
@@ -224,14 +226,15 @@ async function updateSale(id, s) {
     const p = s.payment || {}
     const { rowCount } = await client.query(
       `UPDATE sales SET
-         date=$2, category=$3, business_unit=$4, buyer=$5, manager=$6,
-         inputter_org=$7, inputter_name=$8, payment_method=$9, payment_total=$10,
-         verified=$11, memo=$12
+         date=$2, category=$3, org=$4, business_unit=$5, buyer=$6, manager=$7,
+         inputter_org=$8, inputter_name=$9, payment_method=$10, payment_total=$11,
+         verified=$12, memo=$13
        WHERE id=$1`,
       [
         id,
         nn(s.date),
         s.category || '',
+        s.org || '',
         s.businessUnit || '',
         s.buyer || '',
         s.manager || '',

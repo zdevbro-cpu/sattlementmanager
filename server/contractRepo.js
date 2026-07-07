@@ -39,6 +39,7 @@ function mapSnapshot(h, installments, documents) {
     status: h.status,
     eventDate: isoDate(h.event_date),
     org: h.org || '',
+    businessUnit: h.business_unit || '',
     contractorName: h.contractor_name || '',
     contractType: h.contract_type || '',
     contractDate: isoDate(h.contract_date),
@@ -147,18 +148,19 @@ async function insertHistory(client, contractId, snap) {
   const p = snap.payment || {}
   const { rows } = await client.query(
     `INSERT INTO contract_history
-       (contract_id,status,event_date,org,contractor_name,contract_type,contract_date,
+       (contract_id,status,event_date,org,business_unit,contractor_name,contract_type,contract_date,
         deposit,allowance,allowance_pay_day,first_allowance_pay_date,
         contract_end_date,branch,manager,recruiter,
         bank_name,account_no,account_owner,resident_no,phone,
         payment_method,payment_total,memo)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
      RETURNING id`,
     [
       contractId,
       snap.status,
       nn(snap.eventDate),
       snap.org,
+      snap.businessUnit || '',
       snap.contractorName,
       snap.contractType,
       nn(snap.contractDate),

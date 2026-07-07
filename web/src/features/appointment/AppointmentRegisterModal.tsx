@@ -11,6 +11,7 @@ import { getBanks } from './bankStore'
 import DocUploadList from './DocUploadList'
 import { usePositionSalaries } from './positionSalaryStore'
 import { todayIso } from '../../lib/format'
+import DateTextInput from '../../components/ui/DateTextInput'
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
 
@@ -200,13 +201,13 @@ export default function AppointmentRegisterModal({
                 <NumInput value={salary} onChange={setSalary} />
               </Field>
               <Field label="계약일">
-                <input type="date" value={contractDate} onChange={(e) => changeContractDate(e.target.value)} className={inputCls} />
+                <DateTextInput value={contractDate} onChange={changeContractDate} className={inputCls} />
               </Field>
               <Field label="급여일">
-                <input type="date" value={payoutDate} onChange={(e) => { setManualPayout(true); setPayoutDate(e.target.value) }} className={inputCls} />
+                <DateTextInput value={payoutDate} onChange={(v) => { setManualPayout(true); setPayoutDate(v) }} className={inputCls} />
               </Field>
               <Field label="계약종료일">
-                <input type="date" value={endDate} onChange={(e) => { setManualEnd(true); setEndDate(e.target.value) }} className={inputCls} />
+                <DateTextInput value={endDate} onChange={(v) => { setManualEnd(true); setEndDate(v) }} className={inputCls} />
               </Field>
             </div>
           </section>

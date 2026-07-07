@@ -8,6 +8,7 @@ import { updateAppointment } from './appointmentStore'
 import InstitutionSelect from './InstitutionSelect'
 import { usePositionSalaries } from './positionSalaryStore'
 import { todayIso } from '../../lib/format'
+import DateTextInput from '../../components/ui/DateTextInput'
 
 const inputCls =
   'h-9 w-full rounded-[8px] bg-input border border-border px-2.5 text-[13px] text-input-text outline-none focus:border-primary'
@@ -103,13 +104,13 @@ export default function AppointmentEditForm({
           <NumInput value={salary} onChange={setSalary} />
         </Field>
         <Field label="계약일">
-          <input type="date" value={contractDate} onChange={(e) => setContractDate(e.target.value)} className={inputCls} />
+          <DateTextInput value={contractDate} onChange={setContractDate} className={inputCls} />
         </Field>
         <Field label="급여일">
-          <input type="date" value={payoutDate} onChange={(e) => setPayoutDate(e.target.value)} className={inputCls} />
+          <DateTextInput value={payoutDate} onChange={setPayoutDate} className={inputCls} />
         </Field>
         <Field label="계약종료일">
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputCls} />
+          <DateTextInput value={endDate} onChange={setEndDate} className={inputCls} />
         </Field>
         <Field label="계약상태">
           <select value={status} onChange={(e) => setStatus(e.target.value as AppointmentStatus)} className={inputCls}>
@@ -128,7 +129,7 @@ export default function AppointmentEditForm({
           <input value={accountOwner} onChange={(e) => setAccountOwner(e.target.value)} className={inputCls} placeholder="미입력 시 계약자명" />
         </Field>
         <Field label="변경일">
-          <input type="date" value={editedAt} onChange={(e) => setEditedAt(e.target.value)} className={inputCls} />
+          <DateTextInput value={editedAt} onChange={setEditedAt} className={inputCls} />
         </Field>
       </div>
       <Field label="변경 사유/메모">

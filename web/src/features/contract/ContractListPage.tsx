@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Eye } from 'lucide-react'
+import { Eye, Trash2 } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import StatusBadge from '../../components/ui/StatusBadge'
 import Badge, { methodTone } from '../../components/ui/Badge'
 import DateTextInput from '../../components/ui/DateTextInput'
-import { comma, dateText } from '../../lib/format'
+import { comma, dateText, todayIso } from '../../lib/format'
 import {
   EMPTY_FILTER,
   type Contract,
@@ -12,7 +12,7 @@ import {
 } from '../../types/contract'
 import { useCodes } from '../../lib/codeStore'
 import { BRANCHES, MANAGERS, RECRUITERS } from '../../data/mockContracts'
-import { listContracts, summarize } from './contractStore'
+import { addHistory, listContracts, summarize } from './contractStore'
 import ContractRegisterModal from './ContractRegisterModal'
 import ContractDetailDrawer from './ContractDetailDrawer'
 import { downloadListAsExcel } from '../../lib/excelExport'
@@ -34,7 +34,7 @@ const COLS: { label: string; align?: 'center' | 'right'; w?: number }[] = [
   { label: '유치자' },
   { label: '결재구분' },
   { label: '상태' },
-  { label: '상세' },
+  { label: '관리', align: 'center' },
 ]
 
 export default function ContractListPage() {
@@ -85,8 +85,26 @@ export default function ContractListPage() {
     }
   }, [refresh])
 
+  const onDelete = async (c: Contract) => {
+    if (c.current.status === '폐기') {
+      alert('이미 폐기 처리된 계약입니다.')
+      return
+    }
+    if (!confirm(`${c.current.contractorName} 계약을 폐기 처리할까요? (삭제 대신 상태가 "폐기"로 전환되며 이력은 보존됩니다)`))
+      return
+    await addHistory(c.id, {
+      ...c.current,
+      historyId: '',
+      status: '폐기',
+      eventDate: todayIso(),
+      memo: '목록에서 폐기 처리',
+      createdAt: todayIso(),
+    })
+    setRefresh((n) => n + 1)
+  }
+
   const onExcelDownload = () => {
-    const headers = COLS.filter((c) => c.label !== '상세').map((c) => c.label)
+    const headers = COLS.filter((c) => c.label !== '관리').map((c) => c.label)
     const data = rows.map((c, i) => {
       const s = c.current
       return [
@@ -276,6 +294,7 @@ export default function ContractListPage() {
                   c={c}
                   no={rows.length - i}
                   onDetail={() => setDetailId(c.id)}
+                  onDelete={() => onDelete(c)}
                 />
               ))}
               {rows.length === 0 && (
@@ -400,10 +419,12 @@ function Row({
   c,
   no,
   onDetail,
+  onDelete,
 }: {
   c: Contract
   no: number
   onDetail: () => void
+  onDelete: () => void
 }) {
   const s = c.current
   return (
@@ -453,14 +474,23 @@ function Row({
       <td className="px-3 py-1.5">
         <StatusBadge status={s.status} />
       </td>
-      <td className="px-3 py-1.5">
-        <button
-          onClick={onDetail}
-          title="상세 보기"
-          className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover hover:text-white"
-        >
-          <Eye size={16} />
-        </button>
+      <td className="px-3 py-1.5 text-center whitespace-nowrap">
+        <div className="flex items-center justify-center gap-1.5">
+          <button
+            onClick={onDetail}
+            title="상세 보기"
+            className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover hover:text-white"
+          >
+            <Eye size={16} />
+          </button>
+          <button
+            onClick={onDelete}
+            title="폐기 처리"
+            className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-danger hover:bg-hover hover:brightness-125"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
       </td>
     </tr>
   )

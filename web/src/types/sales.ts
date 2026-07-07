@@ -7,6 +7,7 @@ export interface Sale {
   id: string
   date: string // 매출일
   category: string // 매출구분 (시스템관리 salesCategories)
+  org: string // 소속 (A/B, 계약관리와 동일 코드셋)
   businessUnit: string // 사업부
   buyer: string // 구매자
   manager: string // 담당 (지점/담당자)

@@ -224,7 +224,7 @@ export default function SalesListPage() {
               <table className="w-full min-w-[1200px] text-[13px]">
                 <thead>
                   <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
-                    {['번호', '날짜', 'CAT ID', '사업부', '구매자', '내용', '금액', '카드사', '카드번호', '승인번호', '담당', '관리'].map(
+                    {['번호', '소속', '날짜', 'CAT ID', '사업부', '구매자', '내용', '금액', '카드사', '카드번호', '승인번호', '담당', '관리'].map(
                       (h) => (
                         <th
                           key={h}
@@ -250,7 +250,7 @@ export default function SalesListPage() {
                   ))}
                   {rows.length === 0 && (
                     <tr>
-                      <td colSpan={12} className="px-3 py-10 text-center text-[#64748b]">
+                      <td colSpan={13} className="px-3 py-10 text-center text-[#64748b]">
                         {loading
                           ? '불러오는 중…'
                           : loadErr
@@ -393,6 +393,7 @@ function Row({
           )}
         </div>
       </td>
+      <td className="px-3 py-1.5 whitespace-nowrap">{s.org}</td>
       <td className="px-3 py-1.5 tabular whitespace-nowrap">{dateText(s.date)}</td>
       <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{catId}</td>
       <td className="px-3 py-1.5 whitespace-nowrap">{s.businessUnit}</td>

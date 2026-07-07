@@ -5,6 +5,7 @@ import { listSales } from './salesStore'
 import { parseEmails, useReportEmails } from './reportStore'
 import { dailyReportAttachment, downloadDailyReport } from './dailyReportExcel'
 import { sendDailyReport } from '../../lib/api'
+import DateTextInput from '../../components/ui/DateTextInput'
 
 /**
  * 일일보고 미리보기 — 선택일의 매출내용을 메일 양식으로 렌더링.
@@ -87,7 +88,7 @@ export default function DailyReportModal({
         <div className="px-6 py-5 space-y-4 max-h-[74vh] overflow-y-auto">
           <div className="flex items-center gap-3">
             <label className="text-[12px] font-bold text-[#94a3b8]">보고일자</label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+            <DateTextInput value={date} onChange={setDate}
               className="h-9 rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary" />
             <span className="ml-auto text-[12px] text-[#94a3b8]">
               수신: <b className="text-[#c2cde0]">{recipients.length}</b>명

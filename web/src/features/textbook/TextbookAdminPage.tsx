@@ -11,6 +11,7 @@ import {
   type TextbookApplicationFilter,
 } from '../../types/textbook'
 import { deleteApplication, listApplications, summarizeApplications } from './textbookStore'
+import DateTextInput from '../../components/ui/DateTextInput'
 
 const inputCls =
   'h-9 w-full rounded-[8px] bg-input border border-border px-2.5 text-[13px] text-input-text outline-none focus:border-primary'
@@ -84,10 +85,10 @@ export default function TextbookAdminPage() {
       <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
         <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 items-end">
           <Field label="기간 시작">
-            <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className={inputCls} />
+            <DateTextInput value={filter.startDate} onChange={(v) => setFilter({ ...filter, startDate: v })} className={inputCls} />
           </Field>
           <Field label="기간 종료">
-            <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className={inputCls} />
+            <DateTextInput value={filter.endDate} onChange={(v) => setFilter({ ...filter, endDate: v })} className={inputCls} />
           </Field>
           <Field label="구매자명">
             <input value={filter.buyer} onChange={(e) => setFilter({ ...filter, buyer: e.target.value })} placeholder="구매자명 검색" className={inputCls} />

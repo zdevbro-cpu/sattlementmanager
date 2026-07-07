@@ -105,6 +105,7 @@ export interface ContractSnapshot {
 
   // ── 목록 컬럼 값 ────────────────────────────
   org: string // 소속 (A/B, 시스템관리에서 추가)
+  businessUnit: string // 사업부 (매출관리와 별개 필드, 시스템관리에서 추가)
   contractorName: string // 계약자
   contractType: string // 계약구분 (LAS매장점주/직원/LAS-On파트장/LAS-On파트너)
   contractDate: string // 계약일
