@@ -23,6 +23,7 @@ const COLS: { label: string; align?: 'center' | 'right'; w?: number }[] = [
   { label: '번호', align: 'center', w: 56 },
   { label: '소속', align: 'center' },
   { label: '계약자' },
+  { label: '등록일', align: 'center' },
   { label: '계약구분', align: 'center' },
   { label: '계약일', align: 'center' },
   { label: '보증금', align: 'right', w: 132 }, // 최대 10자리
@@ -47,6 +48,7 @@ export default function ContractListPage() {
   const [detailId, setDetailId] = useState<string | null>(null)
   const [refresh, setRefresh] = useState(0)
   const contractEndDateRef = useRef<HTMLInputElement>(null)
+  const regEndDateRef = useRef<HTMLInputElement>(null)
 
   const [rows, setRows] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
@@ -112,6 +114,7 @@ export default function ContractListPage() {
         rows.length - i,
         s.org,
         s.contractorName,
+        dateText(s.createdAt),
         s.contractType,
         dateText(s.contractDate),
         s.deposit,
@@ -126,7 +129,7 @@ export default function ContractListPage() {
         s.status,
       ]
     })
-    downloadListAsExcel(`계약목록_${new Date().toISOString().slice(0, 10)}.xlsx`, headers, data, undefined, [5, 6])
+    downloadListAsExcel(`계약목록_${new Date().toISOString().slice(0, 10)}.xlsx`, headers, data, undefined, [6, 7])
   }
 
   return (
@@ -178,7 +181,7 @@ export default function ContractListPage() {
 
       {/* 필터 바 — 1줄 배치 */}
       <div className="rounded-[14px] border border-border bg-card p-4 mb-4 overflow-x-auto">
-        <div className="grid grid-cols-[repeat(8,minmax(120px,1fr))_auto_auto] gap-2 items-end min-w-[1400px]">
+        <div className="grid grid-cols-[repeat(10,minmax(120px,1fr))_auto_auto] gap-2 items-end min-w-[1700px]">
           <Field label="소속">
             <SelectFilter
               value={draft.org}
@@ -186,6 +189,26 @@ export default function ContractListPage() {
               onChange={(v) => setDraft({ ...draft, org: v })}
             />
           </Field>
+          <div className="col-span-2">
+            <span className="mb-1 block text-[11.5px] font-semibold text-[#94a3b8]">
+              등록구간
+            </span>
+            <div className="flex items-center gap-1">
+              <DateTextInput
+                value={draft.regStartDate}
+                onChange={(v) => setDraft({ ...draft, regStartDate: v })}
+                onTabNext={() => regEndDateRef.current?.focus()}
+                className={inputCls}
+              />
+              <span className="shrink-0 text-[#64748b]">~</span>
+              <DateTextInput
+                ref={regEndDateRef}
+                value={draft.regEndDate}
+                onChange={(v) => setDraft({ ...draft, regEndDate: v })}
+                className={inputCls}
+              />
+            </div>
+          </div>
           <Field label="계약자명">
             <input
               value={draft.keyword}
@@ -441,6 +464,9 @@ function Row({
       <td className="px-3 py-1.5 text-center whitespace-nowrap">{s.org}</td>
       <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">
         {s.contractorName}
+      </td>
+      <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">
+        {dateText(s.createdAt)}
       </td>
       <td className="px-3 py-1.5 text-center whitespace-nowrap">
         {s.contractType}

@@ -26,8 +26,10 @@ export interface Sale {
 
 /** 매출 목록 필터 */
 export interface SalesFilter {
-  startDate: string // 기간 시작
-  endDate: string // 기간 종료
+  startDate: string // 계약시작 (계약일/매출일 이후)
+  endDate: string // 계약종료 (계약일/매출일 이전)
+  regStartDate: string // 등록시작 (등록일 이후)
+  regEndDate: string // 등록종료 (등록일 이전)
   category: string // 종류(매출구분) ('전체' 포함)
   businessUnit: string // 사업부 (포함 검색)
   buyer: string // 구매자 (포함 검색)
@@ -38,6 +40,8 @@ export interface SalesFilter {
 export const EMPTY_SALES_FILTER: SalesFilter = {
   startDate: '',
   endDate: '',
+  regStartDate: '',
+  regEndDate: '',
   category: '전체',
   businessUnit: '',
   buyer: '',

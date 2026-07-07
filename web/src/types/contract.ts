@@ -153,6 +153,8 @@ export interface ContractFilter {
   manager: string // 관리자 ('전체' 포함)
   contractDate: string // 계약일자 (해당일 이후)
   contractEndDate: string // 계약종료일 (해당일 이전)
+  regStartDate: string // 등록시작 (등록일 이후)
+  regEndDate: string // 등록종료 (등록일 이전)
   recruiter: string // 유치자 ('전체' 포함)
   org: string // 소속 ('전체' 포함)
 }
@@ -164,6 +166,8 @@ export const EMPTY_FILTER: ContractFilter = {
   manager: '전체',
   contractDate: '',
   contractEndDate: '',
+  regStartDate: '',
+  regEndDate: '',
   recruiter: '전체',
   org: '전체',
 }

@@ -8,9 +8,18 @@ import {
   fetchContracts,
 } from '../../lib/api'
 
-/** 필터를 적용해 목록 반환 (최신 계약일 내림차순, 서버에서 정렬) */
-export function listContracts(filter: ContractFilter): Promise<Contract[]> {
-  return fetchContracts(filter)
+/** 필터를 적용해 목록 반환 (최신 계약일 내림차순, 서버에서 정렬)
+ *  등록일(createdAt) 구간은 서버 필터에 없으므로 클라이언트에서 함께 적용한다. */
+export async function listContracts(filter: ContractFilter): Promise<Contract[]> {
+  const list = await fetchContracts(filter)
+  const { regStartDate, regEndDate } = filter
+  if (!regStartDate && !regEndDate) return list
+  return list.filter((c) => {
+    const reg = (c.current.createdAt ?? '').slice(0, 10)
+    if (regStartDate && (!reg || reg < regStartDate)) return false
+    if (regEndDate && (!reg || reg > regEndDate)) return false
+    return true
+  })
 }
 
 export function getContract(id: string): Promise<Contract> {

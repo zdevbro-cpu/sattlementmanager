@@ -41,6 +41,7 @@ export default function SalesListPage() {
   const [detailId, setDetailId] = useState<string | null>(null)
   const [refresh, setRefresh] = useState(0)
   const endDateRef = useRef<HTMLInputElement>(null)
+  const regEndDateRef = useRef<HTMLInputElement>(null)
 
   const [rows, setRows] = useState<Sale[]>([])
   const [loading, setLoading] = useState(true)
@@ -158,10 +159,10 @@ export default function SalesListPage() {
             <SummaryCard label="분할 / 미검증" value={`${sum.splitCount} / ${sum.unverified}`} sub="분할결제 / 미검증 건수" tint="#fff1e0" fg="#f59e0b" icon={<AlertTriangle size={18} />} />
           </div>
 
-          {/* 필터 바 — 기간시작 ~ 입력자 성명 + 검색/초기화 모두 1줄 */}
+          {/* 필터 바 — 계약시작 ~ 입력자 성명 + 초기화 모두 1줄 */}
           <div className="rounded-[14px] border border-border bg-card p-4 mb-4 overflow-x-auto">
-            <div className="grid grid-cols-[repeat(7,minmax(120px,1fr))_auto] gap-2 items-end min-w-[1100px]">
-              <Field label="기간 시작">
+            <div className="grid grid-cols-[repeat(9,minmax(120px,1fr))_auto] gap-2 items-end min-w-[1400px]">
+              <Field label="계약시작">
                 <DateTextInput
                   value={filter.startDate}
                   onChange={(v) => setFilter({ ...filter, startDate: v })}
@@ -169,7 +170,7 @@ export default function SalesListPage() {
                   className={inputCls}
                 />
               </Field>
-              <Field label="기간 종료">
+              <Field label="계약종료">
                 <DateTextInput
                   ref={endDateRef}
                   value={filter.endDate}
@@ -177,6 +178,26 @@ export default function SalesListPage() {
                   className={inputCls}
                 />
               </Field>
+              <div className="col-span-2">
+                <span className="mb-1 block text-[11.5px] font-semibold text-[#94a3b8]">
+                  등록구간
+                </span>
+                <div className="flex items-center gap-1">
+                  <DateTextInput
+                    value={filter.regStartDate}
+                    onChange={(v) => setFilter({ ...filter, regStartDate: v })}
+                    onTabNext={() => regEndDateRef.current?.focus()}
+                    className={inputCls}
+                  />
+                  <span className="shrink-0 text-[#64748b]">~</span>
+                  <DateTextInput
+                    ref={regEndDateRef}
+                    value={filter.regEndDate}
+                    onChange={(v) => setFilter({ ...filter, regEndDate: v })}
+                    className={inputCls}
+                  />
+                </div>
+              </div>
               <Field label="종류">
                 <select value={filter.category} onChange={(e) => setFilter({ ...filter, category: e.target.value })} className={inputCls}>
                   <option value="전체">전체</option>
@@ -224,7 +245,7 @@ export default function SalesListPage() {
               <table className="w-full min-w-[1200px] text-[13px]">
                 <thead>
                   <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
-                    {['번호', '소속', '날짜', 'CAT ID', '사업부', '구매자', '내용', '금액', '카드사', '카드번호', '승인번호', '담당', '관리'].map(
+                    {['번호', '소속', '등록일', '계약일', 'CAT ID', '사업부', '구매자', '내용', '금액', '카드사', '카드번호', '승인번호', '담당', '관리'].map(
                       (h) => (
                         <th
                           key={h}
@@ -250,7 +271,7 @@ export default function SalesListPage() {
                   ))}
                   {rows.length === 0 && (
                     <tr>
-                      <td colSpan={13} className="px-3 py-10 text-center text-[#64748b]">
+                      <td colSpan={14} className="px-3 py-10 text-center text-[#64748b]">
                         {loading
                           ? '불러오는 중…'
                           : loadErr
@@ -394,6 +415,7 @@ function Row({
         </div>
       </td>
       <td className="px-3 py-1.5 whitespace-nowrap">{s.org}</td>
+      <td className="px-3 py-1.5 tabular whitespace-nowrap">{dateText(s.createdAt)}</td>
       <td className="px-3 py-1.5 tabular whitespace-nowrap">{dateText(s.date)}</td>
       <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{catId}</td>
       <td className="px-3 py-1.5 whitespace-nowrap">{s.businessUnit}</td>

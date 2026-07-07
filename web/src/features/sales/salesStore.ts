@@ -23,7 +23,7 @@ function contractToSale(c: Contract): Sale {
     documents: cur.documents,
     verified: true,
     memo: `계약 보증금 (${c.id})`,
-    createdAt: cur.contractDate,
+    createdAt: cur.createdAt || cur.contractDate, // 등록일(시스템 등록시각). 없으면 계약일로 폴백
     source: 'contract',
     contractId: c.id,
   }
@@ -37,6 +37,14 @@ async function contractSales(): Promise<Sale[]> {
       (c) => c.current.payment.totalAmount > 0 && c.current.status !== '폐기',
     )
     .map(contractToSale)
+}
+
+/** 등록일(createdAt) 구간 필터 — 시작/종료 미입력 시 통과. createdAt 은 YYYY-MM-DD 접두 비교 */
+function matchRegDate(s: Sale, filter: SalesFilter): boolean {
+  const reg = (s.createdAt ?? '').slice(0, 10)
+  if (filter.regStartDate && (!reg || reg < filter.regStartDate)) return false
+  if (filter.regEndDate && (!reg || reg > filter.regEndDate)) return false
+  return true
 }
 
 export async function listSales(filter: SalesFilter): Promise<Sale[]> {
@@ -56,9 +64,12 @@ export async function listSales(filter: SalesFilter): Promise<Sale[]> {
       return false
     if (filter.startDate && s.date && s.date < filter.startDate) return false
     if (filter.endDate && s.date && s.date > filter.endDate) return false
+    if (!matchRegDate(s, filter)) return false
     return true
   })
-  return [...direct, ...filteredContractSales].sort((a, b) =>
+  // 등록일 구간은 서버(직접등록 매출)에서 걸러지지 않으므로 클라이언트에서 함께 적용
+  const filteredDirect = direct.filter((s) => matchRegDate(s, filter))
+  return [...filteredDirect, ...filteredContractSales].sort((a, b) =>
     (b.date ?? '').localeCompare(a.date ?? ''),
   )
 }
