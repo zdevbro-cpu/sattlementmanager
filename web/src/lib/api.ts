@@ -1,5 +1,5 @@
 // 백엔드(Firebase Functions / Express) 호출 클라이언트.
-// - OCR: lavenmanager POST /api/ocr (Gemini) 규격
+// - OCR: POST /api/ocr (Gemini) 규격
 // - Drive 업로드: contractmanager POST /api/contracts/:id/pdf (base64) 규격
 import type { Contract, ContractFilter, ContractSnapshot } from '../types/contract'
 import type { Appointment, AppointmentFilter } from '../types/appointment'

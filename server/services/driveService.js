@@ -1,5 +1,5 @@
 // Google Drive 파일 업로드 서비스 (독립 시스템)
-// 레퍼런스: lavenmanager driveService.js (OAuth2 우선 + 서비스계정 폴백 + 로컬 폴백)
+// OAuth2 우선 + 서비스계정 폴백 + 로컬 폴백
 // 파일(계약서/전표/입금증)만 Drive에 저장하고, 링크는 Cloud SQL에 기록한다.
 
 const { google } = require('googleapis')

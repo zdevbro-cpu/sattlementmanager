@@ -1,5 +1,5 @@
 // OCR / 정보추출 서비스 (독립 시스템)
-// 레퍼런스: lavenmanager ocrService.js (Gemini 2.5 Flash 멀티모달)
+// Gemini 2.5 Flash 멀티모달
 // 카드전표(type='sales') / 현금영수증(type='cash_receipt') 이미지 → 구조화 필드 추출
 
 const { GoogleGenerativeAI } = require('@google/generative-ai')

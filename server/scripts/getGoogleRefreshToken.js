@@ -3,7 +3,7 @@
 // 브라우저에서 http://localhost:3001/api/auth/google 접속 → zdevbro@gmail.com 로그인/동의
 // → 발급된 refresh_token을 server/.env 의 GOOGLE_REFRESH_TOKEN에 자동 반영
 //
-// 주의: 리디렉션 URI는 기존(lavenmanager) OAuth 클라이언트에 이미 등록된
+// 주의: 리디렉션 URI는 기존 OAuth 클라이언트에 이미 등록된
 // http://localhost:3001/api/auth/google/callback 을 그대로 사용한다 (Console 변경 불필요).
 require('dotenv').config()
 const fs = require('fs')

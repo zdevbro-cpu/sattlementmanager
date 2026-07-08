@@ -451,7 +451,7 @@ app.post('/api/drive/upload', async (req, res) => {
 })
 
 // ── 일일보고 이메일 발송 (엑셀 양식 첨부) ──
-// Gmail 앱 비밀번호(GMAIL_APP_PASSWORD)가 설정되어 있으면 우선 사용 (lavenmanager와 동일 방식),
+// Gmail 앱 비밀번호(GMAIL_APP_PASSWORD)가 설정되어 있으면 우선 사용,
 // 없으면 범용 SMTP_HOST 설정으로 폴백한다.
 function getMailer() {
   const { GMAIL_USER, GMAIL_APP_PASSWORD, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env
@@ -546,9 +546,9 @@ function saleToLegs(s) {
     ...(s.payment.cashInstallments || []).map((c) => ({
       method: '현금',
       amount: Number(c.amount || 0),
-      issuer: '',
+      issuer: c.bank || '', // 카드사/입금은행 컬럼 ← 입금은행명
       cardNumber: c.identifierNo || '',
-      approvalNo: c.approvalNo || '',
+      approvalNo: c.depositor || '', // 승인번호 컬럼 ← 입금자명
       terminalNo: '',
     })),
   ]
@@ -697,6 +697,31 @@ function kstDateLabel(d) {
   return new Date(d.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10)
 }
 
+/** 계약(보증금 결재) → 일일보고용 매출 형태로 변환. 화면(salesStore.contractToSale)과 동일 규칙. */
+function contractToReportSale(c) {
+  const cur = c.current
+  return {
+    date: cur.contractDate, // 날짜 컬럼 = 계약일(매출일)
+    category: '점주보증금',
+    org: cur.org,
+    businessUnit: cur.businessUnit,
+    buyer: cur.contractorName,
+    manager: cur.manager,
+    createdAt: cur.createdAt, // 집계 기준 = 등록일
+    payment: cur.payment,
+  }
+}
+
+/** 등록일(createdAt) 기준으로 직접등록 매출 + 계약 연동 보증금 매출을 합쳐 반환 */
+async function collectReportSales() {
+  const direct = await salesRepo.listSales({})
+  const contracts = await repo.listContracts({})
+  const contractSales = contracts
+    .filter((c) => c.current.payment.totalAmount > 0 && c.current.status !== '폐기')
+    .map(contractToReportSale)
+  return [...direct, ...contractSales]
+}
+
 // ── 매출 일일보고 자동 발송 (Cloud Scheduler → 매일 22:00 KST 호출) ──
 app.post('/api/cron/daily-sales-report', async (req, res) => {
   try {
@@ -704,7 +729,7 @@ app.post('/api/cron/daily-sales-report', async (req, res) => {
       return res.status(403).json({ ok: false, error: 'forbidden' })
     }
     const { from, to } = reportWindow()
-    const all = await salesRepo.listSales({})
+    const all = await collectReportSales()
     const inWindow = all.filter((s) => {
       const c = new Date(s.createdAt)
       return c >= from && c < to

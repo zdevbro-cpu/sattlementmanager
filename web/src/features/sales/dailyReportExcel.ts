@@ -41,9 +41,9 @@ function toLegs(s: Sale): Leg[] {
     ...s.payment.cashInstallments.map((c) => ({
       method: '현금' as const,
       amount: c.amount,
-      issuer: '',
+      issuer: c.bank || '', // 카드사/입금은행 컬럼 ← 입금은행명
       cardNumber: c.identifierNo || '',
-      approvalNo: c.approvalNo || '',
+      approvalNo: c.depositor || '', // 승인번호 컬럼 ← 입금자명
       terminalNo: '',
     })),
   ]
@@ -199,7 +199,8 @@ export async function buildDailyReportWorkbook(
   const wb = await loadTemplate()
   const ws = wb.worksheets[0]
   const all = await listSales(EMPTY_SALES_FILTER)
-  const rows = all.filter((s) => s.date === date)
+  // 등록일(createdAt) 기준 집계 — 그날 등록된 매출(직접등록 + 계약 보증금 연동)을 모두 포함
+  const rows = all.filter((s) => (s.createdAt ?? '').slice(0, 10) === date)
 
   ws.getCell('A1').value = `매출 일일 보고(교육사업부)   ·   ${date}`
   fillRows(ws, rows)
@@ -211,6 +212,7 @@ export async function buildDailyReportWorkbook(
 export async function downloadSalesListReport(sales: Sale[], label: string): Promise<void> {
   const wb = await loadTemplate()
   const ws = wb.worksheets[0]
+  ws.name = '매출일일보고' // 시트 탭 명칭
   ws.getCell('A1').value = `매출 일일 보고(교육사업부)   ·   ${label}`
   fillRows(ws, sales)
 

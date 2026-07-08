@@ -60,7 +60,8 @@ export default function DailyReportModal({
   useEffect(() => {
     let alive = true
     listSales(EMPTY_SALES_FILTER).then((list) => {
-      if (alive) setRows(list.filter((s) => s.date === date))
+      // 등록일(createdAt) 기준 — 엑셀 보고서와 동일 집계 (직접등록 + 계약 보증금 연동)
+      if (alive) setRows(list.filter((s) => (s.createdAt ?? '').slice(0, 10) === date))
     })
     return () => {
       alive = false

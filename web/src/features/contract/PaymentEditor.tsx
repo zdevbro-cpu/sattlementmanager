@@ -575,7 +575,7 @@ function CashRow({
   )
 }
 
-/* ── 모바일 스캔 UI (lavenmanager 인터페이스 준용) ─────────────────────────── */
+/* ── 모바일 스캔 UI ─────────────────────────── */
 function ScanSlot({
   preview,
   busy,

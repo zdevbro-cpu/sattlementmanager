@@ -1,5 +1,5 @@
 // 교재구매·회원가입 신청서 PDF 생성 (교재구입 정보만 — 결제/입금 항목 없음)
-// 레퍼런스: lavenmanager pdfService.js (pdf-lib 기반 A5 신청서 레이아웃)
+// pdf-lib 기반 A5 신청서 레이아웃
 const { PDFDocument, rgb } = require('pdf-lib')
 const fs = require('fs')
 const path = require('path')

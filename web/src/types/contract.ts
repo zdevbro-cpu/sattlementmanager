@@ -37,7 +37,7 @@ export function statusColor(status: string): { fg: string; bg: string } {
 /** 결재구분 (카드/현금 동시 사용 가능 → 혼합) */
 export type PaymentMethod = '카드' | '현금' | '혼합' | '없음'
 
-/** 카드 분할결제 1회차 정보 (lavenmanager OCR type='sales' 필드와 정렬) */
+/** 카드 분할결제 1회차 정보 (OCR type='sales' 필드와 정렬) */
 export interface CardInstallment {
   seq: number // 회차 1~6
   amount: number // 금액
@@ -54,7 +54,7 @@ export interface CardInstallment {
   driveViewUrl?: string
 }
 
-/** 현금 분할입금 1회차 정보 (lavenmanager OCR type='cash_receipt' 필드와 정렬) */
+/** 현금 분할입금 1회차 정보 (OCR type='cash_receipt' 필드와 정렬) */
 export interface CashInstallment {
   seq: number // 회차 1~6
   amount: number // 금액

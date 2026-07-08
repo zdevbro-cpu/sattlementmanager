@@ -279,7 +279,7 @@ export default function SalesListPage() {
               <table className="w-full min-w-[1200px] text-[13px]">
                 <thead>
                   <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
-                    {['번호', '소속', '등록일', '계약일', 'CAT ID', '사업부', '구매자', '내용', '금액', '카드사', '카드번호', '승인번호', '담당', '관리'].map(
+                    {['번호', '소속', '등록일', '계약일', 'CAT ID', '사업부', '구매자', '내용', '금액', '카드사/입금은행', '카드번호', '승인번호/입금자', '담당', '관리'].map(
                       (h) => {
                         const sortKeyFor: SortKey | null =
                           h === '등록일' ? 'createdAt' : h === '계약일' ? 'date' : null
@@ -475,9 +475,9 @@ function Row({
   )
   const hasSplit = splitN > 1
   const catId = card?.terminalNo || '-'
-  const issuer = card?.issuer || (cash ? '현금' : '-')
+  const issuer = card?.issuer || (cash ? (cash.bank || '현금') : '-') // 카드사 / 입금은행
   const cardNo = card?.cardNumber || cash?.identifierNo || '-'
-  const approval = card?.approvalNo || cash?.approvalNo || '-'
+  const approval = card?.approvalNo || cash?.depositor || '-' // 승인번호 / 입금자
 
   return (
     <tr className="border-b border-border hover:bg-hover">
