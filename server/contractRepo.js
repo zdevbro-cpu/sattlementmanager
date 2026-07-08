@@ -42,6 +42,7 @@ function mapSnapshot(h, installments, documents) {
     businessUnit: h.business_unit || '',
     contractorName: h.contractor_name || '',
     contractType: h.contract_type || '',
+    parentContractId: h.parent_contract_id || '',
     contractDate: isoDate(h.contract_date),
     deposit: Number(h.deposit || 0),
     allowance: Number(h.allowance || 0),
@@ -123,15 +124,21 @@ async function getContract(id) {
     `SELECT * FROM contract_history WHERE contract_id = $1 ORDER BY id DESC`,
     [id],
   )
+  // 계약서 업로드(신규등록 시점)는 historyId 없이 저장된 레코드가 있을 수 있다 —
+  // 특정 이력에 안 묶인(history_id NULL) 문서는 최신 스냅샷에 붙여서 화면에서 사라지지 않게 한다.
+  const { rows: allDocs } = await pool.query(
+    `SELECT * FROM contract_documents WHERE contract_id = $1 ORDER BY id`,
+    [id],
+  )
+  const latestHistoryId = hist[0]?.id
   const history = []
   for (const h of hist) {
     const { rows: inst } = await pool.query(
       `SELECT * FROM payment_installments WHERE history_id = $1 ORDER BY seq`,
       [h.id],
     )
-    const { rows: docs } = await pool.query(
-      `SELECT * FROM contract_documents WHERE history_id = $1 ORDER BY id`,
-      [h.id],
+    const docs = allDocs.filter(
+      (d) => d.history_id === h.id || (d.history_id == null && h.id === latestHistoryId),
     )
     history.push(mapSnapshot(h, inst, docs))
   }
@@ -148,12 +155,12 @@ async function insertHistory(client, contractId, snap) {
   const p = snap.payment || {}
   const { rows } = await client.query(
     `INSERT INTO contract_history
-       (contract_id,status,event_date,org,business_unit,contractor_name,contract_type,contract_date,
+       (contract_id,status,event_date,org,business_unit,contractor_name,contract_type,parent_contract_id,contract_date,
         deposit,allowance,allowance_pay_day,first_allowance_pay_date,
         contract_end_date,branch,manager,recruiter,
         bank_name,account_no,account_owner,resident_no,phone,
         payment_method,payment_total,memo)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
      RETURNING id`,
     [
       contractId,
@@ -163,6 +170,7 @@ async function insertHistory(client, contractId, snap) {
       snap.businessUnit || '',
       snap.contractorName,
       snap.contractType,
+      snap.parentContractId || null,
       nn(snap.contractDate),
       snap.deposit || 0,
       snap.allowance || 0,
@@ -275,6 +283,105 @@ async function addHistory(id, snap) {
   }
 }
 
+/**
+ * 기존 이력 스냅샷 오타수정 — 새 이력행을 추가하지 않고 지정한 history 행을 그대로 고친다.
+ * status/event_date(감사 이벤트 자체)는 건드리지 않고 나머지 입력값만 갱신한다.
+ */
+async function correctHistory(historyId, snap) {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const p = snap.payment || {}
+    const { rowCount } = await client.query(
+      `UPDATE contract_history SET
+         org=$2, business_unit=$3, contractor_name=$4, contract_type=$5, parent_contract_id=$6, contract_date=$7,
+         deposit=$8, allowance=$9, allowance_pay_day=$10, first_allowance_pay_date=$11,
+         contract_end_date=$12, branch=$13, manager=$14, recruiter=$15,
+         bank_name=$16, account_no=$17, account_owner=$18, resident_no=$19, phone=$20,
+         payment_method=$21, payment_total=$22, memo=$23
+       WHERE id=$1`,
+      [
+        historyId,
+        snap.org,
+        snap.businessUnit || '',
+        snap.contractorName,
+        snap.contractType,
+        snap.parentContractId || null,
+        nn(snap.contractDate),
+        snap.deposit || 0,
+        snap.allowance || 0,
+        snap.allowancePayDay || null,
+        nn(snap.firstAllowancePayDate),
+        nn(snap.contractEndDate),
+        snap.branch,
+        snap.manager,
+        snap.recruiter,
+        snap.bankName || '',
+        snap.accountNo || '',
+        snap.accountOwner || '',
+        snap.residentNo || '',
+        snap.phone || '',
+        p.method || '카드',
+        p.totalAmount || 0,
+        snap.memo || '',
+      ],
+    )
+    if (rowCount === 0) throw new Error('이력을 찾을 수 없습니다.')
+
+    await client.query(`DELETE FROM payment_installments WHERE history_id = $1`, [historyId])
+    const cards = p.cardInstallments || []
+    const cash = p.cashInstallments || []
+    for (const c of cards) {
+      await client.query(
+        `INSERT INTO payment_installments
+          (history_id,method,seq,amount,issuer,card_number,approval_no,terminal_no,serial_no,transaction_date,drive_file_id,drive_view_url)
+         VALUES ($1,'카드',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [
+          historyId,
+          c.seq,
+          c.amount || 0,
+          c.issuer,
+          c.cardNumber,
+          c.approvalNo,
+          c.terminalNo,
+          c.serialNo,
+          nn(c.transactionDate),
+          c.driveFileId || null,
+          c.driveViewUrl || null,
+        ],
+      )
+    }
+    for (const c of cash) {
+      await client.query(
+        `INSERT INTO payment_installments
+          (history_id,method,seq,amount,approval_no,transaction_date,identifier_type,identifier_no,merchant_name,merchant_biz_no,bank,depositor,drive_file_id,drive_view_url)
+         VALUES ($1,'현금',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+        [
+          historyId,
+          c.seq,
+          c.amount || 0,
+          c.approvalNo,
+          nn(c.transactionDate),
+          c.identifierType,
+          c.identifierNo,
+          c.merchantName,
+          c.merchantBizNo,
+          c.bank,
+          c.depositor,
+          c.driveFileId || null,
+          c.driveViewUrl || null,
+        ],
+      )
+    }
+    await client.query('COMMIT')
+  } catch (e) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
 /** 문서(계약서/전표/입금증) Drive 링크 저장 */
 async function addDocument(contractId, doc) {
   const { rows } = await pool.query(
@@ -299,5 +406,6 @@ module.exports = {
   getContract,
   createContract,
   addHistory,
+  correctHistory,
   addDocument,
 }

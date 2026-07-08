@@ -16,7 +16,10 @@ import { BRANCHES, MANAGERS, RECRUITERS } from '../../data/mockContracts'
 import { addHistory, listContracts, summarize } from './contractStore'
 import ContractRegisterModal from './ContractRegisterModal'
 import ContractDetailDrawer from './ContractDetailDrawer'
+import LasOnStatusPage from './LasOnStatusPage'
 import { downloadListAsExcel } from '../../lib/excelExport'
+
+type Tab = 'list' | 'lason'
 
 // 목록 컬럼 정의 (결재구분은 유치자 다음, 보증금/수당은 우측 정렬 + 폭 고정)
 const COLS: { label: string; align?: 'center' | 'right'; w?: number }[] = [
@@ -25,11 +28,11 @@ const COLS: { label: string; align?: 'center' | 'right'; w?: number }[] = [
   { label: '계약자' },
   { label: '등록일', align: 'center' },
   { label: '계약구분', align: 'center' },
-  { label: '계약일', align: 'center' },
   { label: '보증금', align: 'right', w: 132 }, // 최대 10자리
   { label: '수당', align: 'right', w: 116 }, // 최대 9자리
   { label: '수당지급일' },
   { label: '최초수당지급일' },
+  { label: '계약일', align: 'center' },
   { label: '계약종료일', align: 'center' },
   { label: '지점명', align: 'center' },
   { label: '관리자' },
@@ -39,11 +42,18 @@ const COLS: { label: string; align?: 'center' | 'right'; w?: number }[] = [
   { label: '관리', align: 'center' },
 ]
 
+// 등록구간·계약구간 종료일은 오늘 날짜를 기본값으로 사용 (시작은 비워둠 = 전체 이력 포함)
+const DEFAULT_CONTRACT_FILTER: ContractFilter = {
+  ...EMPTY_FILTER,
+  regEndDate: todayIso(),
+  contractEndDate: todayIso(),
+}
+
 export default function ContractListPage() {
   const codes = useCodes()
-  // 입력 중 필터(draft)와 적용된 필터(applied)를 분리 → [검색] 눌러야 반영
-  const [draft, setDraft] = useState<ContractFilter>(EMPTY_FILTER)
-  const [applied, setApplied] = useState<ContractFilter>(EMPTY_FILTER)
+  const [tab, setTab] = useState<Tab>('list')
+  // 매출관리와 동일하게 입력 즉시 목록에 반영 (별도 검색 버튼 없음)
+  const [filter, setFilter] = useState<ContractFilter>(DEFAULT_CONTRACT_FILTER)
   const [registerOpen, setRegisterOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [refresh, setRefresh] = useState(0)
@@ -59,7 +69,7 @@ export default function ContractListPage() {
     let alive = true
     setLoading(true)
     setLoadErr('')
-    listContracts(applied)
+    listContracts(filter)
       .then((list) => {
         if (alive) {
           setRows(list)
@@ -76,7 +86,7 @@ export default function ContractListPage() {
       alive = false
     }
     // refresh 로 재조회 강제
-  }, [applied, refresh])
+  }, [filter, refresh])
 
   useEffect(() => {
     let alive = true
@@ -116,11 +126,11 @@ export default function ContractListPage() {
         s.contractorName,
         dateText(s.createdAt),
         s.contractType,
-        dateText(s.contractDate),
         s.deposit,
         s.allowance,
         s.allowancePayDay ? `매월 ${s.allowancePayDay}일` : '-',
         dateText(s.firstAllowancePayDate),
+        dateText(s.contractDate),
         dateText(s.contractEndDate),
         s.branch,
         s.manager,
@@ -133,27 +143,46 @@ export default function ContractListPage() {
   }
 
   return (
-    <AppLayout title="계약 조회">
+    <AppLayout title="계약관리">
       {/* 헤더 */}
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h1 className="text-[22px] font-extrabold tracking-[-0.5px] text-text-strong">
-            계약 조회
-          </h1>
-          <p className="text-[13px] text-[#94a3b8] mt-1">
-            계약 목록을 조회하고 신규 계약을 등록합니다. 상세에서 계약 이력과
-            결재정보를 확인할 수 있습니다.
-          </p>
-        </div>
-        <button
-          onClick={() => setRegisterOpen(true)}
-          className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110"
-        >
-          <Plus size={15} /> 계약 등록
-        </button>
+      <div className="mb-4">
+        <h1 className="text-[22px] font-extrabold tracking-[-0.5px] text-text-strong">
+          계약관리
+        </h1>
       </div>
 
-      {/* 요약 카드 */}
+      {/* 상단 탭 */}
+      <div className="flex gap-1 mb-5 border-b border-border">
+        <TabButton active={tab === 'list'} onClick={() => setTab('list')}>
+          계약조회
+        </TabButton>
+        <TabButton active={tab === 'lason'} onClick={() => setTab('lason')}>
+          라스온현황
+        </TabButton>
+      </div>
+
+      {tab === 'lason' ? (
+        <LasOnStatusPage />
+      ) : (
+        <>
+          {/* 섹션 소제목 + 액션 버튼 */}
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="text-[18px] font-extrabold text-text-strong">계약조회</h2>
+              <p className="text-[13px] text-[#94a3b8] mt-1">
+                계약 목록을 조회하고 신규 계약을 등록합니다. 상세에서 계약 이력과
+                결재정보를 확인할 수 있습니다.
+              </p>
+            </div>
+            <button
+              onClick={() => setRegisterOpen(true)}
+              className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110"
+            >
+              <Plus size={15} /> 계약 등록
+            </button>
+          </div>
+
+          {/* 요약 카드 */}
       <div className="grid grid-cols-4 gap-4 mb-4">
         <SummaryCard label="전체 계약" value={sum.total} tint="#e0edff" fg="#2563eb" icon={FileText} />
         <SummaryCard
@@ -181,12 +210,12 @@ export default function ContractListPage() {
 
       {/* 필터 바 — 1줄 배치 */}
       <div className="rounded-[14px] border border-border bg-card p-4 mb-4 overflow-x-auto">
-        <div className="grid grid-cols-[repeat(10,minmax(120px,1fr))_auto_auto] gap-2 items-end min-w-[1700px]">
+        <div className="grid grid-cols-[repeat(10,minmax(120px,1fr))_auto] gap-2 items-end min-w-[1600px]">
           <Field label="소속">
             <SelectFilter
-              value={draft.org}
+              value={filter.org}
               options={codes.orgs}
-              onChange={(v) => setDraft({ ...draft, org: v })}
+              onChange={(v) => setFilter({ ...filter, org: v })}
             />
           </Field>
           <div className="col-span-2">
@@ -195,83 +224,78 @@ export default function ContractListPage() {
             </span>
             <div className="flex items-center gap-1">
               <DateTextInput
-                value={draft.regStartDate}
-                onChange={(v) => setDraft({ ...draft, regStartDate: v })}
+                value={filter.regStartDate}
+                onChange={(v) => setFilter({ ...filter, regStartDate: v })}
                 onTabNext={() => regEndDateRef.current?.focus()}
                 className={inputCls}
               />
               <span className="shrink-0 text-[#64748b]">~</span>
               <DateTextInput
                 ref={regEndDateRef}
-                value={draft.regEndDate}
-                onChange={(v) => setDraft({ ...draft, regEndDate: v })}
+                value={filter.regEndDate}
+                onChange={(v) => setFilter({ ...filter, regEndDate: v })}
                 className={inputCls}
               />
             </div>
           </div>
           <Field label="계약자명">
             <input
-              value={draft.keyword}
-              onChange={(e) => setDraft({ ...draft, keyword: e.target.value })}
+              value={filter.keyword}
+              onChange={(e) => setFilter({ ...filter, keyword: e.target.value })}
               placeholder="계약자명 검색"
               className={inputCls}
             />
           </Field>
-          <Field label="계약일자">
-            <DateTextInput
-              value={draft.contractDate}
-              onChange={(v) => setDraft({ ...draft, contractDate: v })}
-              onTabNext={() => contractEndDateRef.current?.focus()}
-              className={inputCls}
-            />
-          </Field>
-          <Field label="계약종료일">
-            <DateTextInput
-              ref={contractEndDateRef}
-              value={draft.contractEndDate}
-              onChange={(v) => setDraft({ ...draft, contractEndDate: v })}
-              className={inputCls}
-            />
-          </Field>
+          <div className="col-span-2">
+            <span className="mb-1 block text-[11.5px] font-semibold text-[#94a3b8]">
+              계약구간
+            </span>
+            <div className="flex items-center gap-1">
+              <DateTextInput
+                value={filter.contractDate}
+                onChange={(v) => setFilter({ ...filter, contractDate: v })}
+                onTabNext={() => contractEndDateRef.current?.focus()}
+                className={inputCls}
+              />
+              <span className="shrink-0 text-[#64748b]">~</span>
+              <DateTextInput
+                ref={contractEndDateRef}
+                value={filter.contractEndDate}
+                onChange={(v) => setFilter({ ...filter, contractEndDate: v })}
+                className={inputCls}
+              />
+            </div>
+          </div>
           <Field label="지점명">
             <SelectFilter
-              value={draft.branch}
+              value={filter.branch}
               options={BRANCHES}
-              onChange={(v) => setDraft({ ...draft, branch: v })}
+              onChange={(v) => setFilter({ ...filter, branch: v })}
             />
           </Field>
           <Field label="관리자">
             <SelectFilter
-              value={draft.manager}
+              value={filter.manager}
               options={MANAGERS}
-              onChange={(v) => setDraft({ ...draft, manager: v })}
+              onChange={(v) => setFilter({ ...filter, manager: v })}
             />
           </Field>
           <Field label="유치자">
             <SelectFilter
-              value={draft.recruiter}
+              value={filter.recruiter}
               options={RECRUITERS}
-              onChange={(v) => setDraft({ ...draft, recruiter: v })}
+              onChange={(v) => setFilter({ ...filter, recruiter: v })}
             />
           </Field>
           <Field label="상태">
             <SelectFilter
-              value={draft.status}
+              value={filter.status}
               options={codes.statuses}
-              onChange={(v) => setDraft({ ...draft, status: v })}
+              onChange={(v) => setFilter({ ...filter, status: v })}
             />
           </Field>
           <button
-            onClick={() => setApplied(draft)}
-            className="h-[38px] rounded-[8px] bg-indigo px-5 text-sm font-bold text-white hover:brightness-110 whitespace-nowrap"
-          >
-            검색
-          </button>
-          <button
-            onClick={() => {
-              setDraft(EMPTY_FILTER)
-              setApplied(EMPTY_FILTER)
-            }}
+            onClick={() => setFilter(DEFAULT_CONTRACT_FILTER)}
             className="h-[38px] rounded-[8px] border border-border px-5 text-sm font-semibold text-[#c2cde0] hover:bg-hover whitespace-nowrap"
           >
             초기화
@@ -342,6 +366,8 @@ export default function ContractListPage() {
           </table>
         </div>
       </div>
+        </>
+      )}
 
       {registerOpen && (
         <ContractRegisterModal
@@ -365,6 +391,30 @@ export default function ContractListPage() {
 
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={[
+        'px-4 py-2 text-[14px] font-bold border-b-2 -mb-px transition-colors',
+        active
+          ? 'border-primary text-text-strong'
+          : 'border-transparent text-[#94a3b8] hover:text-[#e2e8f0]',
+      ].join(' ')}
+    >
+      {children}
+    </button>
+  )
+}
 
 function SelectFilter({
   value,
@@ -471,9 +521,6 @@ function Row({
       <td className="px-3 py-1.5 text-center whitespace-nowrap">
         {s.contractType}
       </td>
-      <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">
-        {dateText(s.contractDate)}
-      </td>
       <td
         className="px-3 py-1.5 tabular text-right whitespace-nowrap"
         style={{ width: 132, minWidth: 132 }}
@@ -491,6 +538,9 @@ function Row({
       </td>
       <td className="px-3 py-1.5 tabular whitespace-nowrap">
         {dateText(s.firstAllowancePayDate)}
+      </td>
+      <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">
+        {dateText(s.contractDate)}
       </td>
       <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">
         {dateText(s.contractEndDate)}

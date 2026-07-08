@@ -168,6 +168,7 @@ export async function uploadToDrive(
   contractId: string,
   file: File,
   reason: string,
+  historyId?: string,
 ): Promise<{ driveFileId: string; driveViewUrl: string }> {
   const data = await fileToBase64(file)
   const res = await fetch(`/api/contracts/${contractId}/pdf`, {
@@ -178,6 +179,7 @@ export async function uploadToDrive(
       data,
       mimeType: file.type || 'application/pdf',
       reason,
+      historyId,
     }),
   })
   if (!res.ok) throw new Error(`Drive 업로드 실패 (${res.status})`)
@@ -249,6 +251,18 @@ export function addContractHistoryApi(
   snapshot: ContractSnapshot,
 ): Promise<Contract> {
   return sendJson(`/api/contracts/${encodeURIComponent(id)}/history`, 'POST', snapshot)
+}
+/** 오타수정 — 새 이력행 추가 없이 기존 스냅샷(historyId)을 그대로 고친다 */
+export function correctContractHistoryApi(
+  id: string,
+  historyId: string,
+  snapshot: ContractSnapshot,
+): Promise<Contract> {
+  return sendJson(
+    `/api/contracts/${encodeURIComponent(id)}/history/${encodeURIComponent(historyId)}`,
+    'PATCH',
+    snapshot,
+  )
 }
 
 // ── 조직관리(임용계약) ─────────────────────────────────────

@@ -88,6 +88,18 @@ app.post('/api/contracts/:id/history', async (req, res) => {
   }
 })
 
+// ── 계약 이력 오타수정 (새 이력행 추가 없이 기존 스냅샷을 그대로 고침) ──
+app.patch('/api/contracts/:id/history/:historyId', async (req, res) => {
+  try {
+    await repo.correctHistory(req.params.historyId, req.body)
+    const c = await repo.getContract(req.params.id)
+    if (!c) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: c })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 // ── 파일(계약서/전표/입금증) → Google Drive 업로드 ──
 // JSON base64 방식 (프론트 uploadToDrive 규격)
 app.post('/api/contracts/:id/pdf', async (req, res) => {

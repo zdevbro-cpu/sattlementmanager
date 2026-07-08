@@ -3,6 +3,7 @@
 import type { Contract, ContractFilter, ContractSnapshot } from '../../types/contract'
 import {
   addContractHistoryApi,
+  correctContractHistoryApi,
   createContractApi,
   fetchContract,
   fetchContracts,
@@ -37,6 +38,15 @@ export function addHistory(
   snapshot: ContractSnapshot,
 ): Promise<Contract> {
   return addContractHistoryApi(id, snapshot)
+}
+
+/** 오타수정 — 새 이력행을 추가하지 않고 지정 스냅샷(historyId)을 그대로 고침 */
+export function correctHistory(
+  id: string,
+  historyId: string,
+  snapshot: ContractSnapshot,
+): Promise<Contract> {
+  return correctContractHistoryApi(id, historyId, snapshot)
 }
 
 /** 요약 카드용 집계 */

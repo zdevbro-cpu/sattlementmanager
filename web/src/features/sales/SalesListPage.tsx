@@ -28,8 +28,9 @@ function todayIso(): string {
 const TODAY = todayIso()
 const DEFAULT_SALES_FILTER: SalesFilter = {
   ...EMPTY_SALES_FILTER,
-  startDate: TODAY,
+  // 계약구간 시작은 오픈(미지정) — 종료만 오늘로 기본 제한
   endDate: TODAY,
+  regEndDate: TODAY,
 }
 
 export default function SalesListPage() {
@@ -162,22 +163,6 @@ export default function SalesListPage() {
           {/* 필터 바 — 계약시작 ~ 입력자 성명 + 초기화 모두 1줄 */}
           <div className="rounded-[14px] border border-border bg-card p-4 mb-4 overflow-x-auto">
             <div className="grid grid-cols-[repeat(9,minmax(120px,1fr))_auto] gap-2 items-end min-w-[1400px]">
-              <Field label="계약시작">
-                <DateTextInput
-                  value={filter.startDate}
-                  onChange={(v) => setFilter({ ...filter, startDate: v })}
-                  onTabNext={() => endDateRef.current?.focus()}
-                  className={inputCls}
-                />
-              </Field>
-              <Field label="계약종료">
-                <DateTextInput
-                  ref={endDateRef}
-                  value={filter.endDate}
-                  onChange={(v) => setFilter({ ...filter, endDate: v })}
-                  className={inputCls}
-                />
-              </Field>
               <div className="col-span-2">
                 <span className="mb-1 block text-[11.5px] font-semibold text-[#94a3b8]">
                   등록구간
@@ -194,6 +179,26 @@ export default function SalesListPage() {
                     ref={regEndDateRef}
                     value={filter.regEndDate}
                     onChange={(v) => setFilter({ ...filter, regEndDate: v })}
+                    className={inputCls}
+                  />
+                </div>
+              </div>
+              <div className="col-span-2">
+                <span className="mb-1 block text-[11.5px] font-semibold text-[#94a3b8]">
+                  계약구간
+                </span>
+                <div className="flex items-center gap-1">
+                  <DateTextInput
+                    value={filter.startDate}
+                    onChange={(v) => setFilter({ ...filter, startDate: v })}
+                    onTabNext={() => endDateRef.current?.focus()}
+                    className={inputCls}
+                  />
+                  <span className="shrink-0 text-[#64748b]">~</span>
+                  <DateTextInput
+                    ref={endDateRef}
+                    value={filter.endDate}
+                    onChange={(v) => setFilter({ ...filter, endDate: v })}
                     className={inputCls}
                   />
                 </div>

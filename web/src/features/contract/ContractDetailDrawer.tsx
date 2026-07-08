@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { ChevronDown, ChevronUp, ExternalLink, Paperclip, Plus, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, ExternalLink, Paperclip, Pencil, Plus, X } from 'lucide-react'
 import StatusBadge from '../../components/ui/StatusBadge'
 import { comma, dateText, won } from '../../lib/format'
 import type { Contract, ContractSnapshot } from '../../types/contract'
 import { getContract } from './contractStore'
 import HistoryAddForm from './HistoryAddForm'
+import HistoryCorrectForm from './HistoryCorrectForm'
 
 export default function ContractDetailDrawer({
   contractId,
@@ -17,6 +18,7 @@ export default function ContractDetailDrawer({
 }) {
   const [openHistory, setOpenHistory] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [correctOpen, setCorrectOpen] = useState(false)
   const [tick, setTick] = useState(0)
   const [contract, setContract] = useState<Contract | null>(null)
 
@@ -47,10 +49,22 @@ export default function ContractDetailDrawer({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setAddOpen((v) => !v)}
+              onClick={() => {
+                setCorrectOpen(false)
+                setAddOpen((v) => !v)
+              }}
               className="inline-flex h-9 items-center gap-1.5 rounded-[8px] bg-indigo px-3 text-[13px] font-bold text-white hover:brightness-110"
             >
               {addOpen ? '변경 취소' : (<><Plus size={14} /> 상태 변경 / 이력 추가</>)}
+            </button>
+            <button
+              onClick={() => {
+                setAddOpen(false)
+                setCorrectOpen((v) => !v)
+              }}
+              className="inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-warning px-3 text-[13px] font-bold text-warning hover:bg-hover"
+            >
+              {correctOpen ? '수정 취소' : (<><Pencil size={13} /> 오타수정</>)}
             </button>
             <button onClick={onClose} className="text-[#94a3b8] hover:text-white">
               <X size={18} />
@@ -71,6 +85,25 @@ export default function ContractDetailDrawer({
                 onCancel={() => setAddOpen(false)}
                 onSaved={() => {
                   setAddOpen(false)
+                  setTick((n) => n + 1)
+                  onChanged?.()
+                }}
+              />
+            </section>
+          )}
+
+          {/* 오타수정 — 새 이력행 없이 현재 스냅샷을 그대로 고침 */}
+          {correctOpen && (
+            <section>
+              <h3 className="mb-2.5 text-[13px] font-extrabold text-warning">
+                오타수정 (이력 남기지 않음)
+              </h3>
+              <HistoryCorrectForm
+                contractId={contract.id}
+                base={cur}
+                onCancel={() => setCorrectOpen(false)}
+                onSaved={() => {
+                  setCorrectOpen(false)
                   setTick((n) => n + 1)
                   onChanged?.()
                 }}
@@ -181,6 +214,7 @@ function SnapshotCard({
   const rows: [string, string][] = [
     ['소속', s.org],
     ['계약구분', s.contractType],
+    ...(s.contractType === 'LAS-On파트너' ? [['소속 파트장', s.parentContractId || '-'] as [string, string]] : []),
     ['계약일', dateText(s.contractDate)],
     ['보증금', comma(s.deposit)],
     ['수당', comma(s.allowance)],

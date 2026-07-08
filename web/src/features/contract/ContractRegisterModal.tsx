@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type {
+  Contract,
   ContractSnapshot,
   DriveDocument,
   PaymentInfo,
 } from '../../types/contract'
+import { EMPTY_FILTER } from '../../types/contract'
 import { BRANCHES, MANAGERS, RECRUITERS } from '../../data/mockContracts'
 import { useCodes } from '../../lib/codeStore'
-import { createContract } from './contractStore'
+import { createContract, listContracts } from './contractStore'
 import PaymentEditor, { emptyPayment } from './PaymentEditor'
 import { uploadToDrive } from '../../lib/api'
 import DropZone from '../../components/ui/DropZone'
@@ -14,7 +16,7 @@ import DateTextInput from '../../components/ui/DateTextInput'
 import { CheckCircle2, Paperclip, X, XCircle } from 'lucide-react'
 
 const inputCls =
-  'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
+  'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed'
 
 const PAY_DAYS = Array.from({ length: 31 }, (_, i) => i + 1) // 1~31
 
@@ -23,6 +25,7 @@ interface FormState {
   businessUnit: string
   contractorName: string
   contractType: string
+  parentContractId: string
   contractDate: string
   deposit: number
   allowance: number
@@ -53,6 +56,7 @@ export default function ContractRegisterModal({
     businessUnit: codes.businessUnits[0] ?? '',
     contractorName: '',
     contractType: codes.contractTypes[0] ?? '',
+    parentContractId: '',
     contractDate: '',
     deposit: 0,
     allowance: 0,
@@ -73,16 +77,31 @@ export default function ContractRegisterModal({
   const [contractFile, setContractFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
+  const [leaders, setLeaders] = useState<Contract[]>([])
+
+  useEffect(() => {
+    let alive = true
+    listContracts(EMPTY_FILTER).then((list) => {
+      if (alive) setLeaders(list.filter((c) => c.current.contractType === 'LAS-On파트장'))
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setF({ ...f, [k]: v })
 
   const payTotal = payment.totalAmount
   const depositMatched = payTotal === f.deposit
+  // LAS-On파트너는 소속 파트장을 먼저 지정해야 나머지 입력을 진행할 수 있다
+  const isPartner = f.contractType === 'LAS-On파트너'
+  const partnerLocked = isPartner && !f.parentContractId
 
   const submit = async () => {
     if (!f.contractorName.trim()) return setErr('계약자명을 입력하세요.')
     if (!f.contractDate) return setErr('계약일을 입력하세요.')
+    if (partnerLocked) return setErr('소속 파트장을 먼저 선택하세요.')
     // 카드+현금 결재합계가 보증금과 일치해야 계약등록 가능
     if (!depositMatched)
       return setErr(
@@ -100,6 +119,7 @@ export default function ContractRegisterModal({
         businessUnit: f.businessUnit,
         contractorName: f.contractorName.trim(),
         contractType: f.contractType,
+        parentContractId: f.contractType === 'LAS-On파트너' ? f.parentContractId : '',
         contractDate: f.contractDate,
         deposit: f.deposit,
         allowance: f.allowance,
@@ -123,7 +143,7 @@ export default function ContractRegisterModal({
 
       if (contractFile) {
         try {
-          await uploadToDrive(created.id, contractFile, '신규등록')
+          await uploadToDrive(created.id, contractFile, '신규등록', created.current.historyId)
         } catch {
           /* 백엔드 미기동 시에도 계약 등록은 유지 */
         }
@@ -155,21 +175,21 @@ export default function ContractRegisterModal({
             <div className="grid grid-cols-5 gap-3">
               {/* 1행 */}
               <Field label="소속">
-                <select value={f.org} onChange={(e) => set('org', e.target.value)} className={inputCls}>
+                <select value={f.org} onChange={(e) => set('org', e.target.value)} className={inputCls} disabled={partnerLocked}>
                   {codes.orgs.map((o) => (
                     <option key={o}>{o}</option>
                   ))}
                 </select>
               </Field>
               <Field label="사업부">
-                <select value={f.businessUnit} onChange={(e) => set('businessUnit', e.target.value)} className={inputCls}>
+                <select value={f.businessUnit} onChange={(e) => set('businessUnit', e.target.value)} className={inputCls} disabled={partnerLocked}>
                   {codes.businessUnits.map((b) => (
                     <option key={b}>{b}</option>
                   ))}
                 </select>
               </Field>
               <Field label="계약자명">
-                <input value={f.contractorName} onChange={(e) => set('contractorName', e.target.value)} className={inputCls} placeholder="계약자명" />
+                <input value={f.contractorName} onChange={(e) => set('contractorName', e.target.value)} className={inputCls} placeholder="계약자명" disabled={partnerLocked} />
               </Field>
               <Field label="계약구분">
                 <select value={f.contractType} onChange={(e) => set('contractType', e.target.value)} className={inputCls}>
@@ -179,21 +199,21 @@ export default function ContractRegisterModal({
                 </select>
               </Field>
               <Field label="계약일">
-                <DateTextInput value={f.contractDate} onChange={(v) => set('contractDate', v)} className={inputCls} />
+                <DateTextInput value={f.contractDate} onChange={(v) => set('contractDate', v)} className={inputCls} disabled={partnerLocked} />
               </Field>
 
               {/* 2행 */}
               <Field label="보증금">
-                <NumInput value={f.deposit} onChange={(v) => set('deposit', v)} />
+                <NumInput value={f.deposit} onChange={(v) => set('deposit', v)} disabled={partnerLocked} />
               </Field>
               <Field label="수당">
-                <NumInput value={f.allowance} onChange={(v) => set('allowance', v)} />
+                <NumInput value={f.allowance} onChange={(v) => set('allowance', v)} disabled={partnerLocked} />
               </Field>
               <Field label="최초수당지급일">
-                <DateTextInput value={f.firstAllowancePayDate} onChange={(v) => set('firstAllowancePayDate', v)} className={inputCls} />
+                <DateTextInput value={f.firstAllowancePayDate} onChange={(v) => set('firstAllowancePayDate', v)} className={inputCls} disabled={partnerLocked} />
               </Field>
               <Field label="수당지급일(매월)">
-                <select value={f.allowancePayDay} onChange={(e) => set('allowancePayDay', Number(e.target.value))} className={inputCls}>
+                <select value={f.allowancePayDay} onChange={(e) => set('allowancePayDay', Number(e.target.value))} className={inputCls} disabled={partnerLocked}>
                   {PAY_DAYS.map((d) => (
                     <option key={d} value={d}>
                       {d}일
@@ -202,18 +222,18 @@ export default function ContractRegisterModal({
                 </select>
               </Field>
               <Field label="종료일">
-                <DateTextInput value={f.contractEndDate} onChange={(v) => set('contractEndDate', v)} className={inputCls} />
+                <DateTextInput value={f.contractEndDate} onChange={(v) => set('contractEndDate', v)} className={inputCls} disabled={partnerLocked} />
               </Field>
 
               {/* 3행 */}
               <Field label="연락처">
-                <input value={f.phone} onChange={(e) => set('phone', e.target.value)} className={inputCls} placeholder="예: 010-1234-5678" />
+                <input value={f.phone} onChange={(e) => set('phone', e.target.value)} className={inputCls} placeholder="예: 010-1234-5678" disabled={partnerLocked} />
               </Field>
               <Field label="주민번호">
-                <input value={f.residentNo} onChange={(e) => set('residentNo', e.target.value)} className={inputCls} placeholder="예: 900101-1******" />
+                <input value={f.residentNo} onChange={(e) => set('residentNo', e.target.value)} className={inputCls} placeholder="예: 900101-1******" disabled={partnerLocked} />
               </Field>
               <Field label="지점명">
-                <input value={f.branch} onChange={(e) => set('branch', e.target.value)} className={inputCls} list="branch-list" />
+                <input value={f.branch} onChange={(e) => set('branch', e.target.value)} className={inputCls} list="branch-list" disabled={partnerLocked} />
                 <datalist id="branch-list">
                   {BRANCHES.map((b) => (
                     <option key={b} value={b} />
@@ -221,7 +241,7 @@ export default function ContractRegisterModal({
                 </datalist>
               </Field>
               <Field label="관리자">
-                <input value={f.manager} onChange={(e) => set('manager', e.target.value)} className={inputCls} list="manager-list" />
+                <input value={f.manager} onChange={(e) => set('manager', e.target.value)} className={inputCls} list="manager-list" disabled={partnerLocked} />
                 <datalist id="manager-list">
                   {MANAGERS.map((m) => (
                     <option key={m} value={m} />
@@ -229,7 +249,7 @@ export default function ContractRegisterModal({
                 </datalist>
               </Field>
               <Field label="유치자">
-                <input value={f.recruiter} onChange={(e) => set('recruiter', e.target.value)} className={inputCls} list="recruiter-list" />
+                <input value={f.recruiter} onChange={(e) => set('recruiter', e.target.value)} className={inputCls} list="recruiter-list" disabled={partnerLocked} />
                 <datalist id="recruiter-list">
                   {RECRUITERS.map((r) => (
                     <option key={r} value={r} />
@@ -239,24 +259,45 @@ export default function ContractRegisterModal({
 
               {/* 4행 */}
               <Field label="은행명">
-                <input value={f.bankName} onChange={(e) => set('bankName', e.target.value)} className={inputCls} placeholder="예: 국민은행" />
+                <input value={f.bankName} onChange={(e) => set('bankName', e.target.value)} className={inputCls} placeholder="예: 국민은행" disabled={partnerLocked} />
               </Field>
               <Field label="계좌번호">
-                <input value={f.accountNo} onChange={(e) => set('accountNo', e.target.value)} className={inputCls} placeholder="계좌번호" />
+                <input value={f.accountNo} onChange={(e) => set('accountNo', e.target.value)} className={inputCls} placeholder="계좌번호" disabled={partnerLocked} />
               </Field>
               <Field label="예금주">
-                <input value={f.accountOwner} onChange={(e) => set('accountOwner', e.target.value)} className={inputCls} placeholder="미입력 시 계약자명" />
+                <input value={f.accountOwner} onChange={(e) => set('accountOwner', e.target.value)} className={inputCls} placeholder="미입력 시 계약자명" disabled={partnerLocked} />
               </Field>
+              {isPartner && (
+                <Field label="소속 파트장">
+                  <select
+                    value={f.parentContractId}
+                    onChange={(e) => set('parentContractId', e.target.value)}
+                    className={`${inputCls} ${!f.parentContractId ? 'ring-2 ring-warning border-warning animate-pulse' : ''}`}
+                  >
+                    <option value="">선택 안 함</option>
+                    {leaders.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.current.contractorName} ({l.id})
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
             </div>
+            {partnerLocked && (
+              <p className="mt-2 text-[12px] font-semibold text-warning">
+                ⚠ LAS-On파트너는 소속 파트장을 먼저 선택해야 나머지 항목을 입력할 수 있습니다.
+              </p>
+            )}
             <div className="mt-3">
               <Field label="비고">
-                <input value={f.memo} onChange={(e) => set('memo', e.target.value)} className={inputCls} placeholder="변경 사유/메모" />
+                <input value={f.memo} onChange={(e) => set('memo', e.target.value)} className={inputCls} placeholder="변경 사유/메모" disabled={partnerLocked} />
               </Field>
             </div>
           </section>
 
           {/* ── 결재정보 ── */}
-          <section>
+          <section className={partnerLocked ? 'pointer-events-none opacity-40' : ''}>
             <div className="mb-2.5 flex items-center justify-between">
               <SectionTitle>결재정보</SectionTitle>
               <span
@@ -276,7 +317,7 @@ export default function ContractRegisterModal({
           </section>
 
           {/* ── 계약서 등록 ── */}
-          <section>
+          <section className={partnerLocked ? 'pointer-events-none opacity-40' : ''}>
             <SectionTitle>계약서 등록 (Google Drive 저장)</SectionTitle>
             <DropZone
               onFile={setContractFile}
@@ -346,9 +387,11 @@ function Field({
 function NumInput({
   value,
   onChange,
+  disabled,
 }: {
   value: number
   onChange: (v: number) => void
+  disabled?: boolean
 }) {
   return (
     <input
@@ -357,6 +400,7 @@ function NumInput({
       onChange={(e) => onChange(Number(e.target.value.replace(/[^\d]/g, '')) || 0)}
       className={`${inputCls} text-right tabular`}
       placeholder="0"
+      disabled={disabled}
     />
   )
 }

@@ -14,11 +14,12 @@ interface DateTextInputProps {
   className?: string
   placeholder?: string
   onTabNext?: () => void
+  disabled?: boolean
 }
 
 const DateTextInput = forwardRef<HTMLInputElement, DateTextInputProps>(
   function DateTextInput(
-    { value, onChange, className, placeholder = 'yymmdd', onTabNext },
+    { value, onChange, className, placeholder = 'yymmdd', onTabNext, disabled },
     ref,
   ) {
     const [text, setText] = useState(value)
@@ -65,6 +66,7 @@ const DateTextInput = forwardRef<HTMLInputElement, DateTextInputProps>(
           }}
           placeholder={placeholder}
           inputMode="numeric"
+          disabled={disabled}
           style={{ paddingRight: 28 }}
           className={className}
         />
@@ -85,7 +87,8 @@ const DateTextInput = forwardRef<HTMLInputElement, DateTextInputProps>(
           type="button"
           tabIndex={-1}
           onClick={openPicker}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-[#64748b] hover:text-primary"
+          disabled={disabled}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-[#64748b] hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Calendar size={14} />
         </button>
