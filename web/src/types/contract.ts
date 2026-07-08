@@ -107,6 +107,8 @@ export interface ContractSnapshot {
   org: string // 소속 (A/B, 시스템관리에서 추가)
   businessUnit: string // 사업부 (매출관리와 별개 필드, 시스템관리에서 추가)
   contractorName: string // 계약자
+  /** 계약번호 — PK(id)와 별개, 사용자가 자유입력하는 참조번호 */
+  contractNo?: string
   contractType: string // 계약구분 (LAS매장점주/직원/LAS-On파트장/LAS-On파트너)
   /** 소속 파트장 계약 id (LAS-On파트너 전용) — 라스온 현황 연결 키 */
   parentContractId?: string

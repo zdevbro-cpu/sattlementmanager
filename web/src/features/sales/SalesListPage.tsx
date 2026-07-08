@@ -316,7 +316,7 @@ export default function SalesListPage() {
                     <Row
                       key={s.id}
                       s={s}
-                      no={(safePage - 1) * perPage + i + 1}
+                      no={sortedRows.length - ((safePage - 1) * perPage + i)}
                       onDetail={() => setDetailId(s.id)}
                       onDelete={() => onDelete(s)}
                     />

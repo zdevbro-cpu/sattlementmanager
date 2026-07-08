@@ -41,6 +41,7 @@ function mapSnapshot(h, installments, documents) {
     org: h.org || '',
     businessUnit: h.business_unit || '',
     contractorName: h.contractor_name || '',
+    contractNo: h.contract_no || '',
     contractType: h.contract_type || '',
     parentContractId: h.parent_contract_id || '',
     contractDate: isoDate(h.contract_date),
@@ -155,12 +156,12 @@ async function insertHistory(client, contractId, snap) {
   const p = snap.payment || {}
   const { rows } = await client.query(
     `INSERT INTO contract_history
-       (contract_id,status,event_date,org,business_unit,contractor_name,contract_type,parent_contract_id,contract_date,
+       (contract_id,status,event_date,org,business_unit,contractor_name,contract_no,contract_type,parent_contract_id,contract_date,
         deposit,allowance,allowance_pay_day,first_allowance_pay_date,
         contract_end_date,branch,manager,recruiter,
         bank_name,account_no,account_owner,resident_no,phone,
         payment_method,payment_total,memo)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
      RETURNING id`,
     [
       contractId,
@@ -169,6 +170,7 @@ async function insertHistory(client, contractId, snap) {
       snap.org,
       snap.businessUnit || '',
       snap.contractorName,
+      snap.contractNo || '',
       snap.contractType,
       snap.parentContractId || null,
       nn(snap.contractDate),
@@ -294,17 +296,18 @@ async function correctHistory(historyId, snap) {
     const p = snap.payment || {}
     const { rowCount } = await client.query(
       `UPDATE contract_history SET
-         org=$2, business_unit=$3, contractor_name=$4, contract_type=$5, parent_contract_id=$6, contract_date=$7,
-         deposit=$8, allowance=$9, allowance_pay_day=$10, first_allowance_pay_date=$11,
-         contract_end_date=$12, branch=$13, manager=$14, recruiter=$15,
-         bank_name=$16, account_no=$17, account_owner=$18, resident_no=$19, phone=$20,
-         payment_method=$21, payment_total=$22, memo=$23
+         org=$2, business_unit=$3, contractor_name=$4, contract_no=$5, contract_type=$6, parent_contract_id=$7, contract_date=$8,
+         deposit=$9, allowance=$10, allowance_pay_day=$11, first_allowance_pay_date=$12,
+         contract_end_date=$13, branch=$14, manager=$15, recruiter=$16,
+         bank_name=$17, account_no=$18, account_owner=$19, resident_no=$20, phone=$21,
+         payment_method=$22, payment_total=$23, memo=$24
        WHERE id=$1`,
       [
         historyId,
         snap.org,
         snap.businessUnit || '',
         snap.contractorName,
+        snap.contractNo || '',
         snap.contractType,
         snap.parentContractId || null,
         nn(snap.contractDate),

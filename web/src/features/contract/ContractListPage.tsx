@@ -420,7 +420,7 @@ export default function ContractListPage() {
                 <Row
                   key={c.id}
                   c={c}
-                  no={(safePage - 1) * perPage + i + 1}
+                  no={sortedRows.length - ((safePage - 1) * perPage + i)}
                   onDetail={() => setDetailId(c.id)}
                   onDelete={() => onDelete(c)}
                 />

@@ -32,6 +32,7 @@ export default function HistoryCorrectForm({
   const [org, setOrg] = useState(base.org)
   const [businessUnit, setBusinessUnit] = useState(base.businessUnit)
   const [contractorName, setContractorName] = useState(base.contractorName)
+  const [contractNo, setContractNo] = useState(base.contractNo ?? '')
   const [contractType, setContractType] = useState(base.contractType)
   const [parentContractId, setParentContractId] = useState(base.parentContractId ?? '')
   const [contractDate, setContractDate] = useState(base.contractDate)
@@ -75,6 +76,7 @@ export default function HistoryCorrectForm({
         org,
         businessUnit,
         contractorName: contractorName.trim(),
+        contractNo: contractNo.trim(),
         contractType,
         parentContractId: contractType === 'LAS-On파트너' ? parentContractId : '',
         contractDate,
@@ -195,6 +197,9 @@ export default function HistoryCorrectForm({
         </Field>
         <Field label="예금주">
           <input value={accountOwner} onChange={(e) => setAccountOwner(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="계약번호">
+          <input value={contractNo} onChange={(e) => setContractNo(e.target.value)} className={inputCls} placeholder="계약번호 (자유입력)" />
         </Field>
         {contractType === 'LAS-On파트너' && (
           <Field label="소속 파트장">

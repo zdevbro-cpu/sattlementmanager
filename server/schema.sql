@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS contract_history (
   org                      TEXT,                   -- 소속 (A/B, 시스템관리에서 추가)
   business_unit            TEXT,                   -- 사업부 (매출관리와 별개 필드, 시스템관리에서 추가)
   contractor_name          TEXT,                   -- 계약자
+  contract_no              TEXT,                   -- 계약번호 (PK 아님, 사용자 자유입력 참조번호)
   contract_type            TEXT,                   -- 계약구분 (LAS매장점주/직원/LAS-On파트장/LAS-On파트너)
   parent_contract_id       TEXT REFERENCES contracts(id), -- 소속 파트장 계약 (LAS-On파트너 전용, 라스온 현황 연결 키)
   contract_date            DATE,                   -- 계약일

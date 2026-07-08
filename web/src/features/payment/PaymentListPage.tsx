@@ -225,14 +225,15 @@ function RevenuePayoutView() {
                   ['구분', 'center'],
                   ['지급기준일', 'center'],
                   ['계약자명', ''],
-                  ['추천인', ''],
-                  ['은행명', ''],
-                  ['계좌번호', ''],
-                  ['계약일자', 'center'],
-                  ['계약종료일', 'center'],
                   ['보증금액', 'right'],
                   ['수당', 'right'],
                   ['지급금액', 'right'],
+                  ['은행명', ''],
+                  ['계좌번호', ''],
+                  ['예금주', ''],
+                  ['계약일자', 'center'],
+                  ['계약종료일', 'center'],
+                  ['추천인', ''],
                   ['관리', 'center'],
                 ].map(([h, a]) => (
                   <th key={h} className={`px-3 py-1.5 font-semibold whitespace-nowrap ${a === 'right' ? 'text-right' : a === 'center' ? 'text-center' : ''}`}>
@@ -247,14 +248,15 @@ function RevenuePayoutView() {
                   <td className="px-3 py-1.5 text-center whitespace-nowrap text-[#94a3b8]">정기</td>
                   <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(payBaseDate)}</td>
                   <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{s.contractorName}</td>
-                  <td className="px-3 py-1.5 whitespace-nowrap">{s.recruiter}</td>
-                  <td className="px-3 py-1.5 whitespace-nowrap">{s.bankName}</td>
-                  <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{maskAccount(s.accountNo)}</td>
-                  <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(s.contractDate)}</td>
-                  <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(s.contractEndDate)}</td>
                   <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(s.deposit)} 원</td>
                   <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(s.allowance)} 원</td>
                   <td className="px-3 py-1.5 tabular text-right font-bold text-text-strong whitespace-nowrap">{comma(payout(s.allowance))} 원</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{s.bankName}</td>
+                  <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{maskAccount(s.accountNo)}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{s.accountOwner}</td>
+                  <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(s.contractDate)}</td>
+                  <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(s.contractEndDate)}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{s.recruiter}</td>
                   <td className="px-3 py-1.5 text-center whitespace-nowrap">-</td>
                 </tr>
               ))}
@@ -265,14 +267,15 @@ function RevenuePayoutView() {
                   </td>
                   <td className="px-3 py-1.5 tabular text-center whitespace-nowrap text-[#64748b]">-</td>
                   <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{e.name}</td>
-                  <td className="px-3 py-1.5 whitespace-nowrap text-[#94a3b8]">{e.memo || '-'}</td>
-                  <td className="px-3 py-1.5 whitespace-nowrap">{e.bankName}</td>
-                  <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{maskAccount(e.accountNo)}</td>
-                  <td className="px-3 py-1.5 tabular text-center whitespace-nowrap text-[#64748b]">-</td>
-                  <td className="px-3 py-1.5 tabular text-center whitespace-nowrap text-[#64748b]">-</td>
                   <td className="px-3 py-1.5 tabular text-right whitespace-nowrap text-[#64748b]">-</td>
                   <td className="px-3 py-1.5 tabular text-right whitespace-nowrap text-[#64748b]">-</td>
                   <td className="px-3 py-1.5 tabular text-right font-bold text-text-strong whitespace-nowrap">{comma(e.amount)} 원</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{e.bankName}</td>
+                  <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{maskAccount(e.accountNo)}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{e.accountOwner}</td>
+                  <td className="px-3 py-1.5 tabular text-center whitespace-nowrap text-[#64748b]">-</td>
+                  <td className="px-3 py-1.5 tabular text-center whitespace-nowrap text-[#64748b]">-</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap text-[#94a3b8]">{e.memo || '-'}</td>
                   <td className="px-3 py-1.5 text-center whitespace-nowrap">
                     <button
                       onClick={() => removeExtra(e.id)}
@@ -286,7 +289,7 @@ function RevenuePayoutView() {
               ))}
               {totalCount === 0 && (
                 <tr>
-                  <td colSpan={12} className="px-3 py-10 text-center text-[#64748b]">
+                  <td colSpan={13} className="px-3 py-10 text-center text-[#64748b]">
                     조건에 맞는 수익금지급 대상자가 없습니다.
                   </td>
                 </tr>

@@ -24,6 +24,7 @@ interface FormState {
   org: string
   businessUnit: string
   contractorName: string
+  contractNo: string
   contractType: string
   parentContractId: string
   contractDate: string
@@ -55,6 +56,7 @@ export default function ContractRegisterModal({
     org: codes.orgs[0] ?? '',
     businessUnit: codes.businessUnits[0] ?? '',
     contractorName: '',
+    contractNo: '',
     contractType: codes.contractTypes[0] ?? '',
     parentContractId: '',
     contractDate: '',
@@ -118,6 +120,7 @@ export default function ContractRegisterModal({
         org: f.org,
         businessUnit: f.businessUnit,
         contractorName: f.contractorName.trim(),
+        contractNo: f.contractNo.trim(),
         contractType: f.contractType,
         parentContractId: f.contractType === 'LAS-On파트너' ? f.parentContractId : '',
         contractDate: f.contractDate,
@@ -266,6 +269,9 @@ export default function ContractRegisterModal({
               </Field>
               <Field label="예금주">
                 <input value={f.accountOwner} onChange={(e) => set('accountOwner', e.target.value)} className={inputCls} placeholder="미입력 시 계약자명" disabled={partnerLocked} />
+              </Field>
+              <Field label="계약번호">
+                <input value={f.contractNo} onChange={(e) => set('contractNo', e.target.value)} className={inputCls} placeholder="계약번호 (자유입력)" disabled={partnerLocked} />
               </Field>
               {isPartner && (
                 <Field label="소속 파트장">
