@@ -1,9 +1,12 @@
 import { useState } from 'react'
+import { Paperclip } from 'lucide-react'
 import type { ContractSnapshot, PaymentInfo } from '../../types/contract'
 import { useCodes } from '../../lib/codeStore'
 import { addHistory } from './contractStore'
 import PaymentEditor from './PaymentEditor'
 import DateTextInput from '../../components/ui/DateTextInput'
+import DropZone from '../../components/ui/DropZone'
+import { uploadToDrive } from '../../lib/api'
 import { comma } from '../../lib/format'
 
 const inputCls =
@@ -37,6 +40,7 @@ export default function HistoryAddForm({
   const [contractEndDate, setContractEndDate] = useState(base.contractEndDate)
   const [memo, setMemo] = useState('')
   const [payment, setPayment] = useState<PaymentInfo>(base.payment)
+  const [contractFile, setContractFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
@@ -59,7 +63,14 @@ export default function HistoryAddForm({
         createdAt: eventDate,
         documents: [],
       }
-      await addHistory(contractId, snap)
+      const updated = await addHistory(contractId, snap)
+      if (contractFile) {
+        try {
+          await uploadToDrive(contractId, contractFile, status, updated.current.historyId)
+        } catch {
+          /* Drive 업로드 실패해도 이력 추가는 유지 */
+        }
+      }
       onSaved()
     } catch (e) {
       setErr((e as Error).message)
@@ -112,6 +123,27 @@ export default function HistoryAddForm({
           </span>
         </div>
         <PaymentEditor value={payment} onChange={setPayment} />
+      </div>
+
+      <div>
+        <div className="mb-1.5 text-[12px] font-bold text-text-strong">계약서 등록 (Google Drive 저장)</div>
+        <DropZone
+          onFile={setContractFile}
+          accept=".pdf,image/*"
+          hint="증액/양수·양도/해지 등 변경 계약서 — 드래그드롭 또는 탐색기 선택"
+        >
+          {contractFile ? (
+            <div className="inline-flex items-center gap-1.5 text-[13px] text-[#c2cde0]">
+              <Paperclip size={13} /> {contractFile.name}{' '}
+              <span className="text-[#64748b]">(다시 등록하려면 클릭/드롭)</span>
+            </div>
+          ) : (
+            <div className="text-[12.5px] text-[#94a3b8]">
+              <span className="text-primary font-bold">클릭(탐색기)</span> 또는{' '}
+              <span className="text-primary font-bold">드래그드롭</span>으로 계약서 등록
+            </div>
+          )}
+        </DropZone>
       </div>
 
       {err && <div className="text-[12px] text-danger">{err}</div>}

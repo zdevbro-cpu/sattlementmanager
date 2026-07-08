@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Download, Eye, FileText, Plus, PlusCircle, Trash2, XCircle } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, Download, Eye, FileText, Plus, PlusCircle, Trash2, XCircle } from 'lucide-react'
 import type { ComponentType } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import StatusBadge from '../../components/ui/StatusBadge'
@@ -49,6 +49,11 @@ const DEFAULT_CONTRACT_FILTER: ContractFilter = {
   contractEndDate: todayIso(),
 }
 
+type SortKey = 'createdAt' | 'contractDate'
+const PAGE_SIZES = [20, 50, 100]
+// 상태 드롭다운 전용 sentinel — 실제 status 값이 아니라 "전체 + 폐기 포함"을 뜻하는 선택지
+const INCLUDE_DISCARDED_VALUE = '__include_discarded__'
+
 export default function ContractListPage() {
   const codes = useCodes()
   const [tab, setTab] = useState<Tab>('list')
@@ -64,6 +69,20 @@ export default function ContractListPage() {
   const [loading, setLoading] = useState(true)
   const [loadErr, setLoadErr] = useState('')
   const [sum, setSum] = useState(() => summarize([]))
+  const [sortKey, setSortKey] = useState<SortKey>('createdAt')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [perPage, setPerPage] = useState(20)
+  const [page, setPage] = useState(1)
+  // 상태 필터가 '전체'일 때 폐기 계약은 기본적으로 숨긴다 — 체크하면 다시 포함
+  const [includeDiscarded, setIncludeDiscarded] = useState(false)
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else {
+      setSortKey(key)
+      setSortDir('desc')
+    }
+  }
 
   useEffect(() => {
     let alive = true
@@ -87,6 +106,26 @@ export default function ContractListPage() {
     }
     // refresh 로 재조회 강제
   }, [filter, refresh])
+
+  useEffect(() => {
+    setPage(1)
+  }, [filter, sortKey, sortDir, perPage, includeDiscarded])
+
+  // 상태='전체'일 때만 의미 있음 — 특정 상태를 골랐다면(예: 폐기) 그대로 보여준다
+  const visibleRows =
+    filter.status === '전체' && !includeDiscarded
+      ? rows.filter((c) => c.current.status !== '폐기')
+      : rows
+
+  const sortedRows = [...visibleRows].sort((a, b) => {
+    const av = sortKey === 'createdAt' ? a.current.createdAt : a.current.contractDate
+    const bv = sortKey === 'createdAt' ? b.current.createdAt : b.current.contractDate
+    const cmp = (av || '').localeCompare(bv || '')
+    return sortDir === 'asc' ? cmp : -cmp
+  })
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / perPage))
+  const safePage = Math.min(page, totalPages)
+  const pagedRows = sortedRows.slice((safePage - 1) * perPage, safePage * perPage)
 
   useEffect(() => {
     let alive = true
@@ -118,10 +157,10 @@ export default function ContractListPage() {
 
   const onExcelDownload = () => {
     const headers = COLS.filter((c) => c.label !== '관리').map((c) => c.label)
-    const data = rows.map((c, i) => {
+    const data = sortedRows.map((c, i) => {
       const s = c.current
       return [
-        rows.length - i,
+        sortedRows.length - i,
         s.org,
         s.contractorName,
         dateText(s.createdAt),
@@ -288,14 +327,34 @@ export default function ContractListPage() {
             />
           </Field>
           <Field label="상태">
-            <SelectFilter
-              value={filter.status}
-              options={codes.statuses}
-              onChange={(v) => setFilter({ ...filter, status: v })}
-            />
+            <select
+              value={includeDiscarded && filter.status === '전체' ? INCLUDE_DISCARDED_VALUE : filter.status}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === INCLUDE_DISCARDED_VALUE) {
+                  setIncludeDiscarded(true)
+                  setFilter({ ...filter, status: '전체' })
+                } else {
+                  setIncludeDiscarded(false)
+                  setFilter({ ...filter, status: v })
+                }
+              }}
+              className={inputCls}
+            >
+              <option value="전체">전체(폐기미포함)</option>
+              {codes.statuses.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+              <option value={INCLUDE_DISCARDED_VALUE}>전체(폐기포함)</option>
+            </select>
           </Field>
           <button
-            onClick={() => setFilter(DEFAULT_CONTRACT_FILTER)}
+            onClick={() => {
+              setFilter(DEFAULT_CONTRACT_FILTER)
+              setIncludeDiscarded(false)
+            }}
             className="h-[38px] rounded-[8px] border border-border px-5 text-sm font-semibold text-[#c2cde0] hover:bg-hover whitespace-nowrap"
           >
             초기화
@@ -308,7 +367,7 @@ export default function ContractListPage() {
         <div className="flex items-center justify-between px-4 py-3">
           <span className="text-[15px] font-extrabold text-text-strong">
             계약 목록{' '}
-            <span className="text-[#64748b] font-semibold">({rows.length})</span>
+            <span className="text-[#64748b] font-semibold">({visibleRows.length})</span>
           </span>
           <button
             onClick={onExcelDownload}
@@ -321,34 +380,52 @@ export default function ContractListPage() {
           <table className="w-full min-w-[1400px] text-[13px]">
             <thead>
               <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
-                {COLS.map((c) => (
-                  <th
-                    key={c.label}
-                    className={`px-3 py-1.5 font-semibold whitespace-nowrap ${
-                      c.align === 'center'
-                        ? 'text-center'
-                        : c.align === 'right'
-                          ? 'text-right'
-                          : ''
-                    }`}
-                    style={c.w ? { width: c.w, minWidth: c.w } : undefined}
-                  >
-                    {c.label}
-                  </th>
-                ))}
+                {COLS.map((c) => {
+                  const sortKeyFor: SortKey | null =
+                    c.label === '등록일' ? 'createdAt' : c.label === '계약일' ? 'contractDate' : null
+                  return (
+                    <th
+                      key={c.label}
+                      className={`px-3 py-1.5 font-semibold whitespace-nowrap ${
+                        c.align === 'center'
+                          ? 'text-center'
+                          : c.align === 'right'
+                            ? 'text-right'
+                            : ''
+                      }`}
+                      style={c.w ? { width: c.w, minWidth: c.w } : undefined}
+                    >
+                      {sortKeyFor ? (
+                        <button
+                          onClick={() => toggleSort(sortKeyFor)}
+                          className="inline-flex items-center gap-0.5 hover:text-[#e2e8f0]"
+                        >
+                          {c.label}
+                          {sortKey === sortKeyFor ? (
+                            sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
+                          ) : (
+                            <ChevronsUpDown size={12} className="opacity-50" />
+                          )}
+                        </button>
+                      ) : (
+                        c.label
+                      )}
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody>
-              {rows.map((c, i) => (
+              {pagedRows.map((c, i) => (
                 <Row
                   key={c.id}
                   c={c}
-                  no={rows.length - i}
+                  no={(safePage - 1) * perPage + i + 1}
                   onDetail={() => setDetailId(c.id)}
                   onDelete={() => onDelete(c)}
                 />
               ))}
-              {rows.length === 0 && (
+              {visibleRows.length === 0 && (
                 <tr>
                   <td
                     colSpan={COLS.length}
@@ -365,6 +442,34 @@ export default function ContractListPage() {
             </tbody>
           </table>
         </div>
+        {sortedRows.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+            <div className="flex gap-1">
+              <button onClick={() => setPage(Math.max(1, safePage - 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronLeft size={16} /></button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setPage(n)}
+                  className={`h-8 min-w-8 px-2 rounded-md border text-[13px] font-semibold ${n === safePage ? 'border-primary text-primary' : 'border-border text-[#94a3b8] hover:bg-hover'}`}
+                >
+                  {n}
+                </button>
+              ))}
+              <button onClick={() => setPage(Math.min(totalPages, safePage + 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronRight size={16} /></button>
+            </div>
+            <div className="flex gap-1">
+              {PAGE_SIZES.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setPerPage(n)}
+                  className={`h-8 px-3 rounded-md border text-[13px] font-semibold ${n === perPage ? 'border-primary text-primary' : 'border-border text-[#94a3b8] hover:bg-hover'}`}
+                >
+                  {n}개
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
         </>
       )}

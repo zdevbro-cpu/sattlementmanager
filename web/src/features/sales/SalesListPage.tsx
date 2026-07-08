@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { AlertTriangle, Banknote, CreditCard, Download, Eye, Layers, Plus, RefreshCw, Trash2, Wallet } from 'lucide-react'
+import { AlertTriangle, Banknote, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, CreditCard, Download, Eye, Layers, Plus, RefreshCw, Trash2, Wallet } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import Badge, { categoryTone } from '../../components/ui/Badge'
 import DateTextInput from '../../components/ui/DateTextInput'
@@ -33,6 +33,9 @@ const DEFAULT_SALES_FILTER: SalesFilter = {
   regEndDate: TODAY,
 }
 
+type SortKey = 'createdAt' | 'date'
+const PAGE_SIZES = [20, 50, 100]
+
 export default function SalesListPage() {
   const categories = useSalesCategories()
   const [searchParams] = useSearchParams()
@@ -49,6 +52,18 @@ export default function SalesListPage() {
   const [loadErr, setLoadErr] = useState('')
   // 요약 카드는 검색조건이 반영된 현재 목록(rows) 기준으로 집계한다.
   const sum = summarizeSales(rows)
+  const [sortKey, setSortKey] = useState<SortKey>('createdAt')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [perPage, setPerPage] = useState(20)
+  const [page, setPage] = useState(1)
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else {
+      setSortKey(key)
+      setSortDir('desc')
+    }
+  }
 
   useEffect(() => {
     let alive = true
@@ -72,6 +87,20 @@ export default function SalesListPage() {
     }
   }, [filter, refresh])
 
+  useEffect(() => {
+    setPage(1)
+  }, [filter, sortKey, sortDir, perPage])
+
+  const sortedRows = [...rows].sort((a, b) => {
+    const av = sortKey === 'createdAt' ? a.createdAt : a.date
+    const bv = sortKey === 'createdAt' ? b.createdAt : b.date
+    const cmp = (av || '').localeCompare(bv || '')
+    return sortDir === 'asc' ? cmp : -cmp
+  })
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / perPage))
+  const safePage = Math.min(page, totalPages)
+  const pagedRows = sortedRows.slice((safePage - 1) * perPage, safePage * perPage)
+
   const [excelBusy, setExcelBusy] = useState(false)
   const onExcelDownload = async () => {
     const label =
@@ -82,7 +111,7 @@ export default function SalesListPage() {
         : '전체'
     setExcelBusy(true)
     try {
-      await downloadSalesListReport(rows, label)
+      await downloadSalesListReport(sortedRows, label)
     } catch (e) {
       alert((e as Error).message)
     } finally {
@@ -251,25 +280,43 @@ export default function SalesListPage() {
                 <thead>
                   <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
                     {['번호', '소속', '등록일', '계약일', 'CAT ID', '사업부', '구매자', '내용', '금액', '카드사', '카드번호', '승인번호', '담당', '관리'].map(
-                      (h) => (
-                        <th
-                          key={h}
-                          className={`px-3 py-1.5 font-semibold whitespace-nowrap ${
-                            h === '금액' ? 'text-right' : h === '관리' ? 'text-center' : ''
-                          }`}
-                        >
-                          {h}
-                        </th>
-                      ),
+                      (h) => {
+                        const sortKeyFor: SortKey | null =
+                          h === '등록일' ? 'createdAt' : h === '계약일' ? 'date' : null
+                        return (
+                          <th
+                            key={h}
+                            className={`px-3 py-1.5 font-semibold whitespace-nowrap ${
+                              h === '금액' ? 'text-right' : h === '관리' ? 'text-center' : ''
+                            }`}
+                          >
+                            {sortKeyFor ? (
+                              <button
+                                onClick={() => toggleSort(sortKeyFor)}
+                                className="inline-flex items-center gap-0.5 hover:text-[#e2e8f0]"
+                              >
+                                {h}
+                                {sortKey === sortKeyFor ? (
+                                  sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
+                                ) : (
+                                  <ChevronsUpDown size={12} className="opacity-50" />
+                                )}
+                              </button>
+                            ) : (
+                              h
+                            )}
+                          </th>
+                        )
+                      },
                     )}
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((s, i) => (
+                  {pagedRows.map((s, i) => (
                     <Row
                       key={s.id}
                       s={s}
-                      no={rows.length - i}
+                      no={(safePage - 1) * perPage + i + 1}
                       onDetail={() => setDetailId(s.id)}
                       onDelete={() => onDelete(s)}
                     />
@@ -288,6 +335,34 @@ export default function SalesListPage() {
                 </tbody>
               </table>
             </div>
+            {sortedRows.length > 0 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+                <div className="flex gap-1">
+                  <button onClick={() => setPage(Math.max(1, safePage - 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronLeft size={16} /></button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => setPage(n)}
+                      className={`h-8 min-w-8 px-2 rounded-md border text-[13px] font-semibold ${n === safePage ? 'border-primary text-primary' : 'border-border text-[#94a3b8] hover:bg-hover'}`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                  <button onClick={() => setPage(Math.min(totalPages, safePage + 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronRight size={16} /></button>
+                </div>
+                <div className="flex gap-1">
+                  {PAGE_SIZES.map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => setPerPage(n)}
+                      className={`h-8 px-3 rounded-md border text-[13px] font-semibold ${n === perPage ? 'border-primary text-primary' : 'border-border text-[#94a3b8] hover:bg-hover'}`}
+                    >
+                      {n}개
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}
