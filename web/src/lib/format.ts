@@ -61,3 +61,14 @@ export function phoneFmt(v: string): string {
   if (n.length < 8) return `${n.slice(0, 3)}-${n.slice(3)}`
   return `${n.slice(0, 3)}-${n.slice(3, 7)}-${n.slice(7)}`
 }
+
+/**
+ * 주민등록번호 입력값 자동 포맷 (앞6자리-뒤7자리). 입력 중에도 실시간으로 하이픈을 붙인다.
+ * 여권번호 등 영문이 섞인 외국인 식별자는 숫자만 남기지 않고 원본 그대로 통과시킨다.
+ */
+export function residentNoFmt(v: string): string {
+  if (/[a-zA-Z]/.test(v)) return v
+  const n = v.replace(/\D/g, '').slice(0, 13)
+  if (n.length <= 6) return n
+  return `${n.slice(0, 6)}-${n.slice(6)}`
+}

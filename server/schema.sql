@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS contract_history (
   deposit                  BIGINT DEFAULT 0,       -- 보증금
   allowance                BIGINT DEFAULT 0,       -- 수당
   allowance_pay_day        INT,                    -- 수당지급일 (매월 1~31일, 날짜 아님)
-  first_allowance_pay_date DATE,                   -- 최초수당지급일
+  first_allowance_pay_date DATE,                   -- 수당지급기준일
   contract_end_date        DATE,                   -- 계약종료일
   branch                   TEXT,                   -- 지점명
   manager                  TEXT,                   -- 관리자
@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS contract_history (
   payment_method           TEXT,                   -- 카드/현금
   payment_total            BIGINT DEFAULT 0,
   memo                     TEXT,
+  is_draft                 BOOLEAN NOT NULL DEFAULT FALSE, -- 임시저장 여부 (계약등록 확정 전)
   created_at               TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_history_contract ON contract_history(contract_id);

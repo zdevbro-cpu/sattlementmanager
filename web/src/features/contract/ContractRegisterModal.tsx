@@ -14,6 +14,7 @@ import { uploadToDrive } from '../../lib/api'
 import DropZone from '../../components/ui/DropZone'
 import DateTextInput from '../../components/ui/DateTextInput'
 import { CheckCircle2, Paperclip, X, XCircle } from 'lucide-react'
+import { phoneFmt, residentNoFmt } from '../../lib/format'
 
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed'
@@ -100,12 +101,12 @@ export default function ContractRegisterModal({
   const isPartner = f.contractType === 'LAS-On파트너'
   const partnerLocked = isPartner && !f.parentContractId
 
-  const submit = async () => {
+  const submit = async (isDraft: boolean) => {
     if (!f.contractorName.trim()) return setErr('계약자명을 입력하세요.')
     if (!f.contractDate) return setErr('계약일을 입력하세요.')
     if (partnerLocked) return setErr('소속 파트장을 먼저 선택하세요.')
-    // 카드+현금 결재합계가 보증금과 일치해야 계약등록 가능
-    if (!depositMatched)
+    // 임시저장은 결재정보가 아직 미완성일 수 있으므로 보증금 일치 검증을 생략한다
+    if (!isDraft && !depositMatched)
       return setErr(
         `결재합계(카드+현금 ${payTotal.toLocaleString('ko-KR')}원)가 보증금(${f.deposit.toLocaleString('ko-KR')}원)과 일치해야 등록할 수 있습니다.`,
       )
@@ -116,6 +117,7 @@ export default function ContractRegisterModal({
       const snapshot: ContractSnapshot = {
         historyId: '',
         status: '신규', // 신규계약등록 페이지 — 상태는 항상 신규
+        isDraft,
         eventDate: f.contractDate,
         org: f.org,
         businessUnit: f.businessUnit,
@@ -212,7 +214,7 @@ export default function ContractRegisterModal({
               <Field label="수당">
                 <NumInput value={f.allowance} onChange={(v) => set('allowance', v)} disabled={partnerLocked} />
               </Field>
-              <Field label="최초수당지급일">
+              <Field label="수당지급기준일">
                 <DateTextInput value={f.firstAllowancePayDate} onChange={(v) => set('firstAllowancePayDate', v)} className={inputCls} disabled={partnerLocked} />
               </Field>
               <Field label="수당지급일(매월)">
@@ -230,10 +232,10 @@ export default function ContractRegisterModal({
 
               {/* 3행 */}
               <Field label="연락처">
-                <input value={f.phone} onChange={(e) => set('phone', e.target.value)} className={inputCls} placeholder="예: 010-1234-5678" disabled={partnerLocked} />
+                <input value={f.phone} onChange={(e) => set('phone', phoneFmt(e.target.value))} className={inputCls} placeholder="010-1234-5678" disabled={partnerLocked} />
               </Field>
               <Field label="주민번호">
-                <input value={f.residentNo} onChange={(e) => set('residentNo', e.target.value)} className={inputCls} placeholder="예: 900101-1******" disabled={partnerLocked} />
+                <input value={f.residentNo} onChange={(e) => set('residentNo', residentNoFmt(e.target.value))} className={inputCls} placeholder="900101-1234567" disabled={partnerLocked} />
               </Field>
               <Field label="지점명">
                 <input value={f.branch} onChange={(e) => set('branch', e.target.value)} className={inputCls} list="branch-list" disabled={partnerLocked} />
@@ -271,7 +273,7 @@ export default function ContractRegisterModal({
                 <input value={f.accountOwner} onChange={(e) => set('accountOwner', e.target.value)} className={inputCls} placeholder="미입력 시 계약자명" disabled={partnerLocked} />
               </Field>
               <Field label="계약번호">
-                <input value={f.contractNo} onChange={(e) => set('contractNo', e.target.value)} className={inputCls} placeholder="계약번호 (자유입력)" disabled={partnerLocked} />
+                <input value={f.contractNo} onChange={(e) => set('contractNo', e.target.value)} className={inputCls} disabled={partnerLocked} />
               </Field>
               {isPartner && (
                 <Field label="소속 파트장">
@@ -352,7 +354,15 @@ export default function ContractRegisterModal({
             취소
           </button>
           <button
-            onClick={submit}
+            onClick={() => submit(true)}
+            disabled={saving}
+            title="입력 중인 내용을 임시저장합니다. 결재합계 일치 여부는 검증하지 않습니다."
+            className="h-10 rounded-[10px] border border-border px-5 text-sm font-bold text-[#c2cde0] hover:bg-hover disabled:opacity-60"
+          >
+            {saving ? '저장 중…' : '임시저장'}
+          </button>
+          <button
+            onClick={() => submit(false)}
             disabled={saving || !depositMatched}
             title={depositMatched ? '' : '결재합계와 보증금이 일치해야 등록 가능'}
             className="h-10 rounded-[10px] bg-primary px-5 text-sm font-bold text-white hover:brightness-110 disabled:opacity-60"

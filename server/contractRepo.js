@@ -73,6 +73,7 @@ function mapSnapshot(h, installments, documents) {
       uploadedAt: isoDate(d.uploaded_at),
     })),
     memo: h.memo || '',
+    isDraft: !!h.is_draft,
     createdAt: isoDate(h.created_at),
   }
 }
@@ -160,8 +161,8 @@ async function insertHistory(client, contractId, snap) {
         deposit,allowance,allowance_pay_day,first_allowance_pay_date,
         contract_end_date,branch,manager,recruiter,
         bank_name,account_no,account_owner,resident_no,phone,
-        payment_method,payment_total,memo)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
+        payment_method,payment_total,memo,is_draft)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
      RETURNING id`,
     [
       contractId,
@@ -190,6 +191,7 @@ async function insertHistory(client, contractId, snap) {
       p.method || '카드',
       p.totalAmount || 0,
       snap.memo || '',
+      !!snap.isDraft,
     ],
   )
   const historyId = rows[0].id
@@ -300,7 +302,7 @@ async function correctHistory(historyId, snap) {
          deposit=$9, allowance=$10, allowance_pay_day=$11, first_allowance_pay_date=$12,
          contract_end_date=$13, branch=$14, manager=$15, recruiter=$16,
          bank_name=$17, account_no=$18, account_owner=$19, resident_no=$20, phone=$21,
-         payment_method=$22, payment_total=$23, memo=$24
+         payment_method=$22, payment_total=$23, memo=$24, is_draft=$25
        WHERE id=$1`,
       [
         historyId,
@@ -327,6 +329,7 @@ async function correctHistory(historyId, snap) {
         p.method || '카드',
         p.totalAmount || 0,
         snap.memo || '',
+        !!snap.isDraft,
       ],
     )
     if (rowCount === 0) throw new Error('이력을 찾을 수 없습니다.')

@@ -3,7 +3,7 @@ import { ChevronDown, ChevronUp, ExternalLink, Paperclip, Pencil, Plus, X } from
 import StatusBadge from '../../components/ui/StatusBadge'
 import { comma, dateText, won } from '../../lib/format'
 import type { Contract, ContractSnapshot } from '../../types/contract'
-import { getContract } from './contractStore'
+import { correctHistory, getContract } from './contractStore'
 import HistoryAddForm from './HistoryAddForm'
 import HistoryCorrectForm from './HistoryCorrectForm'
 
@@ -35,6 +35,13 @@ export default function ContractDetailDrawer({
   if (!contract) return null
   const cur = contract.current
 
+  const confirmDraft = async () => {
+    if (!confirm('임시저장 상태를 해제하고 계약등록을 확정할까요?')) return
+    await correctHistory(contract.id, cur.historyId, { ...cur, isDraft: false })
+    setTick((n) => n + 1)
+    onChanged?.()
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/60">
       <div className="h-full w-full max-w-[720px] bg-card border-l border-border overflow-y-auto">
@@ -44,10 +51,24 @@ export default function ContractDetailDrawer({
             <h2 className="text-[17px] font-extrabold text-text-strong">
               {cur.contractorName}
             </h2>
-            <StatusBadge status={cur.status} />
+            {cur.isDraft ? (
+              <span className="inline-flex items-center rounded-full border border-dashed border-[#94a3b8] px-2 py-0.5 text-[11.5px] font-semibold text-[#94a3b8]">
+                임시저장
+              </span>
+            ) : (
+              <StatusBadge status={cur.status} />
+            )}
             <span className="text-[12px] text-[#64748b]">#{contract.id}</span>
           </div>
           <div className="flex items-center gap-2">
+            {cur.isDraft && (
+              <button
+                onClick={confirmDraft}
+                className="inline-flex h-9 items-center gap-1.5 rounded-[8px] bg-success px-3 text-[13px] font-bold text-white hover:brightness-110"
+              >
+                계약등록 확정
+              </button>
+            )}
             <button
               onClick={() => {
                 setCorrectOpen(false)
@@ -219,7 +240,7 @@ function SnapshotCard({
     ['보증금', comma(s.deposit)],
     ['수당', comma(s.allowance)],
     ['수당지급일', s.allowancePayDay ? `매월 ${s.allowancePayDay}일` : '-'],
-    ['최초수당지급일', dateText(s.firstAllowancePayDate)],
+    ['수당지급기준일', dateText(s.firstAllowancePayDate)],
     ['계약종료일', dateText(s.contractEndDate)],
     ['지점명', s.branch],
     ['관리자', s.manager],

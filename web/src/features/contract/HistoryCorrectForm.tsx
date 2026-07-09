@@ -6,7 +6,7 @@ import { correctHistory, listContracts } from './contractStore'
 import { BRANCHES, MANAGERS, RECRUITERS } from '../../data/mockContracts'
 import PaymentEditor from './PaymentEditor'
 import DateTextInput from '../../components/ui/DateTextInput'
-import { comma } from '../../lib/format'
+import { comma, phoneFmt, residentNoFmt } from '../../lib/format'
 
 const inputCls =
   'h-9 w-full rounded-[8px] bg-input border border-border px-2.5 text-[13px] text-input-text outline-none focus:border-primary'
@@ -142,7 +142,7 @@ export default function HistoryCorrectForm({
         <Field label="수당">
           <NumInput value={allowance} onChange={setAllowance} />
         </Field>
-        <Field label="최초수당지급일">
+        <Field label="수당지급기준일">
           <DateTextInput value={firstAllowancePayDate} onChange={setFirstAllowancePayDate} className={inputCls} />
         </Field>
         <Field label="수당지급일(매월)">
@@ -159,10 +159,10 @@ export default function HistoryCorrectForm({
         </Field>
 
         <Field label="연락처">
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} />
+          <input value={phone} onChange={(e) => setPhone(phoneFmt(e.target.value))} className={inputCls} />
         </Field>
         <Field label="주민번호">
-          <input value={residentNo} onChange={(e) => setResidentNo(e.target.value)} className={inputCls} />
+          <input value={residentNo} onChange={(e) => setResidentNo(residentNoFmt(e.target.value))} className={inputCls} />
         </Field>
         <Field label="지점명">
           <input value={branch} onChange={(e) => setBranch(e.target.value)} className={inputCls} list="branch-list-correct" />
@@ -199,7 +199,7 @@ export default function HistoryCorrectForm({
           <input value={accountOwner} onChange={(e) => setAccountOwner(e.target.value)} className={inputCls} />
         </Field>
         <Field label="계약번호">
-          <input value={contractNo} onChange={(e) => setContractNo(e.target.value)} className={inputCls} placeholder="계약번호 (자유입력)" />
+          <input value={contractNo} onChange={(e) => setContractNo(e.target.value)} className={inputCls} />
         </Field>
         {contractType === 'LAS-On파트너' && (
           <Field label="소속 파트장">

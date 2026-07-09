@@ -110,7 +110,7 @@ function RevenuePayoutView() {
       contracts
         .map((c) => c.current)
         .filter(
-          (s) => s.allowance > 0 && s.status !== '해지' && s.status !== '폐기',
+          (s) => s.allowance > 0 && s.status !== '해지' && s.status !== '폐기' && !s.isDraft,
         ),
     [contracts],
   )
@@ -124,8 +124,8 @@ function RevenuePayoutView() {
       .map((s) => ({ s, payBaseDate: findPayDate(startDate, endDate, s.allowancePayDay) }))
       .filter(({ payBaseDate }) => payBaseDate !== null)
       // 지급기준일이 아직 도래하지 않은 계약은 제외한다.
-      // 최초수당지급일(계약일 + 2개월) 이전에는 수당을 지급하지 않는다.
-      // 예) 지급기준일 2026-07-09 → 계약일 2026-05-09 이전 계약자만 노출
+      // 수당지급기준일(최초수당지급일) 이전에는 수당을 지급하지 않는다.
+      // 예) 지급기준일 2026-07-09 → 수당지급기준일이 그 이전인 계약자만 노출
       .filter(
         ({ s, payBaseDate }) =>
           !s.firstAllowancePayDate || payBaseDate! >= s.firstAllowancePayDate,

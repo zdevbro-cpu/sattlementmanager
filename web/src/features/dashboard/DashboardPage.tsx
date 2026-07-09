@@ -104,7 +104,7 @@ export default function DashboardPage() {
   ]
   const pipelineMax = Math.max(monthSales, 1)
 
-  const recentContracts = contracts.slice(0, 6)
+  const recentContracts = activeContracts.slice(0, 6)
 
   const recruiterRank = (() => {
     const map = new Map<string, number>()

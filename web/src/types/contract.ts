@@ -116,7 +116,7 @@ export interface ContractSnapshot {
   deposit: number // 보증금
   allowance: number // 수당
   allowancePayDay: number // 수당지급일 (매월 1~31일, 날짜 아님)
-  firstAllowancePayDate: string // 최초수당지급일 (실제 날짜)
+  firstAllowancePayDate: string // 수당지급기준일 (실제 날짜)
   contractEndDate: string // 계약종료일
   branch: string // 지점명
   manager: string // 관리자
@@ -136,6 +136,8 @@ export interface ContractSnapshot {
   documents: DriveDocument[]
 
   memo?: string
+  /** 임시저장 여부 — true면 "계약등록" 확정 전 상태 */
+  isDraft?: boolean
   createdAt: string
 }
 

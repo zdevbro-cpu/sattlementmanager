@@ -31,7 +31,7 @@ const COLS: { label: string; align?: 'center' | 'right'; w?: number }[] = [
   { label: '보증금', align: 'right', w: 132 }, // 최대 10자리
   { label: '수당', align: 'right', w: 116 }, // 최대 9자리
   { label: '수당지급일' },
-  { label: '최초수당지급일' },
+  { label: '수당지급기준일' },
   { label: '계약일', align: 'center' },
   { label: '계약종료일', align: 'center' },
   { label: '지점명', align: 'center' },
@@ -659,7 +659,13 @@ function Row({
         </Badge>
       </td>
       <td className="px-3 py-1.5">
-        <StatusBadge status={s.status} />
+        {s.isDraft ? (
+          <span className="inline-flex items-center rounded-full border border-dashed border-[#94a3b8] px-2 py-0.5 text-[11.5px] font-semibold text-[#94a3b8]">
+            임시저장
+          </span>
+        ) : (
+          <StatusBadge status={s.status} />
+        )}
       </td>
       <td className="px-3 py-1.5 text-center whitespace-nowrap">
         <div className="flex items-center justify-center gap-1.5">
