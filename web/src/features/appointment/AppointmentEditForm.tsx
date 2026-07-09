@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import {
   APPOINTMENT_STATUSES,
+  INCOME_TYPES,
+  normalizeIncomeType,
   type Appointment,
   type AppointmentStatus,
+  type IncomeType,
 } from '../../types/appointment'
 import { updateAppointment } from './appointmentStore'
 import InstitutionSelect from './InstitutionSelect'
@@ -31,6 +34,10 @@ export default function AppointmentEditForm({
   const [phone, setPhone] = useState(base.phone)
   const [position, setPosition] = useState(base.position)
   const [salary, setSalary] = useState(base.salary)
+  // 소득구분 — 근로소득 ↔ 사업소득 상호 변경 가능
+  const [insuranceType, setInsuranceType] = useState<IncomeType>(
+    normalizeIncomeType(base.insuranceType),
+  )
 
   /** 직급 변경 시 시스템관리(직급별 기본급여)의 연봉으로 자동 연동 */
   const onPositionChange = (p: string) => {
@@ -63,6 +70,7 @@ export default function AppointmentEditForm({
           phone,
           position,
           salary,
+          insuranceType,
           contractDate,
           payoutDate,
           endDate,
@@ -97,6 +105,17 @@ export default function AppointmentEditForm({
             )}
             {positionSalaries.map((x) => (
               <option key={x.position}>{x.position}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="소득구분">
+          <select
+            value={insuranceType}
+            onChange={(e) => setInsuranceType(e.target.value as IncomeType)}
+            className={inputCls}
+          >
+            {INCOME_TYPES.map((t) => (
+              <option key={t} value={t}>{t}</option>
             ))}
           </select>
         </Field>

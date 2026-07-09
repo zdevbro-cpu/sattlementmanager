@@ -14,7 +14,17 @@ export const APPOINTMENT_STATUSES: AppointmentStatus[] = [
   '계약만료',
 ]
 
-export type IncomeType = '사업소득' | '4대보험'
+export type IncomeType = '사업소득' | '근로소득'
+
+export const INCOME_TYPES: IncomeType[] = ['사업소득', '근로소득']
+
+/**
+ * 소득구분 정규화 — 기존 데이터의 '4대보험'은 '근로소득'과 동일한 의미다.
+ * (DB 마이그레이션 없이 읽는 시점에만 라벨을 정리한다)
+ */
+export function normalizeIncomeType(v: string | undefined | null): IncomeType {
+  return v === '근로소득' || v === '4대보험' ? '근로소득' : '사업소득'
+}
 
 /** 직급별 급여조건 (직급 → 연봉/활동비) */
 export interface PositionRule {

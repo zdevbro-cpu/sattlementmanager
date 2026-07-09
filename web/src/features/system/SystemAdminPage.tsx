@@ -34,6 +34,7 @@ import {
 import {
   addPosition,
   removePosition,
+  updatePositionField,
   updatePositionSalary,
   usePositionSalaries,
 } from '../appointment/positionSalaryStore'
@@ -247,6 +248,20 @@ function SalesCategoryCard() {
   )
 }
 
+/** 직급표 숫자 입력 셀 (천단위 콤마) */
+function NumCell({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={value ? value.toLocaleString('ko-KR') : ''}
+      placeholder="0"
+      onChange={(e) => onChange(Number(e.target.value.replace(/[^\d]/g, '')) || 0)}
+      className="h-8 w-24 rounded-[7px] bg-input border border-border px-1.5 text-right text-[12.5px] text-input-text outline-none focus:border-primary tabular"
+    />
+  )
+}
+
 function PositionSalaryCard() {
   const rows = usePositionSalaries()
   const [newPosition, setNewPosition] = useState('')
@@ -293,29 +308,54 @@ function PositionSalaryCard() {
         </button>
       </div>
       {err && <div className="mb-2 text-[11.5px] text-danger">{err}</div>}
-      <ul className="space-y-1.5 max-h-[280px] overflow-y-auto">
-        {rows.map((r) => (
-          <li
-            key={r.position}
-            className="flex items-center justify-between gap-2 rounded-[8px] border border-border px-3 py-1.5 text-[13px]"
-          >
-            <span className="shrink-0 whitespace-nowrap text-[#c2cde0]">{r.position}</span>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                inputMode="numeric"
-                value={r.basic.toLocaleString('ko-KR')}
-                onChange={(e) => {
-                  const n = Number(e.target.value.replace(/[^\d]/g, '')) || 0
-                  updatePositionSalary(r.position, n)
-                }}
-                className="h-8 w-20 rounded-[7px] bg-input border border-border px-1.5 text-right text-[13px] text-input-text outline-none focus:border-primary tabular"
-              />
-              <DeleteBtn onClick={() => removePosition(r.position)} />
-            </div>
-          </li>
-        ))}
-      </ul>
+      <div className="max-h-[280px] overflow-auto rounded-[8px] border border-border">
+        <table className="w-full min-w-[720px] text-[12.5px]">
+          <thead>
+            <tr className="text-[11.5px] text-[#94a3b8] border-b border-border">
+              <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap">직급</th>
+              <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap">연봉</th>
+              <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap">근로기본급여</th>
+              <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap">국민연금</th>
+              <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap">건강.요양</th>
+              <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap">고용보험</th>
+              <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap">소득세</th>
+              <th className="px-2 py-1.5" />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.position} className="border-b border-border last:border-0">
+                <td className="px-2 py-1.5 whitespace-nowrap text-[#c2cde0]">{r.position}</td>
+                <td className="px-2 py-1.5 text-right">
+                  <NumCell value={r.basic} onChange={(n) => updatePositionSalary(r.position, n)} />
+                </td>
+                <td className="px-2 py-1.5 text-right">
+                  <NumCell value={r.laborBasic} onChange={(n) => updatePositionField(r.position, { laborBasic: n })} />
+                </td>
+                <td className="px-2 py-1.5 text-right">
+                  <NumCell value={r.pension} onChange={(n) => updatePositionField(r.position, { pension: n })} />
+                </td>
+                <td className="px-2 py-1.5 text-right">
+                  <NumCell value={r.healthCare} onChange={(n) => updatePositionField(r.position, { healthCare: n })} />
+                </td>
+                <td className="px-2 py-1.5 text-right">
+                  <NumCell value={r.employment} onChange={(n) => updatePositionField(r.position, { employment: n })} />
+                </td>
+                <td className="px-2 py-1.5 text-right">
+                  <NumCell value={r.incomeTax} onChange={(n) => updatePositionField(r.position, { incomeTax: n })} />
+                </td>
+                <td className="px-2 py-1.5 text-right">
+                  <DeleteBtn onClick={() => removePosition(r.position)} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-[11px] text-[#64748b]">
+        근로기본급여와 공제항목(국민연금·건강.요양·고용보험·소득세)은 <b>월 정액</b>입니다.
+        60세 생일 이후에는 국민연금이 공제되지 않습니다.
+      </p>
     </div>
   )
 }

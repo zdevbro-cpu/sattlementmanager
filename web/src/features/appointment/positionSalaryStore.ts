@@ -7,27 +7,62 @@ import { fetchPositionSalaries, updatePositionSalariesApi } from '../../lib/api'
 export interface PositionSalary {
   position: string // 직급
   basic: number // 기본급여(연봉, 원)
+  /** 근로소득 기본급여 (월, 원) — 근로소득 선택자의 급여소득 */
+  laborBasic: number
+  /** 근로소득 공제 정액 (월, 원) — 직급별로 정해 정액 공제 */
+  pension: number // 국민연금 (60세 생일 이후 제외)
+  healthCare: number // 건강.요양 (건강보험 + 장기요양)
+  employment: number // 고용보험
+  incomeTax: number // 소득세
+}
+
+/** 이전 버전 저장값 — 건강보험/장기요양이 분리되어 있던 형태 */
+interface LegacyPositionSalary {
+  health?: number
+  longTermCare?: number
 }
 
 export const POSITIONS = ['예비과장', '과장', '차장', '부장', '이사', '상무', '전무']
 
-const DEFAULTS: PositionSalary[] = POSITIONS.map((position) => ({
-  position,
-  basic: 0,
-}))
+/**
+ * 확장 필드가 없는 기존 저장값도 안전하게 읽는다.
+ * 구버전의 health + longTermCare 는 healthCare 로 합산해 이어받는다.
+ */
+function withDefaults(
+  p: Partial<PositionSalary> & LegacyPositionSalary & { position: string },
+): PositionSalary {
+  const legacyHealthCare = (p.health ?? 0) + (p.longTermCare ?? 0)
+  return {
+    position: p.position,
+    basic: p.basic ?? 0,
+    laborBasic: p.laborBasic ?? 0,
+    pension: p.pension ?? 0,
+    healthCare: p.healthCare ?? legacyHealthCare,
+    employment: p.employment ?? 0,
+    incomeTax: p.incomeTax ?? 0,
+  }
+}
+
+const DEFAULTS: PositionSalary[] = POSITIONS.map((position) =>
+  withDefaults({ position }),
+)
 
 const KEY = 'sm.positionSalaries.v1'
 
+/** 저장(JSON)에서 읽어들이는 형태 — 구버전 필드가 섞여 있을 수 있다 */
+type StoredPositionSalary = Partial<PositionSalary> &
+  LegacyPositionSalary & { position: string }
+
 /** 저장된 목록을 그대로 사용 — 처음 사용(저장된 값 없음)일 때만 기본 7종으로 시작한다. */
-function normalize(parsed: PositionSalary[]): PositionSalary[] {
-  return parsed.length > 0 ? parsed : DEFAULTS
+function normalize(parsed: StoredPositionSalary[]): PositionSalary[] {
+  return parsed.length > 0 ? parsed.map(withDefaults) : DEFAULTS
 }
 
 function loadCache(): PositionSalary[] {
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return DEFAULTS
-    return normalize(JSON.parse(raw) as PositionSalary[])
+    return normalize(JSON.parse(raw) as StoredPositionSalary[])
   } catch {
     return DEFAULTS
   }
@@ -48,7 +83,7 @@ function emit() {
 fetchPositionSalaries()
   .then((raw) => {
     if (!raw) return
-    const parsed = normalize(JSON.parse(raw) as PositionSalary[])
+    const parsed = normalize(JSON.parse(raw) as StoredPositionSalary[])
     state = parsed
     emit()
   })
@@ -60,9 +95,17 @@ export function getPositionSalaries(): PositionSalary[] {
   return state
 }
 
-/** 직급의 기본급여 수정 */
+/** 직급의 기본급여(연봉) 수정 */
 export function updatePositionSalary(position: string, basic: number): void {
-  state = state.map((p) => (p.position === position ? { ...p, basic } : p))
+  updatePositionField(position, { basic })
+}
+
+/** 직급 행의 임의 필드 수정 (근로기본급여·4대보험 정액 등) */
+export function updatePositionField(
+  position: string,
+  patch: Partial<Omit<PositionSalary, 'position'>>,
+): void {
+  state = state.map((p) => (p.position === position ? { ...p, ...patch } : p))
   emit()
   updatePositionSalariesApi(JSON.stringify(state)).catch(() => {
     /* 서버 저장 실패는 조용히 무시 — 다음 로드 시 재동기화 */
@@ -78,7 +121,7 @@ export function addPosition(position: string, basic: number): boolean {
   const name = position.trim()
   if (!name) return false
   if (state.some((p) => p.position === name)) return false
-  state = [...state, { position: name, basic }]
+  state = [...state, withDefaults({ position: name, basic })]
   emit()
   updatePositionSalariesApi(JSON.stringify(state)).catch(() => {
     /* 서버 저장 실패는 조용히 무시 — 다음 로드 시 재동기화 */

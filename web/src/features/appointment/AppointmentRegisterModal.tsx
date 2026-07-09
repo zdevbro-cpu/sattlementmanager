@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
+  INCOME_TYPES,
   type AppointmentDoc,
   type AppointmentType,
   type IncomeType,
@@ -66,7 +67,8 @@ export default function AppointmentRegisterModal({
   const [position, setPosition] = useState('')
   const [salary, setSalary] = useState(0)
   const [activity, setActivity] = useState(0)
-  const insuranceType: IncomeType = '사업소득'
+  // 소득구분 — 인력이 사업소득 / 근로소득 중 선택 (등록 후 수정 화면에서 변경 가능)
+  const [insuranceType, setInsuranceType] = useState<IncomeType>('사업소득')
   const [contractDate, setContractDate] = useState(TODAY)
   const [payoutDate, setPayoutDate] = useState(
     addMonths(TODAY, APPOINTMENT_TYPES[0].payoutMonths),
@@ -195,6 +197,17 @@ export default function AppointmentRegisterModal({
                   <option value="">-- 선택 --</option>
                   {positionSalaries.map((r) => (
                     <option key={r.position} value={r.position}>{r.position}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="소득구분">
+                <select
+                  value={insuranceType}
+                  onChange={(e) => setInsuranceType(e.target.value as IncomeType)}
+                  className={inputCls}
+                >
+                  {INCOME_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
                   ))}
                 </select>
               </Field>
