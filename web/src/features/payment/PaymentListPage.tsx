@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Calendar, ChevronLeft, ChevronRight, DollarSign, Landmark, Plus, Wallet, X } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, DollarSign, Eye, Landmark, Plus, Wallet, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import { comma, dateText, won } from '../../lib/format'
@@ -9,6 +9,8 @@ import { type ExtraPayee, type PayoutCategory } from '../../types/payout'
 import { EMPTY_APPOINTMENT_FILTER, type Appointment } from '../../types/appointment'
 import { listAppointments } from '../appointment/appointmentStore'
 import { usePositionSalaries } from '../appointment/positionSalaryStore'
+import { calcPayroll, payrollTextLines, type PayrollRow } from './payrollEngine'
+import PayslipDrawer from './PayslipDrawer'
 import {
   createExtraPayoutApi,
   deleteExtraPayoutApi,
@@ -121,6 +123,13 @@ function RevenuePayoutView() {
       .filter((s) => !!s.allowancePayDay) // 급여일 미지정 계약은 제외
       .map((s) => ({ s, payBaseDate: findPayDate(startDate, endDate, s.allowancePayDay) }))
       .filter(({ payBaseDate }) => payBaseDate !== null)
+      // 지급기준일이 아직 도래하지 않은 계약은 제외한다.
+      // 최초수당지급일(계약일 + 2개월) 이전에는 수당을 지급하지 않는다.
+      // 예) 지급기준일 2026-07-09 → 계약일 2026-05-09 이전 계약자만 노출
+      .filter(
+        ({ s, payBaseDate }) =>
+          !s.firstAllowancePayDate || payBaseDate! >= s.firstAllowancePayDate,
+      )
       .filter(({ s }) => !kw || s.contractorName.includes(kw))
   }, [all, filter])
 
@@ -495,17 +504,8 @@ function SalaryPayoutView() {
   const [filter, setFilter] = useState<SalaryFilter>(EMPTY_SALARY_FILTER)
   const [perPage, setPerPage] = useState(20)
   const [page, setPage] = useState(1)
-  const [activityOverrides, setActivityOverrides] = useState<Record<string, number>>({})
+  const [detailId, setDetailId] = useState<string | null>(null)
   const positionSalaries = usePositionSalaries()
-
-  // 직급별 기본급여(연봉) 테이블(시스템관리)에서 조회 → 1/12로 월급 산출
-  // 테이블에 해당 직급이 없으면 계약서상 연봉(a.salary)으로 대체
-  const basicOf = (a: Appointment) =>
-    positionSalaries.find((p) => p.position === a.position)?.basic || a.salary
-  const monthlySalary = (a: Appointment) => Math.round(basicOf(a) / 12)
-  const activityOf = (a: Appointment) => activityOverrides[a.id] ?? a.activity
-  const payout = (a: Appointment) =>
-    Math.round((monthlySalary(a) + activityOf(a)) * (1 - WITHHOLDING))
 
   const [all, setAll] = useState<Appointment[]>([])
   useEffect(() => {
@@ -541,11 +541,21 @@ function SalaryPayoutView() {
     ).length
   }, [all, filter])
 
-  const sumPayout = targets.reduce((sum, a) => sum + payout(a), 0)
+  // 급여 계산은 payrollEngine 한 곳에서만 수행한다 (목록·명세서·텍스트가 같은 값을 쓰도록).
+  // 60세 판정 기준일은 해당 인원의 급여일(일괄 매월 10일) — 오늘 날짜로 판정하면 과거 조회 시 값이 달라진다.
+  const rows: PayrollRow[] = useMemo(
+    () => targets.map((a) => calcPayroll(a, positionSalaries, a.payoutDate)),
+    [targets, positionSalaries],
+  )
 
-  const totalPages = Math.max(1, Math.ceil(targets.length / perPage))
+  const sumPayout = rows.reduce((sum, r) => sum + r.totalNet, 0)
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / perPage))
   const safePage = Math.min(page, totalPages)
-  const pagedRows = targets.slice((safePage - 1) * perPage, safePage * perPage)
+  const pagedRows = rows.slice((safePage - 1) * perPage, safePage * perPage)
+  const detailRow = detailId ? rows.find((r) => r.id === detailId) : undefined
+  const detailBaseDate =
+    (detailId && targets.find((a) => a.id === detailId)?.payoutDate) || TODAY
 
   const setFilterField = (patch: Partial<SalaryFilter>) => {
     setFilter({ ...filter, ...patch })
@@ -555,19 +565,14 @@ function SalaryPayoutView() {
     setFilter(EMPTY_SALARY_FILTER)
     setPage(1)
   }
-  // 지급관리(수익금지급)와 동일한 방식 — 텍스트 파일(.txt) 다운로드
+  // 급여보고 텍스트(.txt) — 이름|금액|주민번호|은행|계좌번호|예금주
+  // 근로소득 실지급액과 사업소득 실지급액을 각각 1줄로 출력한다 (한 사람 최대 2줄).
   const onExport = () => {
-    if (targets.length === 0) {
+    if (rows.length === 0) {
       alert('출력할 데이터가 없습니다.')
       return
     }
-    const amountOnly = (v: number) => `${v.toLocaleString('ko-KR')}원`
-    // 이름  내역  금액  주민번호 / 은행명  계좌번호  예금주 — 수익금지급 출력과 동일 포맷
-    const body = targets.map(
-      (a) =>
-        `${a.name}  급여  ${amountOnly(payout(a))}  ${a.residentNo} / ${a.bankName}  ${a.accountNo}  ${a.name}`,
-    )
-    const content = body.join('\r\n')
+    const content = payrollTextLines(rows).join('\r\n')
     const fileName = `급여지급목록_${filter.endDate}_${filter.startDate}.txt`
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
@@ -590,8 +595,8 @@ function SalaryPayoutView() {
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-4">
-        <SummaryCard label="지급대상 건수" value={`${targets.length} 건`} sub="기간 필터 기준" tint="#e0edff" fg="#2563eb" icon={<Wallet size={18} />} />
-        <SummaryCard label="지급예정 금액" value={won(sumPayout)} sub="기간 내 총 예상 지급" tint="#e2f7ec" fg="#16a34a" icon={<DollarSign size={18} />} />
+        <SummaryCard label="지급대상 건수" value={`${rows.length} 건`} sub="기간 필터 기준" tint="#e0edff" fg="#2563eb" icon={<Wallet size={18} />} />
+        <SummaryCard label="지급예정 금액" value={won(sumPayout)} sub="지급총액 합계 (급여일 매월 10일)" tint="#e2f7ec" fg="#16a34a" icon={<DollarSign size={18} />} />
         <SummaryCard label="지급보류 건수" value={`${heldCount} 건`} sub="일시정지 건수" tint="#fff1e0" fg="#f59e0b" icon={<Landmark size={18} />} />
       </div>
 
@@ -615,61 +620,72 @@ function SalaryPayoutView() {
       <div className="rounded-[14px] border border-border bg-card overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3">
           <span className="text-[15px] font-extrabold text-text-strong">
-            전체 <span className="text-primary">{targets.length}</span>건
+            전체 <span className="text-primary">{rows.length}</span>건
           </span>
           <span className="text-[13px] font-semibold text-[#94a3b8]">
             지급 총액: {comma(sumPayout)} 원
           </span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-[13px]">
+          <table className="w-full min-w-[1700px] text-[13px]">
             <thead>
               <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
                 {[
-                  ['급여일', 'center'],
-                  ['계약자명', ''],
+                  ['번호', 'center'],
+                  ['소속', ''],
+                  ['이름', ''],
+                  ['주민번호', ''],
+                  ['직급', 'center'],
+                  ['근로소득(원)', 'right'],
+                  ['소득공제(원)', 'right'],
+                  ['실지급액(원)', 'right'],
+                  ['사업소득(원)', 'right'],
+                  ['소득세(원)', 'right'],
+                  ['실지급액(원)', 'right'],
+                  ['지급총액(원)', 'right'],
                   ['은행명', ''],
                   ['계좌번호', ''],
-                  ['계약일자', 'center'],
-                  ['계약종료일', 'center'],
-                  ['급여(원)', 'right'],
-                  ['활동비(원)', 'right'],
-                  ['지급액(원)', 'right'],
-                ].map(([h, a]) => (
-                  <th key={h} className={`px-3 py-1.5 font-semibold whitespace-nowrap ${a === 'right' ? 'text-right' : a === 'center' ? 'text-center' : ''}`}>
+                  ['예금주', ''],
+                  ['관리', 'center'],
+                ].map(([h, a], i) => (
+                  <th key={`${h}-${i}`} className={`px-3 py-1.5 font-semibold whitespace-nowrap ${a === 'right' ? 'text-right' : a === 'center' ? 'text-center' : ''}`}>
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {pagedRows.map((a) => (
-                <tr key={a.id} className="border-b border-border hover:bg-hover">
-                  <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(a.payoutDate)}</td>
-                  <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{a.name}</td>
-                  <td className="px-3 py-1.5 whitespace-nowrap">{a.bankName}</td>
-                  <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{maskAccount(a.accountNo)}</td>
-                  <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(a.contractDate)}</td>
-                  <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(a.endDate)}</td>
-                  <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(monthlySalary(a))}</td>
-                  <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={activityOf(a).toLocaleString('ko-KR')}
-                      onChange={(e) => {
-                        const n = Number(e.target.value.replace(/[^\d]/g, '')) || 0
-                        setActivityOverrides({ ...activityOverrides, [a.id]: n })
-                      }}
-                      className="h-8 w-28 rounded-[7px] bg-input border border-border px-2 text-right text-[13px] text-input-text outline-none focus:border-primary tabular"
-                    />
+              {pagedRows.map((r, i) => (
+                <tr key={r.id} className="border-b border-border hover:bg-hover">
+                  <td className="px-3 py-1.5 tabular text-center whitespace-nowrap text-[#c2cde0]">{rows.length - ((safePage - 1) * perPage + i)}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{r.org || '-'}</td>
+                  <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{r.name}</td>
+                  <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{r.residentNo || '-'}</td>
+                  <td className="px-3 py-1.5 text-center whitespace-nowrap">{r.position || '-'}</td>
+                  <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(r.laborIncome)}</td>
+                  <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(r.insuranceDeduction)}</td>
+                  <td className="px-3 py-1.5 tabular text-right font-semibold whitespace-nowrap">{comma(r.laborNet)}</td>
+                  <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(r.businessIncome)}</td>
+                  <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(r.incomeTax)}</td>
+                  <td className="px-3 py-1.5 tabular text-right font-semibold whitespace-nowrap">{comma(r.businessNet)}</td>
+                  <td className="px-3 py-1.5 tabular text-right font-bold text-text-strong whitespace-nowrap">{comma(r.totalNet)}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{r.bankName || '-'}</td>
+                  <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{maskAccount(r.accountNo)}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{r.accountOwner || '-'}</td>
+                  <td className="px-3 py-1.5 text-center whitespace-nowrap">
+                    <button
+                      onClick={() => setDetailId(r.id)}
+                      title="상세"
+                      className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover hover:text-white"
+                    >
+                      <Eye size={16} />
+                    </button>
                   </td>
-                  <td className="px-3 py-1.5 tabular text-right font-bold text-text-strong whitespace-nowrap">{comma(payout(a))}</td>
                 </tr>
               ))}
               {pagedRows.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-3 py-10 text-center text-[#64748b]">
+                  <td colSpan={16} className="px-3 py-10 text-center text-[#64748b]">
                     조건에 맞는 급여지급 대상자가 없습니다.
                   </td>
                 </tr>
@@ -677,7 +693,7 @@ function SalaryPayoutView() {
             </tbody>
           </table>
         </div>
-        {targets.length > 0 && (
+        {rows.length > 0 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border">
             <div className="flex gap-1">
               <button onClick={() => setPage(Math.max(1, safePage - 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronLeft size={16} /></button>
@@ -706,6 +722,14 @@ function SalaryPayoutView() {
           </div>
         )}
       </div>
+
+      {detailRow && (
+        <PayslipDrawer
+          row={detailRow}
+          baseDate={detailBaseDate}
+          onClose={() => setDetailId(null)}
+        />
+      )}
     </div>
   )
 }
