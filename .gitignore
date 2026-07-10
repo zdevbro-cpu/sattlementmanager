@@ -29,6 +29,7 @@ server/uploads/
 
 # 데이터 백업 (주민번호·계좌 등 개인정보 포함 — 저장소 제외)
 backups/
+backup/
 
 # firebase 배포 캐시
 .firebase/
