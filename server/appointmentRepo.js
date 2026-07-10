@@ -218,6 +218,11 @@ async function nextContractNo(dateISO) {
   return `LASE-${compact}-${String(rows[0].c + 1).padStart(3, '0')}`
 }
 
+/** 임용계약 1건 삭제 (이력·제출서류는 FK ON DELETE CASCADE로 함께 삭제) */
+async function deleteAppointment(id) {
+  await pool.query(`DELETE FROM appointments WHERE id = $1`, [id])
+}
+
 module.exports = {
   listAppointments,
   getAppointment,
@@ -225,4 +230,5 @@ module.exports = {
   updateAppointment,
   addAppointmentDocument,
   nextContractNo,
+  deleteAppointment,
 }

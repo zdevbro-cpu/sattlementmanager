@@ -184,6 +184,15 @@ app.patch('/api/appointments/:id', async (req, res) => {
   }
 })
 
+app.delete('/api/appointments/:id', async (req, res) => {
+  try {
+    await appointmentRepo.deleteAppointment(req.params.id)
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 // 임용계약 제출서류 → Google Drive 업로드 + DB 기록 (JSON base64 방식)
 app.post('/api/appointments/:id/document', async (req, res) => {
   try {
