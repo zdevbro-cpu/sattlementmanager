@@ -14,6 +14,7 @@ import { usePositionSalaries } from './positionSalaryStore'
 import { todayIso } from '../../lib/format'
 import DateTextInput from '../../components/ui/DateTextInput'
 import { X } from 'lucide-react'
+import { useCodes } from '../../lib/codeStore'
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
 
@@ -52,6 +53,7 @@ export default function AppointmentRegisterModal({
   onCreated: () => void
 }) {
   const positionSalaries = usePositionSalaries()
+  const codes = useCodes()
   const [TODAY] = useState(() => todayIso())
   const [type, setType] = useState<AppointmentType>(APPOINTMENT_TYPES[0])
   const [contractNo, setContractNo] = useState('')
@@ -138,7 +140,7 @@ export default function AppointmentRegisterModal({
         bankName,
         accountNo: accountNo.trim(),
         accountOwner: accountOwner.trim() || name.trim(),
-        status: '정상운영',
+        status: codes.appointmentStatuses[0] || '정상',
         createdAt: contractDate,
         documents,
       })

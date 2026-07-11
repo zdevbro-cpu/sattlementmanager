@@ -1,18 +1,8 @@
 // 조직관리 — 임용계약(appointment) 도메인 타입
 // contractmanager 임용계약관리 준용
 
-export type AppointmentStatus =
-  | '정상운영'
-  | '일시정지'
-  | '계약해지'
-  | '계약만료'
-
-export const APPOINTMENT_STATUSES: AppointmentStatus[] = [
-  '정상운영',
-  '일시정지',
-  '계약해지',
-  '계약만료',
-]
+/** 임용계약 상태 — 시스템관리 공통코드관리(임용계약 상태)에서 추가·삭제하는 동적 코드 */
+export type AppointmentStatus = string
 
 export type IncomeType = '사업소득' | '근로소득'
 
@@ -126,11 +116,14 @@ export function appointmentStatusTone(
   status: string,
 ): 'green' | 'amber' | 'red' | 'slate' {
   switch (status) {
+    case '정상':
     case '정상운영':
       return 'green'
+    case '휴직':
     case '일시정지':
     case '계약만료':
       return 'amber'
+    case '해지':
     case '계약해지':
       return 'red'
     default:

@@ -60,6 +60,11 @@ const GROUPS: { kind: CodeKind; title: string; desc: string }[] = [
     title: '사업부',
     desc: '매출등록 사업부 드롭다운 (예: 교육사업부, LAS-On)',
   },
+  {
+    kind: 'appointmentStatuses',
+    title: '임용계약 상태',
+    desc: '정상 / 휴직 / 해지',
+  },
 ]
 
 type Tab = 'codes' | 'users'

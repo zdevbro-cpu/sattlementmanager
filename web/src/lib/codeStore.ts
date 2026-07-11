@@ -4,13 +4,14 @@
 
 import { useSyncExternalStore } from 'react'
 
-export type CodeKind = 'orgs' | 'contractTypes' | 'statuses' | 'businessUnits'
+export type CodeKind = 'orgs' | 'contractTypes' | 'statuses' | 'businessUnits' | 'appointmentStatuses'
 
 export interface CodeSet {
   orgs: string[] // 소속 (예: A, B)
   contractTypes: string[] // 계약구분 (LAS매장점주/직원/LAS-On파트장/LAS-On파트너)
   statuses: string[] // 상태 (신규/증액/양수/양도/해지/폐기)
   businessUnits: string[] // 사업부 (매출등록 드롭다운)
+  appointmentStatuses: string[] // 임용계약 상태 (정상/휴직/해지)
 }
 
 const DEFAULTS: CodeSet = {
@@ -18,6 +19,7 @@ const DEFAULTS: CodeSet = {
   contractTypes: ['LAS매장점주', '직원', 'LAS-On파트장', 'LAS-On파트너'],
   statuses: ['신규', '증액', '양수', '양도', '해지', '폐기'],
   businessUnits: ['교육선교위원회', '교육사업부', 'LAS-On', '구독'],
+  appointmentStatuses: ['정상', '휴직', '해지'],
 }
 
 const KEY = 'sm.codes.v1'
@@ -32,6 +34,7 @@ function load(): CodeSet {
       contractTypes: parsed.contractTypes ?? DEFAULTS.contractTypes,
       statuses: parsed.statuses ?? DEFAULTS.statuses,
       businessUnits: parsed.businessUnits ?? DEFAULTS.businessUnits,
+      appointmentStatuses: parsed.appointmentStatuses ?? DEFAULTS.appointmentStatuses,
     }
   } catch {
     return { ...DEFAULTS }

@@ -1,25 +1,28 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Eye, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Eye, Plus, Trash2 } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
-import Badge from '../../components/ui/Badge'
 import DateTextInput from '../../components/ui/DateTextInput'
-import { comma, dateText } from '../../lib/format'
+import { comma, dateText, todayIso } from '../../lib/format'
 import {
   EMPTY_APPOINTMENT_FILTER,
-  appointmentStatusTone,
   type Appointment,
   type AppointmentFilter,
 } from '../../types/appointment'
 import {
   listAppointments,
   summarizeAppointments,
+  updateAppointment,
 } from './appointmentStore'
 import AppointmentRegisterModal from './AppointmentRegisterModal'
 import AppointmentDetailDrawer from './AppointmentDetailDrawer'
+import { useCodes } from '../../lib/codeStore'
 
 const PAGE_SIZES = [20, 50, 100]
+// 상태 드롭다운 전용 sentinel — 실제 status 값이 아니라 "전체 + 해지 포함"을 뜻하는 선택지
+const INCLUDE_TERMINATED_VALUE = '__include_terminated__'
 
 export default function AppointmentListPage() {
+  const codes = useCodes()
   const [draft, setDraft] = useState<AppointmentFilter>(EMPTY_APPOINTMENT_FILTER)
   const [applied, setApplied] = useState<AppointmentFilter>(
     EMPTY_APPOINTMENT_FILTER,
@@ -35,6 +38,9 @@ export default function AppointmentListPage() {
   const [sum, setSum] = useState(() => summarizeAppointments([]))
   const [perPage, setPerPage] = useState(20)
   const [page, setPage] = useState(1)
+  // 상태 필터가 '전체'일 때 해지 건은 기본적으로 숨긴다 — "전체(해지포함)" 선택 시 다시 포함
+  const [statusFilter, setStatusFilter] = useState('전체')
+  const [includeTerminated, setIncludeTerminated] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -59,6 +65,10 @@ export default function AppointmentListPage() {
   }, [applied, refresh])
 
   useEffect(() => {
+    setPage(1)
+  }, [applied, statusFilter, includeTerminated, perPage])
+
+  useEffect(() => {
     let alive = true
     listAppointments(EMPTY_APPOINTMENT_FILTER).then((list) => {
       if (alive) setSum(summarizeAppointments(list))
@@ -68,9 +78,22 @@ export default function AppointmentListPage() {
     }
   }, [refresh])
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / perPage))
+  const visibleRows =
+    statusFilter === '전체'
+      ? includeTerminated
+        ? rows
+        : rows.filter((a) => a.status !== '해지')
+      : rows.filter((a) => a.status === statusFilter)
+
+  const totalPages = Math.max(1, Math.ceil(visibleRows.length / perPage))
   const safePage = Math.min(page, totalPages)
-  const pagedRows = rows.slice((safePage - 1) * perPage, safePage * perPage)
+  const pagedRows = visibleRows.slice((safePage - 1) * perPage, safePage * perPage)
+
+  const onDelete = async (a: Appointment) => {
+    if (!confirm(`${a.name} 임용계약을 삭제(해지 처리)할까요?`)) return
+    await updateAppointment(a.id, { status: '해지' }, { memo: '목록에서 삭제 처리', editedAt: todayIso() })
+    setRefresh((n) => n + 1)
+  }
 
   return (
     <AppLayout title="조직관리 · 임용계약">
@@ -94,14 +117,14 @@ export default function AppointmentListPage() {
       {/* 요약 카드 */}
       <div className="grid grid-cols-4 gap-4 mb-4">
         <SummaryCard label="전체 임용계약" value={sum.total} tint="#e0edff" fg="#2563eb" />
-        <SummaryCard label="정상운영" value={sum.active} tint="#e2f7ec" fg="#16a34a" />
-        <SummaryCard label="일시정지" value={sum.paused} tint="#fff1e0" fg="#f59e0b" />
-        <SummaryCard label="해지·만료" value={sum.ended} tint="#fee2e2" fg="#ef4444" />
+        <SummaryCard label="정상" value={sum.active} tint="#e2f7ec" fg="#16a34a" />
+        <SummaryCard label="휴직" value={sum.paused} tint="#fff1e0" fg="#f59e0b" />
+        <SummaryCard label="해지" value={sum.ended} tint="#fee2e2" fg="#ef4444" />
       </div>
 
       {/* 필터 */}
       <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
-        <div className="grid grid-cols-[2fr_1fr_1fr_auto] gap-3 items-end">
+        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-3 items-end">
           <Field label="검색 (계약자명·지점명)">
             <input value={draft.keyword} onChange={(e) => setDraft({ ...draft, keyword: e.target.value })} placeholder="계약자명, 지점명 검색" className={inputCls} />
           </Field>
@@ -121,6 +144,30 @@ export default function AppointmentListPage() {
               className={inputCls}
             />
           </Field>
+          <Field label="상태">
+            <select
+              value={includeTerminated && statusFilter === '전체' ? INCLUDE_TERMINATED_VALUE : statusFilter}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === INCLUDE_TERMINATED_VALUE) {
+                  setIncludeTerminated(true)
+                  setStatusFilter('전체')
+                } else {
+                  setIncludeTerminated(false)
+                  setStatusFilter(v)
+                }
+              }}
+              className={inputCls}
+            >
+              <option value="전체">전체(해지미포함)</option>
+              {codes.appointmentStatuses.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+              <option value={INCLUDE_TERMINATED_VALUE}>전체(해지포함)</option>
+            </select>
+          </Field>
           <div className="flex gap-2">
             <button onClick={() => { setApplied(draft); setPage(1) }} className="h-[38px] rounded-[8px] bg-indigo px-5 text-sm font-bold text-white hover:brightness-110">검색</button>
             <button onClick={() => { setDraft(EMPTY_APPOINTMENT_FILTER); setApplied(EMPTY_APPOINTMENT_FILTER); setPage(1) }} className="h-[38px] rounded-[8px] border border-border px-5 text-sm font-semibold text-[#c2cde0] hover:bg-hover">초기화</button>
@@ -132,7 +179,7 @@ export default function AppointmentListPage() {
       <div className="rounded-[14px] border border-border bg-card overflow-hidden">
         <div className="px-4 py-3">
           <span className="text-[15px] font-extrabold text-text-strong">
-            전체 <span className="text-primary">{rows.length}</span>건
+            전체 <span className="text-primary">{visibleRows.length}</span>건
           </span>
         </div>
         <div className="overflow-x-auto">
@@ -142,15 +189,18 @@ export default function AppointmentListPage() {
                 {[
                   ['번호', 'center'],
                   ['소속지점', ''],
-                  ['계약자명', ''],
-                  ['계약종류', ''],
-                  ['계약일자', 'center'],
-                  ['급여일', 'center'],
+                  ['이름', ''],
+                  ['직급', 'center'],
+                  ['주민번호', ''],
+                  ['계약연봉', 'right'],
+                  ['연락처', ''],
+                  ['소득구분', 'center'],
+                  ['은행/기관', ''],
+                  ['계좌번호', ''],
+                  ['예금주', ''],
+                  ['계약일', 'center'],
                   ['계약종료일', 'center'],
-                  ['급여', 'right'],
-                  ['활동비', 'right'],
-                  ['계약상태', 'center'],
-                  ['상세', 'center'],
+                  ['관리', 'center'],
                 ].map(([h, a]) => (
                   <th key={h} className={`px-3 py-1.5 font-semibold whitespace-nowrap ${a === 'right' ? 'text-right' : a === 'center' ? 'text-center' : ''}`}>
                     {h}
@@ -163,13 +213,14 @@ export default function AppointmentListPage() {
                 <Row
                   key={a.id}
                   a={a}
-                  no={rows.length - ((safePage - 1) * perPage + i)}
+                  no={visibleRows.length - ((safePage - 1) * perPage + i)}
                   onDetail={() => setDetailId(a.id)}
+                  onDelete={() => onDelete(a)}
                 />
               ))}
-              {rows.length === 0 && (
+              {visibleRows.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="px-3 py-10 text-center text-[#64748b]">
+                  <td colSpan={14} className="px-3 py-10 text-center text-[#64748b]">
                     {loading
                       ? '불러오는 중…'
                       : loadErr
@@ -181,7 +232,7 @@ export default function AppointmentListPage() {
             </tbody>
           </table>
         </div>
-        {rows.length > 0 && (
+        {visibleRows.length > 0 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border">
             <div className="flex gap-1">
               <button onClick={() => setPage(Math.max(1, safePage - 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronLeft size={16} /></button>
@@ -255,25 +306,41 @@ function SummaryCard({ label, value, tint, fg }: { label: string; value: number;
   )
 }
 
-function Row({ a, no, onDetail }: { a: Appointment; no: number; onDetail: () => void }) {
+function Row({
+  a,
+  no,
+  onDetail,
+  onDelete,
+}: {
+  a: Appointment
+  no: number
+  onDetail: () => void
+  onDelete: () => void
+}) {
   return (
     <tr className="border-b border-border hover:bg-hover">
       <td className="px-3 py-1.5 text-center whitespace-nowrap tabular text-[#c2cde0]">{no}</td>
       <td className="px-3 py-1.5 whitespace-nowrap">{a.ref}</td>
       <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{a.name}</td>
-      <td className="px-3 py-1.5 whitespace-nowrap">{a.typeName}</td>
-      <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(a.contractDate)}</td>
-      <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(a.payoutDate)}</td>
-      <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(a.endDate)}</td>
+      <td className="px-3 py-1.5 text-center whitespace-nowrap">{a.position}</td>
+      <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{a.residentNo}</td>
       <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(a.salary)}</td>
-      <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(a.activity)}</td>
+      <td className="px-3 py-1.5 tabular whitespace-nowrap">{a.phone}</td>
+      <td className="px-3 py-1.5 text-center whitespace-nowrap">{a.insuranceType}</td>
+      <td className="px-3 py-1.5 whitespace-nowrap">{a.bankName}</td>
+      <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{a.accountNo}</td>
+      <td className="px-3 py-1.5 whitespace-nowrap">{a.accountOwner}</td>
+      <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(a.contractDate)}</td>
+      <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(a.endDate)}</td>
       <td className="px-3 py-1.5 text-center whitespace-nowrap">
-        <Badge tone={appointmentStatusTone(a.status)}>{a.status}</Badge>
-      </td>
-      <td className="px-3 py-1.5 text-center whitespace-nowrap">
-        <button onClick={onDetail} title="상세" className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover hover:text-white">
-          <Eye size={16} />
-        </button>
+        <div className="inline-flex gap-1">
+          <button onClick={onDetail} title="상세" className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover hover:text-white">
+            <Eye size={16} />
+          </button>
+          <button onClick={onDelete} title="삭제 (해지 처리)" className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover hover:text-danger">
+            <Trash2 size={16} />
+          </button>
+        </div>
       </td>
     </tr>
   )

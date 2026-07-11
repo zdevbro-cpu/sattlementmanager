@@ -37,10 +37,8 @@ export function nextContractNo(dateISO: string): Promise<string> {
 }
 
 export function summarizeAppointments(list: Appointment[]) {
-  const active = list.filter((a) => a.status === '정상운영').length
-  const paused = list.filter((a) => a.status === '일시정지').length
-  const ended = list.filter(
-    (a) => a.status === '계약해지' || a.status === '계약만료',
-  ).length
+  const active = list.filter((a) => a.status === '정상').length
+  const paused = list.filter((a) => a.status === '휴직').length
+  const ended = list.filter((a) => a.status === '해지').length
   return { total: list.length, active, paused, ended }
 }

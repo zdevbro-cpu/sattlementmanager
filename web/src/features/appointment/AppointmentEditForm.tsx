@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import {
-  APPOINTMENT_STATUSES,
   INCOME_TYPES,
   normalizeIncomeType,
   type Appointment,
@@ -12,6 +11,7 @@ import InstitutionSelect from './InstitutionSelect'
 import { usePositionSalaries } from './positionSalaryStore'
 import { todayIso } from '../../lib/format'
 import DateTextInput from '../../components/ui/DateTextInput'
+import { useCodes } from '../../lib/codeStore'
 
 const inputCls =
   'h-9 w-full rounded-[8px] bg-input border border-border px-2.5 text-[13px] text-input-text outline-none focus:border-primary'
@@ -30,10 +30,16 @@ export default function AppointmentEditForm({
   onCancel: () => void
 }) {
   const positionSalaries = usePositionSalaries()
+  const codes = useCodes()
   const [name, setName] = useState(base.name)
+  const [ref, setRef] = useState(base.ref)
+  const [typeName, setTypeName] = useState(base.typeName)
+  const [contractNo, setContractNo] = useState(base.contractNo)
+  const [residentNo, setResidentNo] = useState(base.residentNo)
   const [phone, setPhone] = useState(base.phone)
   const [position, setPosition] = useState(base.position)
   const [salary, setSalary] = useState(base.salary)
+  const [activity, setActivity] = useState(base.activity)
   // 소득구분 — 근로소득 ↔ 사업소득 상호 변경 가능
   const [insuranceType, setInsuranceType] = useState<IncomeType>(
     normalizeIncomeType(base.insuranceType),
@@ -47,6 +53,8 @@ export default function AppointmentEditForm({
   }
   const [contractDate, setContractDate] = useState(base.contractDate)
   const [payoutDate, setPayoutDate] = useState(base.payoutDate)
+  const [workStartDate, setWorkStartDate] = useState(base.workStartDate)
+  const [reportStartDate, setReportStartDate] = useState(base.reportStartDate)
   const [endDate, setEndDate] = useState(base.endDate)
   const [status, setStatus] = useState<AppointmentStatus>(base.status)
   const [bankName, setBankName] = useState(base.bankName)
@@ -67,12 +75,19 @@ export default function AppointmentEditForm({
         base.id,
         {
           name: name.trim(),
+          ref: ref.trim(),
+          typeName: typeName.trim(),
+          contractNo: contractNo.trim(),
+          residentNo: residentNo.trim(),
           phone,
           position,
           salary,
+          activity,
           insuranceType,
           contractDate,
           payoutDate,
+          workStartDate,
+          reportStartDate,
           endDate,
           status,
           bankName,
@@ -94,6 +109,18 @@ export default function AppointmentEditForm({
       <div className="grid grid-cols-2 gap-2.5">
         <Field label="계약자명">
           <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="지점명">
+          <input value={ref} onChange={(e) => setRef(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="계약종류">
+          <input value={typeName} onChange={(e) => setTypeName(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="계약번호">
+          <input value={contractNo} onChange={(e) => setContractNo(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="주민번호">
+          <input value={residentNo} onChange={(e) => setResidentNo(e.target.value)} className={inputCls} />
         </Field>
         <Field label="연락처">
           <input value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} />
@@ -122,18 +149,27 @@ export default function AppointmentEditForm({
         <Field label="연봉(원)">
           <NumInput value={salary} onChange={setSalary} />
         </Field>
+        <Field label="활동비">
+          <NumInput value={activity} onChange={setActivity} />
+        </Field>
         <Field label="계약일">
           <DateTextInput value={contractDate} onChange={setContractDate} className={inputCls} />
         </Field>
         <Field label="급여일">
           <DateTextInput value={payoutDate} onChange={setPayoutDate} className={inputCls} />
         </Field>
+        <Field label="업무개시일">
+          <DateTextInput value={workStartDate} onChange={setWorkStartDate} className={inputCls} />
+        </Field>
+        <Field label="신고개시일">
+          <DateTextInput value={reportStartDate} onChange={setReportStartDate} className={inputCls} />
+        </Field>
         <Field label="계약종료일">
           <DateTextInput value={endDate} onChange={setEndDate} className={inputCls} />
         </Field>
         <Field label="계약상태">
           <select value={status} onChange={(e) => setStatus(e.target.value as AppointmentStatus)} className={inputCls}>
-            {APPOINTMENT_STATUSES.map((s) => (
+            {codes.appointmentStatuses.map((s) => (
               <option key={s}>{s}</option>
             ))}
           </select>

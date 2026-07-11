@@ -105,33 +105,32 @@ function RevenuePayoutView() {
   const payout = (allowance: number) =>
     Math.round(allowance * (1 - WITHHOLDING))
 
-  const all = useMemo(
-    () =>
-      contracts
-        .map((c) => c.current)
-        .filter(
-          (s) => s.allowance > 0 && s.status !== '해지' && s.status !== '폐기' && !s.isDraft,
-        ),
-    [contracts],
-  )
-
-  // 급여일(수당지급일) 기준 — 검색기간(시작일~종료일) 안에 실제로 급여일이 도래하는 계약만 표시
+  // 급여일(수당지급일) 기준 — 검색기간(시작일~종료일) 안에 실제로 급여일이 도래하는 계약만 표시.
+  // 증액 등으로 이력이 여러 건인 계약은 "최신 스냅샷"이 아니라, 그 지급일 시점에
+  // 수당지급기준일이 이미 도래한 이력 중 가장 최근 스냅샷의 보증금/수당을 지급 대상으로 삼는다.
+  // 예) 신규 계약일+2개월 이후 ~ 증액일+2개월 이전에는 증액 전 보증금 기준 수당을,
+  //     증액일+2개월 이후에는 증액된 보증금 기준 수당을 지급한다.
   const targets = useMemo(() => {
     const { startDate, endDate, keyword } = filter
     const kw = keyword.trim()
-    return all
-      .filter((s) => !!s.allowancePayDay) // 급여일 미지정 계약은 제외
-      .map((s) => ({ s, payBaseDate: findPayDate(startDate, endDate, s.allowancePayDay) }))
-      .filter(({ payBaseDate }) => payBaseDate !== null)
-      // 지급기준일이 아직 도래하지 않은 계약은 제외한다.
-      // 수당지급기준일(최초수당지급일) 이전에는 수당을 지급하지 않는다.
-      // 예) 지급기준일 2026-07-09 → 수당지급기준일이 그 이전인 계약자만 노출
-      .filter(
-        ({ s, payBaseDate }) =>
-          !s.firstAllowancePayDate || payBaseDate! >= s.firstAllowancePayDate,
+    const result: { s: (typeof contracts)[number]['current']; payBaseDate: string }[] = []
+    for (const c of contracts) {
+      const cur = c.current
+      if (cur.status === '해지' || cur.status === '폐기' || cur.isDraft) continue
+      if (!cur.allowancePayDay) continue // 급여일 미지정 계약은 제외
+      const payBaseDate = findPayDate(startDate, endDate, cur.allowancePayDay)
+      if (payBaseDate === null) continue
+      // history는 최신순(id DESC) — 지급기준일이 이미 도래한(<=) 것 중 가장 최근 스냅샷을 찾는다.
+      const effective = c.history.find(
+        (h) => !h.firstAllowancePayDate || h.firstAllowancePayDate <= payBaseDate,
       )
-      .filter(({ s }) => !kw || s.contractorName.includes(kw))
-  }, [all, filter])
+      if (!effective) continue // 어떤 이력도 아직 기준일 도래 전 → 대상 아님
+      if (!(effective.allowance > 0)) continue
+      if (kw && !effective.contractorName.includes(kw)) continue
+      result.push({ s: effective, payBaseDate })
+    }
+    return result
+  }, [contracts, filter])
 
   const extraTotal = extras.reduce((a, e) => a + e.amount, 0)
   const sumPayout = targets.reduce((a, { s }) => a + payout(s.allowance), 0) + extraTotal
