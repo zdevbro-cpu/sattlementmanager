@@ -99,7 +99,7 @@ export default function PayslipDrawer({
 
             {/* 인적사항 */}
             <Section title="인적사항">
-              <Grid>
+              <Grid cols={3}>
                 <Cell label="소속" value={row.org || '-'} />
                 <Cell label="성명" value={row.name} />
                 <Cell label="주민등록번호" value={row.residentNo || '-'} />
@@ -111,7 +111,7 @@ export default function PayslipDrawer({
 
             {/* 근로소득 */}
             <Section title="근로소득">
-              <Grid>
+              <Grid cols={3}>
                 <Cell label="근로소득" value={`${comma(row.laborIncome)} 원`} />
                 <Cell label="소득공제 합계" value={`${comma(row.insuranceDeduction)} 원`} />
                 <Cell label="국민연금" value={row.pensionExempt ? '해당없음 (60세 이상)' : `${comma(ins.pension)} 원`} />
@@ -142,7 +142,7 @@ export default function PayslipDrawer({
 
             {/* 지급계좌 */}
             <Section title="지급계좌">
-              <Grid>
+              <Grid cols={3}>
                 <Cell label="은행명" value={row.bankName || '-'} />
                 <Cell label="계좌번호" value={row.accountNo || '-'} />
                 <Cell label="예금주" value={row.accountOwner || '-'} />
@@ -185,8 +185,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function Grid({ children }: { children: React.ReactNode }) {
-  return <div className="grid grid-cols-2 gap-2">{children}</div>
+/** 섹션 내부 셀 배치 — cols 로 컬럼 수를 지정한다 (기본 2컬럼) */
+function Grid({ cols = 2, children }: { cols?: 2 | 3; children: React.ReactNode }) {
+  return (
+    <div className={`grid gap-2 ${cols === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+      {children}
+    </div>
+  )
 }
 
 function Cell({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
