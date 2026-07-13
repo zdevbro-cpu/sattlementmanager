@@ -99,7 +99,7 @@ export default function PayslipDrawer({
 
             {/* 인적사항 */}
             <Section title="인적사항">
-              <Grid cols={3}>
+              <Grid>
                 <Cell label="소속" value={row.org || '-'} />
                 <Cell label="성명" value={row.name} />
                 <Cell label="주민등록번호" value={row.residentNo || '-'} />
@@ -111,14 +111,15 @@ export default function PayslipDrawer({
 
             {/* 근로소득 */}
             <Section title="근로소득">
-              <Grid cols={3}>
+              <Grid>
                 <Cell label="근로소득" value={`${comma(row.laborIncome)} 원`} />
                 <Cell label="소득공제 합계" value={`${comma(row.insuranceDeduction)} 원`} />
                 <Cell label="국민연금" value={row.pensionExempt ? '해당없음 (60세 이상)' : `${comma(ins.pension)} 원`} />
                 <Cell label="건강.요양" value={`${comma(ins.healthCare)} 원`} />
                 <Cell label="고용보험" value={`${comma(ins.employment)} 원`} />
                 <Cell label="소득세" value={`${comma(ins.laborTax)} 원`} />
-                <Cell label="실지급액" value={`${comma(row.laborNet)} 원`} strong />
+                {/* 실지급액은 최우측 컬럼에 고정 */}
+                <Cell label="실지급액" value={`${comma(row.laborNet)} 원`} strong className="col-start-3" />
               </Grid>
             </Section>
 
@@ -128,7 +129,8 @@ export default function PayslipDrawer({
                 <Cell label="사업소득 (수당 + 활동비)" value={`${comma(row.businessIncome)} 원`} />
                 <Cell label="활동비" value={`${comma(row.activity)} 원`} />
                 <Cell label="소득세 (3.3%)" value={`${comma(row.incomeTax)} 원`} />
-                <Cell label="실지급액" value={`${comma(row.businessNet)} 원`} strong />
+                {/* 실지급액은 최우측 컬럼에 고정 */}
+                <Cell label="실지급액" value={`${comma(row.businessNet)} 원`} strong className="col-start-3" />
               </Grid>
             </Section>
 
@@ -142,7 +144,7 @@ export default function PayslipDrawer({
 
             {/* 지급계좌 */}
             <Section title="지급계좌">
-              <Grid cols={3}>
+              <Grid>
                 <Cell label="은행명" value={row.bankName || '-'} />
                 <Cell label="계좌번호" value={row.accountNo || '-'} />
                 <Cell label="예금주" value={row.accountOwner || '-'} />
@@ -185,18 +187,25 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-/** 섹션 내부 셀 배치 — cols 로 컬럼 수를 지정한다 (기본 2컬럼) */
-function Grid({ cols = 2, children }: { cols?: 2 | 3; children: React.ReactNode }) {
-  return (
-    <div className={`grid gap-2 ${cols === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
-      {children}
-    </div>
-  )
+/** 섹션 내부 셀 배치 — 명세서 전 섹션 3컬럼 */
+function Grid({ children }: { children: React.ReactNode }) {
+  return <div className="grid grid-cols-3 gap-2">{children}</div>
 }
 
-function Cell({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+function Cell({
+  label,
+  value,
+  strong,
+  className = '',
+}: {
+  label: string
+  value: string
+  strong?: boolean
+  /** 그리드 배치용 (예: 'col-start-3' — 최우측 컬럼 고정) */
+  className?: string
+}) {
   return (
-    <div className="payslip-cell rounded-[8px] border border-border px-3 py-2">
+    <div className={`payslip-cell rounded-[8px] border border-border px-3 py-2 ${className}`}>
       <div className="text-[11px] text-[#64748b]">{label}</div>
       <div
         className={`tabular ${strong ? 'text-[15px] font-extrabold text-text-strong' : 'text-[13px] font-semibold text-[#c2cde0]'}`}
