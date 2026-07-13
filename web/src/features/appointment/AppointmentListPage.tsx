@@ -192,8 +192,8 @@ export default function AppointmentListPage() {
                   ['이름', ''],
                   ['직급', 'center'],
                   ['주민번호', ''],
-                  ['계약연봉', 'right'],
                   ['연락처', ''],
+                  ['계약연봉', 'right'],
                   ['소득구분', 'center'],
                   ['은행/기관', ''],
                   ['계좌번호', ''],
@@ -324,8 +324,8 @@ function Row({
       <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{a.name}</td>
       <td className="px-3 py-1.5 text-center whitespace-nowrap">{a.position}</td>
       <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{a.residentNo}</td>
-      <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(a.salary)}</td>
       <td className="px-3 py-1.5 tabular whitespace-nowrap">{a.phone}</td>
+      <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(a.salary)}</td>
       <td className="px-3 py-1.5 text-center whitespace-nowrap">{a.insuranceType}</td>
       <td className="px-3 py-1.5 whitespace-nowrap">{a.bankName}</td>
       <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{a.accountNo}</td>
