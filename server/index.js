@@ -553,6 +553,32 @@ app.patch('/api/system/config/position-salaries', async (req, res) => {
   }
 })
 
+// ── 지점명(임용계약 소속지점) 목록 ──
+// localStorage 로 두면 기기·사용자마다 목록이 달라지므로 Cloud SQL 에 보관한다.
+app.get('/api/system/config/branches', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT value FROM app_settings WHERE key = 'branches'`,
+    )
+    res.json({ ok: true, data: rows[0]?.value ?? '' })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+app.patch('/api/system/config/branches', async (req, res) => {
+  try {
+    const value = req.body?.value ?? ''
+    await pool.query(
+      `INSERT INTO app_settings (key, value) VALUES ('branches', $1)
+       ON CONFLICT (key) DO UPDATE SET value = $1`,
+      [value],
+    )
+    res.json({ ok: true, data: value })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 const REPORT_TEMPLATE_PATH = path.join(__dirname, 'templates', 'daily_sales_report_template.xlsx')
 const REPORT_DATA_START_ROW = 4
 // 헤더: 번호 / 날짜 / 결재구분 / CAT ID / 사업부 / 구매자 / 내용 / 금액 / 카드사 / 카드번호 / 승인번호 / 담당
