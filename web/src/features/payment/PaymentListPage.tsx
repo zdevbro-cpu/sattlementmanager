@@ -487,14 +487,28 @@ function maskAccount(no: string): string {
 
 /* ── 급여관리 (임용계약 파생 — contractmanager 급여지급 화면 준용) ──── */
 
+/** 급여일은 일괄 매월 10일 */
+const SALARY_PAY_DAY = 10
+
+/** 'YYYY-MM' → 그 달의 급여기준일 'YYYY-MM-10' */
+function payBaseDateOf(month: string): string {
+  return `${month}-${String(SALARY_PAY_DAY).padStart(2, '0')}`
+}
+
+/** 다음 달 'YYYY-MM' — 급여관리 화면 기본값 (지급 예정 급여를 미리 본다) */
+function nextMonth(): string {
+  const d = new Date()
+  d.setDate(1)
+  d.setMonth(d.getMonth() + 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
 interface SalaryFilter {
-  startDate: string
-  endDate: string
+  month: string // 급여월 (YYYY-MM)
   keyword: string
 }
 const EMPTY_SALARY_FILTER: SalaryFilter = {
-  startDate: TODAY,
-  endDate: TODAY,
+  month: nextMonth(),
   keyword: '',
 }
 const PAGE_SIZES = [20, 50, 100]
@@ -511,40 +525,35 @@ function SalaryPayoutView() {
     listAppointments(EMPTY_APPOINTMENT_FILTER).then(setAll)
   }, [])
 
-  // 급여일(payoutDate) 기준 — 검색기간(시작일~종료일) 안에 급여일이 있는 정상운영 임용계약만 표시
+  // 선택한 급여월의 급여기준일 (매월 10일)
+  const payBaseDate = payBaseDateOf(filter.month)
+
+  // 해당 급여월에 급여를 지급할 인력.
+  // payoutDate 는 "최초 급여 개시일"이므로, 급여기준일이 그 날짜 이후면 매월 지급 대상이다.
+  // (payoutDate 가 공란인 인력은 개시일 제한이 없는 것으로 보고 지급 대상에 포함한다)
+  const isDue = (a: Appointment) => !a.payoutDate || a.payoutDate <= payBaseDate
+
   const targets = useMemo(() => {
-    const { startDate, endDate, keyword } = filter
-    const kw = keyword.trim()
+    const kw = filter.keyword.trim()
     return all
       .filter((a) => a.status === '정상운영')
-      .filter(
-        (a) =>
-          (!startDate || a.payoutDate >= startDate) &&
-          (!endDate || a.payoutDate <= endDate),
-      )
+      .filter(isDue)
       .filter((a) => !kw || a.name.includes(kw))
-      .sort(
-        (a, b) =>
-          b.payoutDate.localeCompare(a.payoutDate) ||
-          a.name.localeCompare(b.name, 'ko'),
-      )
-  }, [all, filter])
+      .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [all, filter, payBaseDate])
 
-  const heldCount = useMemo(() => {
-    const { startDate, endDate } = filter
-    return all.filter(
-      (a) =>
-        a.status === '일시정지' &&
-        (!startDate || a.payoutDate >= startDate) &&
-        (!endDate || a.payoutDate <= endDate),
-    ).length
-  }, [all, filter])
+  const heldCount = useMemo(
+    () => all.filter((a) => a.status === '일시정지' && isDue(a)).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [all, payBaseDate],
+  )
 
   // 급여 계산은 payrollEngine 한 곳에서만 수행한다 (목록·명세서·텍스트가 같은 값을 쓰도록).
-  // 60세 판정 기준일은 해당 인원의 급여일(일괄 매월 10일) — 오늘 날짜로 판정하면 과거 조회 시 값이 달라진다.
+  // 60세 판정 기준일은 선택한 급여월의 급여기준일 — 오늘 날짜로 판정하면 과거 급여를 다시 조회할 때 값이 달라진다.
   const rows: PayrollRow[] = useMemo(
-    () => targets.map((a) => calcPayroll(a, positionSalaries, a.payoutDate)),
-    [targets, positionSalaries],
+    () => targets.map((a) => calcPayroll(a, positionSalaries, payBaseDate)),
+    [targets, positionSalaries, payBaseDate],
   )
 
   const sumPayout = rows.reduce((sum, r) => sum + r.totalNet, 0)
@@ -553,8 +562,8 @@ function SalaryPayoutView() {
   const safePage = Math.min(page, totalPages)
   const pagedRows = rows.slice((safePage - 1) * perPage, safePage * perPage)
   const detailRow = detailId ? rows.find((r) => r.id === detailId) : undefined
-  const detailBaseDate =
-    (detailId && targets.find((a) => a.id === detailId)?.payoutDate) || TODAY
+  // 급여명세서의 지급일도 목록과 같은 급여기준일을 쓴다
+  const detailBaseDate = payBaseDate
 
   const setFilterField = (patch: Partial<SalaryFilter>) => {
     setFilter({ ...filter, ...patch })
@@ -572,7 +581,7 @@ function SalaryPayoutView() {
       return
     }
     const content = payrollTextLines(rows).join('\r\n')
-    const fileName = `급여지급목록_${filter.endDate}_${filter.startDate}.txt`
+    const fileName = `급여지급목록_${payBaseDate}.txt`
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a2 = document.createElement('a')
@@ -594,19 +603,24 @@ function SalaryPayoutView() {
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-4">
-        <SummaryCard label="지급대상 건수" value={`${rows.length} 건`} sub="기간 필터 기준" tint="#e0edff" fg="#2563eb" icon={<Wallet size={18} />} />
-        <SummaryCard label="지급예정 금액" value={won(sumPayout)} sub="지급총액 합계 (급여일 매월 10일)" tint="#e2f7ec" fg="#16a34a" icon={<DollarSign size={18} />} />
+        <SummaryCard label="지급대상 건수" value={`${rows.length} 건`} sub={`${filter.month} 급여`} tint="#e0edff" fg="#2563eb" icon={<Wallet size={18} />} />
+        <SummaryCard label="지급예정 금액" value={won(sumPayout)} sub={`지급총액 합계 (${dateText(payBaseDate)} 지급)`} tint="#e2f7ec" fg="#16a34a" icon={<DollarSign size={18} />} />
         <SummaryCard label="지급보류 건수" value={`${heldCount} 건`} sub="일시정지 건수" tint="#fff1e0" fg="#f59e0b" icon={<Landmark size={18} />} />
       </div>
 
       {/* 필터 · 출력 */}
       <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
         <div className="grid grid-cols-[1fr_1fr_2fr_auto_auto] gap-3 items-end">
-          <Field label="시작일">
-            <DateInput value={filter.startDate} onChange={(v) => setFilterField({ startDate: v })} />
+          <Field label="급여월">
+            <input
+              type="month"
+              value={filter.month}
+              onChange={(e) => setFilterField({ month: e.target.value })}
+              className={inputCls}
+            />
           </Field>
-          <Field label="종료일">
-            <DateInput value={filter.endDate} onChange={(v) => setFilterField({ endDate: v })} />
+          <Field label="급여기준일">
+            <input value={dateText(payBaseDate)} readOnly className={`${inputCls} text-[#94a3b8]`} />
           </Field>
           <Field label="계약자명">
             <input value={filter.keyword} onChange={(e) => setFilterField({ keyword: e.target.value })} placeholder="계약자명 검색" className={inputCls} />
