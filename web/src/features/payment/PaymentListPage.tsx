@@ -697,25 +697,26 @@ function SalaryPayoutView() {
           <table className="w-full min-w-[1700px] text-[13px]">
             <thead>
               <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
+                {/* 근로소득 계열 = 파랑, 사업소득 계열 = 초록, 실지급액 = 주황 */}
                 {[
-                  ['번호', 'center'],
-                  ['소속', ''],
-                  ['이름', ''],
-                  ['주민번호', ''],
-                  ['직급', 'center'],
-                  ['근로소득(원)', 'right'],
-                  ['소득공제(원)', 'right'],
-                  ['실지급액(원)', 'right'],
-                  ['사업소득(원)', 'right'],
-                  ['소득세(원)', 'right'],
-                  ['실지급액(원)', 'right'],
-                  ['지급총액(원)', 'right'],
-                  ['은행명', ''],
-                  ['계좌번호', ''],
-                  ['예금주', ''],
-                  ['관리', 'center'],
-                ].map(([h, a], i) => (
-                  <th key={`${h}-${i}`} className={`px-3 py-1.5 font-semibold whitespace-nowrap ${a === 'right' ? 'text-right' : a === 'center' ? 'text-center' : ''}`}>
+                  ['번호', 'center', ''],
+                  ['소속', '', ''],
+                  ['이름', '', ''],
+                  ['주민번호', '', ''],
+                  ['직급', 'center', ''],
+                  ['근로소득(원)', 'right', 'text-primary'],
+                  ['소득공제(원)', 'right', 'text-primary'],
+                  ['실지급액(원)', 'right', 'text-warning'],
+                  ['사업소득(원)', 'right', 'text-success'],
+                  ['소득세(원)', 'right', 'text-success'],
+                  ['실지급액(원)', 'right', 'text-warning'],
+                  ['지급총액(원)', 'right', ''],
+                  ['은행명', '', ''],
+                  ['계좌번호', '', ''],
+                  ['예금주', '', ''],
+                  ['관리', 'center', ''],
+                ].map(([h, a, c], i) => (
+                  <th key={`${h}-${i}`} className={`px-3 py-1.5 font-semibold whitespace-nowrap ${a === 'right' ? 'text-right' : a === 'center' ? 'text-center' : ''} ${c}`}>
                     {h}
                   </th>
                 ))}
@@ -729,12 +730,14 @@ function SalaryPayoutView() {
                   <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{r.name}</td>
                   <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{r.residentNo || '-'}</td>
                   <td className="px-3 py-1.5 text-center whitespace-nowrap">{r.position || '-'}</td>
-                  <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(r.laborIncome)}</td>
-                  <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(r.insuranceDeduction)}</td>
-                  <td className="px-3 py-1.5 tabular text-right font-semibold whitespace-nowrap">{comma(r.laborNet)}</td>
-                  <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(r.businessIncome)}</td>
-                  <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(r.incomeTax)}</td>
-                  <td className="px-3 py-1.5 tabular text-right font-semibold whitespace-nowrap">{comma(r.businessNet)}</td>
+                  {/* 근로소득 계열 = 파랑 */}
+                  <td className="px-3 py-1.5 tabular text-right whitespace-nowrap text-primary">{comma(r.laborIncome)}</td>
+                  <td className="px-3 py-1.5 tabular text-right whitespace-nowrap text-primary">{comma(r.insuranceDeduction)}</td>
+                  <td className="px-3 py-1.5 tabular text-right font-semibold whitespace-nowrap text-warning">{comma(r.laborNet)}</td>
+                  {/* 사업소득 계열 = 초록 */}
+                  <td className="px-3 py-1.5 tabular text-right whitespace-nowrap text-success">{comma(r.businessIncome)}</td>
+                  <td className="px-3 py-1.5 tabular text-right whitespace-nowrap text-success">{comma(r.incomeTax)}</td>
+                  <td className="px-3 py-1.5 tabular text-right font-semibold whitespace-nowrap text-warning">{comma(r.businessNet)}</td>
                   <td className="px-3 py-1.5 tabular text-right font-bold text-text-strong whitespace-nowrap">{comma(r.totalNet)}</td>
                   <td className="px-3 py-1.5 whitespace-nowrap">{r.bankName || '-'}</td>
                   <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{maskAccount(r.accountNo)}</td>
