@@ -534,10 +534,12 @@ function nextMonth(): string {
 
 interface SalaryFilter {
   month: string // 급여월 (YYYY-MM)
+  position: string // 직급 ('전체' 포함)
   keyword: string
 }
 const EMPTY_SALARY_FILTER: SalaryFilter = {
   month: nextMonth(),
+  position: '전체',
   keyword: '',
 }
 const PAGE_SIZES = [20, 50, 100]
@@ -557,6 +559,14 @@ function SalaryPayoutView() {
   // 선택한 급여월의 급여기준일 (매월 10일)
   const payBaseDate = payBaseDateOf(filter.month)
 
+  // 직급 선택지 — 직급표(시스템관리) 기준에, 실제 임용계약에만 있는 직급도 합쳐 빠짐없이 보여준다.
+  const positionOptions = useMemo(() => {
+    const set = new Set<string>()
+    positionSalaries.forEach((p) => p.position && set.add(p.position))
+    all.forEach((a) => a.position && set.add(a.position))
+    return [...set].sort((a, b) => a.localeCompare(b, 'ko'))
+  }, [positionSalaries, all])
+
   // 해당 급여월에 급여를 지급할 인력.
   // payoutDate 는 "최초 급여 개시일"이므로, 급여기준일이 그 날짜 이후면 매월 지급 대상이다.
   // (payoutDate 가 공란인 인력은 개시일 제한이 없는 것으로 보고 지급 대상에 포함한다)
@@ -567,6 +577,7 @@ function SalaryPayoutView() {
     return all
       .filter((a) => a.status === '정상운영')
       .filter(isDue)
+      .filter((a) => filter.position === '전체' || a.position === filter.position)
       .filter((a) => !kw || a.name.includes(kw))
       .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -639,7 +650,7 @@ function SalaryPayoutView() {
 
       {/* 필터 · 출력 */}
       <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
-        <div className="grid grid-cols-[1fr_1fr_2fr_auto_auto] gap-3 items-end">
+        <div className="grid grid-cols-[1fr_1fr_1fr_2fr_auto_auto] gap-3 items-end">
           <Field label="급여월">
             <input
               type="month"
@@ -650,6 +661,20 @@ function SalaryPayoutView() {
           </Field>
           <Field label="급여기준일">
             <input value={dateText(payBaseDate)} readOnly className={`${inputCls} text-[#94a3b8]`} />
+          </Field>
+          <Field label="직급">
+            <select
+              value={filter.position}
+              onChange={(e) => setFilterField({ position: e.target.value })}
+              className={inputCls}
+            >
+              <option value="전체">전체</option>
+              {positionOptions.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="계약자명">
             <input value={filter.keyword} onChange={(e) => setFilterField({ keyword: e.target.value })} placeholder="계약자명 검색" className={inputCls} />
