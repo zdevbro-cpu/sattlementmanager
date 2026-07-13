@@ -87,13 +87,17 @@ export interface AppointmentHistory {
 
 /** 목록 필터 */
 export interface AppointmentFilter {
-  keyword: string // 계약자명·지점명
+  keyword: string // 계약자명
+  branch: string // 지점명(소속지점)
+  position: string // 직급 ('전체' 포함)
   startDate: string // 계약일 시작
   endDate: string // 계약일 종료
 }
 
 export const EMPTY_APPOINTMENT_FILTER: AppointmentFilter = {
   keyword: '',
+  branch: '',
+  position: '전체',
   startDate: '',
   endDate: '',
 }

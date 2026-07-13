@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Eye, Plus, Trash2 } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import DateTextInput from '../../components/ui/DateTextInput'
@@ -16,6 +16,8 @@ import {
 import AppointmentRegisterModal from './AppointmentRegisterModal'
 import AppointmentDetailDrawer from './AppointmentDetailDrawer'
 import { useCodes } from '../../lib/codeStore'
+import { usePositionSalaries } from './positionSalaryStore'
+import Badge, { branchTone, positionTone } from '../../components/ui/Badge'
 
 const PAGE_SIZES = [20, 50, 100]
 // 상태 드롭다운 전용 sentinel — 실제 status 값이 아니라 "전체 + 해지 포함"을 뜻하는 선택지
@@ -23,6 +25,7 @@ const INCLUDE_TERMINATED_VALUE = '__include_terminated__'
 
 export default function AppointmentListPage() {
   const codes = useCodes()
+  const positionSalaries = usePositionSalaries()
   const [draft, setDraft] = useState<AppointmentFilter>(EMPTY_APPOINTMENT_FILTER)
   const [applied, setApplied] = useState<AppointmentFilter>(
     EMPTY_APPOINTMENT_FILTER,
@@ -78,12 +81,32 @@ export default function AppointmentListPage() {
     }
   }, [refresh])
 
-  const visibleRows =
+  // 직급 선택지 — 직급표(시스템관리)에 실제 임용계약의 직급을 합쳐 빠짐없이 보여준다.
+  const positionOptions = useMemo(() => {
+    const set = new Set<string>()
+    positionSalaries.forEach((p) => p.position && set.add(p.position))
+    rows.forEach((a) => a.position && set.add(a.position))
+    return [...set].sort((a, b) => a.localeCompare(b, 'ko'))
+  }, [positionSalaries, rows])
+
+  const statusRows =
     statusFilter === '전체'
       ? includeTerminated
         ? rows
         : rows.filter((a) => a.status !== '해지')
       : rows.filter((a) => a.status === statusFilter)
+
+  // 계약자명·지점명·직급은 각각 독립 필터로 적용한다.
+  // (서버는 keyword 를 이름 OR 지점으로 매칭하므로 상위집합을 주고, 여기서 정확히 좁힌다)
+  const visibleRows = useMemo(() => {
+    const kw = applied.keyword.trim()
+    const br = applied.branch.trim()
+    return statusRows
+      .filter((a) => !kw || a.name.includes(kw))
+      .filter((a) => !br || (a.ref || '').includes(br))
+      .filter((a) => applied.position === '전체' || a.position === applied.position)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusRows, applied])
 
   const totalPages = Math.max(1, Math.ceil(visibleRows.length / perPage))
   const safePage = Math.min(page, totalPages)
@@ -124,9 +147,26 @@ export default function AppointmentListPage() {
 
       {/* 필터 */}
       <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
-        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-3 items-end">
-          <Field label="검색 (계약자명·지점명)">
-            <input value={draft.keyword} onChange={(e) => setDraft({ ...draft, keyword: e.target.value })} placeholder="계약자명, 지점명 검색" className={inputCls} />
+        <div className="grid grid-cols-[1.4fr_1.2fr_1fr_1fr_1fr_1fr_auto] gap-3 items-end">
+          <Field label="계약자명">
+            <input value={draft.keyword} onChange={(e) => setDraft({ ...draft, keyword: e.target.value })} placeholder="계약자명 검색" className={inputCls} />
+          </Field>
+          <Field label="지점명">
+            <input value={draft.branch} onChange={(e) => setDraft({ ...draft, branch: e.target.value })} placeholder="지점명 검색" className={inputCls} />
+          </Field>
+          <Field label="직급">
+            <select
+              value={draft.position}
+              onChange={(e) => setDraft({ ...draft, position: e.target.value })}
+              className={inputCls}
+            >
+              <option value="전체">전체</option>
+              {positionOptions.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="계약일 시작">
             <DateTextInput
@@ -320,9 +360,13 @@ function Row({
   return (
     <tr className="border-b border-border hover:bg-hover">
       <td className="px-3 py-1.5 text-center whitespace-nowrap tabular text-[#c2cde0]">{no}</td>
-      <td className="px-3 py-1.5 whitespace-nowrap">{a.ref}</td>
+      <td className="px-3 py-1.5 whitespace-nowrap">
+        {a.ref ? <Badge tone={branchTone(a.ref)}>{a.ref}</Badge> : '-'}
+      </td>
       <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{a.name}</td>
-      <td className="px-3 py-1.5 text-center whitespace-nowrap">{a.position}</td>
+      <td className="px-3 py-1.5 text-center whitespace-nowrap">
+        {a.position ? <Badge tone={positionTone(a.position)}>{a.position}</Badge> : '-'}
+      </td>
       <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{a.residentNo}</td>
       <td className="px-3 py-1.5 tabular whitespace-nowrap">{a.phone}</td>
       <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(a.salary)}</td>

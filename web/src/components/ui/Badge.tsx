@@ -91,3 +91,39 @@ export function categoryTone(cat: string): Tone {
   if (cat.includes('LASBOOK') || cat.includes('교재')) return 'amber'
   return 'slate'
 }
+
+/** 직급 → 톤 (직위가 높을수록 눈에 띄는 색). 미등록 직급은 slate */
+export function positionTone(position: string): Tone {
+  switch (position) {
+    case '예비과장':
+      return 'slate'
+    case '점주':
+      return 'teal'
+    case '과장':
+      return 'blue'
+    case '차장':
+      return 'sky'
+    case '부장':
+      return 'green'
+    case '이사':
+      return 'purple'
+    case '상무':
+    case '전무':
+    case '부사장':
+      return 'amber'
+    default:
+      return 'slate'
+  }
+}
+
+/**
+ * 지점명 → 톤. 지점은 수십 개라 고정 매핑 대신 이름 해시로 톤을 배정한다.
+ * 같은 지점은 항상 같은 색이 되고, 지점이 추가돼도 코드 수정이 필요 없다.
+ */
+const BRANCH_TONES: Tone[] = ['blue', 'green', 'amber', 'purple', 'teal', 'sky', 'red']
+export function branchTone(branch: string): Tone {
+  if (!branch) return 'slate'
+  let h = 0
+  for (let i = 0; i < branch.length; i++) h = (h * 31 + branch.charCodeAt(i)) >>> 0
+  return BRANCH_TONES[h % BRANCH_TONES.length]
+}
