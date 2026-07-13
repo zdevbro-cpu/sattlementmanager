@@ -11,6 +11,7 @@ import {
 import {
   listAppointments,
   summarizeAppointments,
+  summarizeByPosition,
   updateAppointment,
 } from './appointmentStore'
 import AppointmentRegisterModal from './AppointmentRegisterModal'
@@ -37,6 +38,7 @@ export default function AppointmentListPage() {
   const [loading, setLoading] = useState(true)
   const [loadErr, setLoadErr] = useState('')
   const [sum, setSum] = useState(() => summarizeAppointments([]))
+  const [byPosition, setByPosition] = useState<{ position: string; count: number }[]>([])
   const [perPage, setPerPage] = useState(20)
   const [page, setPage] = useState(1)
   // 상태 필터가 '전체'일 때 해지 건은 기본적으로 숨긴다 — "전체(해지포함)" 선택 시 다시 포함
@@ -69,10 +71,13 @@ export default function AppointmentListPage() {
     setPage(1)
   }, [filter, statusFilter, includeTerminated, perPage])
 
+  // 요약 카드와 직급별 인원수는 검색조건과 무관하게 전체 데이터 기준으로 집계한다.
   useEffect(() => {
     let alive = true
     listAppointments(EMPTY_APPOINTMENT_FILTER).then((list) => {
-      if (alive) setSum(summarizeAppointments(list))
+      if (!alive) return
+      setSum(summarizeAppointments(list))
+      setByPosition(summarizeByPosition(list))
     })
     return () => {
       alive = false
@@ -141,6 +146,32 @@ export default function AppointmentListPage() {
         <SummaryCard label="정상" value={sum.active} tint="#e2f7ec" fg="#16a34a" />
         <SummaryCard label="휴직" value={sum.paused} tint="#fff1e0" fg="#f59e0b" />
         <SummaryCard label="해지" value={sum.ended} tint="#fee2e2" fg="#ef4444" />
+      </div>
+
+      {/* 직급별 인원수 (해지 제외) */}
+      <div className="rounded-[12px] border border-border bg-card p-4 mb-4">
+        <div className="mb-3 text-[13px] font-semibold text-[#64748b]">
+          직급별 인원수{' '}
+          <span className="text-[11.5px] font-normal text-[#64748b]">(해지 제외)</span>
+        </div>
+        {byPosition.length === 0 ? (
+          <div className="text-[13px] text-[#64748b]">데이터가 없습니다.</div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {byPosition.map(({ position, count }) => (
+              <div
+                key={position}
+                className="flex items-center gap-2 rounded-[10px] border border-border px-3 py-2"
+              >
+                <Badge tone={positionTone(position)}>{position}</Badge>
+                <span className="text-[17px] font-extrabold text-text-strong tabular leading-none">
+                  {count}
+                </span>
+                <span className="text-[12px] text-[#64748b]">명</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 필터 */}

@@ -37,8 +37,26 @@ export function nextContractNo(dateISO: string): Promise<string> {
 }
 
 export function summarizeAppointments(list: Appointment[]) {
-  const active = list.filter((a) => a.status === '정상').length
-  const paused = list.filter((a) => a.status === '휴직').length
-  const ended = list.filter((a) => a.status === '해지').length
+  // 상태는 시스템관리에서 관리하는 동적 코드라 값이 '정상' / '정상운영' 등으로 달라질 수 있다.
+  // 정확히 일치가 아니라 접두사로 판정해야 카드 수치가 0으로 나오지 않는다.
+  const active = list.filter((a) => a.status.startsWith('정상')).length
+  const paused = list.filter((a) => a.status.startsWith('휴직')).length
+  const ended = list.filter((a) => a.status.startsWith('해지')).length
   return { total: list.length, active, paused, ended }
+}
+
+/** 직급별 인원수 — 인원이 많은 직급부터. 해지 건은 제외한다. */
+export function summarizeByPosition(
+  list: Appointment[],
+): { position: string; count: number }[] {
+  const map = new Map<string, number>()
+  list
+    .filter((a) => !a.status.startsWith('해지'))
+    .forEach((a) => {
+      const p = a.position || '(미지정)'
+      map.set(p, (map.get(p) ?? 0) + 1)
+    })
+  return [...map.entries()]
+    .map(([position, count]) => ({ position, count }))
+    .sort((a, b) => b.count - a.count || a.position.localeCompare(b.position, 'ko'))
 }
