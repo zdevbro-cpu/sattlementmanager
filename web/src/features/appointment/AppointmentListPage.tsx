@@ -26,10 +26,8 @@ const INCLUDE_TERMINATED_VALUE = '__include_terminated__'
 export default function AppointmentListPage() {
   const codes = useCodes()
   const positionSalaries = usePositionSalaries()
-  const [draft, setDraft] = useState<AppointmentFilter>(EMPTY_APPOINTMENT_FILTER)
-  const [applied, setApplied] = useState<AppointmentFilter>(
-    EMPTY_APPOINTMENT_FILTER,
-  )
+  // 계약관리·매출관리와 동일하게 입력 즉시 목록에 반영 (별도 검색 버튼 없음)
+  const [filter, setFilter] = useState<AppointmentFilter>(EMPTY_APPOINTMENT_FILTER)
   const [registerOpen, setRegisterOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [refresh, setRefresh] = useState(0)
@@ -49,7 +47,7 @@ export default function AppointmentListPage() {
     let alive = true
     setLoading(true)
     setLoadErr('')
-    listAppointments(applied)
+    listAppointments(filter)
       .then((list) => {
         if (alive) {
           setRows(list)
@@ -65,11 +63,11 @@ export default function AppointmentListPage() {
     return () => {
       alive = false
     }
-  }, [applied, refresh])
+  }, [filter, refresh])
 
   useEffect(() => {
     setPage(1)
-  }, [applied, statusFilter, includeTerminated, perPage])
+  }, [filter, statusFilter, includeTerminated, perPage])
 
   useEffect(() => {
     let alive = true
@@ -99,14 +97,14 @@ export default function AppointmentListPage() {
   // 계약자명·지점명·직급은 각각 독립 필터로 적용한다.
   // (서버는 keyword 를 이름 OR 지점으로 매칭하므로 상위집합을 주고, 여기서 정확히 좁힌다)
   const visibleRows = useMemo(() => {
-    const kw = applied.keyword.trim()
-    const br = applied.branch.trim()
+    const kw = filter.keyword.trim()
+    const br = filter.branch.trim()
     return statusRows
       .filter((a) => !kw || a.name.includes(kw))
       .filter((a) => !br || (a.ref || '').includes(br))
-      .filter((a) => applied.position === '전체' || a.position === applied.position)
+      .filter((a) => filter.position === '전체' || a.position === filter.position)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusRows, applied])
+  }, [statusRows, filter])
 
   const totalPages = Math.max(1, Math.ceil(visibleRows.length / perPage))
   const safePage = Math.min(page, totalPages)
@@ -149,15 +147,15 @@ export default function AppointmentListPage() {
       <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
         <div className="grid grid-cols-[1.4fr_1.2fr_1fr_1fr_1fr_1fr_auto] gap-3 items-end">
           <Field label="계약자명">
-            <input value={draft.keyword} onChange={(e) => setDraft({ ...draft, keyword: e.target.value })} placeholder="계약자명 검색" className={inputCls} />
+            <input value={filter.keyword} onChange={(e) => setFilter({ ...filter, keyword: e.target.value })} placeholder="계약자명 검색" className={inputCls} />
           </Field>
           <Field label="지점명">
-            <input value={draft.branch} onChange={(e) => setDraft({ ...draft, branch: e.target.value })} placeholder="지점명 검색" className={inputCls} />
+            <input value={filter.branch} onChange={(e) => setFilter({ ...filter, branch: e.target.value })} placeholder="지점명 검색" className={inputCls} />
           </Field>
           <Field label="직급">
             <select
-              value={draft.position}
-              onChange={(e) => setDraft({ ...draft, position: e.target.value })}
+              value={filter.position}
+              onChange={(e) => setFilter({ ...filter, position: e.target.value })}
               className={inputCls}
             >
               <option value="전체">전체</option>
@@ -170,8 +168,8 @@ export default function AppointmentListPage() {
           </Field>
           <Field label="계약일 시작">
             <DateTextInput
-              value={draft.startDate}
-              onChange={(v) => setDraft({ ...draft, startDate: v })}
+              value={filter.startDate}
+              onChange={(v) => setFilter({ ...filter, startDate: v })}
               onTabNext={() => endDateRef.current?.focus()}
               className={inputCls}
             />
@@ -179,8 +177,8 @@ export default function AppointmentListPage() {
           <Field label="계약일 종료">
             <DateTextInput
               ref={endDateRef}
-              value={draft.endDate}
-              onChange={(v) => setDraft({ ...draft, endDate: v })}
+              value={filter.endDate}
+              onChange={(v) => setFilter({ ...filter, endDate: v })}
               className={inputCls}
             />
           </Field>
@@ -208,10 +206,17 @@ export default function AppointmentListPage() {
               <option value={INCLUDE_TERMINATED_VALUE}>전체(해지포함)</option>
             </select>
           </Field>
-          <div className="flex gap-2">
-            <button onClick={() => { setApplied(draft); setPage(1) }} className="h-[38px] rounded-[8px] bg-indigo px-5 text-sm font-bold text-white hover:brightness-110">검색</button>
-            <button onClick={() => { setDraft(EMPTY_APPOINTMENT_FILTER); setApplied(EMPTY_APPOINTMENT_FILTER); setPage(1) }} className="h-[38px] rounded-[8px] border border-border px-5 text-sm font-semibold text-[#c2cde0] hover:bg-hover">초기화</button>
-          </div>
+          <button
+            onClick={() => {
+              setFilter(EMPTY_APPOINTMENT_FILTER)
+              setStatusFilter('전체')
+              setIncludeTerminated(false)
+              setPage(1)
+            }}
+            className="h-[38px] rounded-[8px] border border-border px-5 text-sm font-semibold text-[#c2cde0] hover:bg-hover whitespace-nowrap"
+          >
+            초기화
+          </button>
         </div>
       </div>
 
