@@ -149,7 +149,9 @@ function RevenuePayoutView() {
     setExtras((prev) => [created, ...prev])
   }
   // 수익금지급 텍스트(.txt) 다운로드
-  // 포맷: 이름|수당(활동비)|금액|주민번호|은행명|계좌번호|예금주
+  // 포맷: 이름|지급내역|금액|주민번호|은행명|계좌번호|예금주
+  //   - 목록의 지급대상(계약 파생) → 지급내역은 '수당' 고정
+  //   - 추가지급 대상자          → 등록 시 입력한 지급명목 (예: 활동비)
   const onExport = () => {
     if (totalCount === 0) {
       alert('출력할 데이터가 없습니다.')
@@ -168,11 +170,11 @@ function RevenuePayoutView() {
       [name, item, amountOnly(amount), residentNo, bankName, accountNo, accountOwner].join('|')
 
     const body = [
-      // 계약 파생 지급분 — 지급내역은 '수당(활동비)'
+      // 목록의 지급대상(계약 파생) — 지급내역은 '수당' 고정
       ...targets.map(({ s }) =>
         line(
           s.contractorName,
-          '수당(활동비)',
+          '수당',
           payout(s.allowance),
           s.residentNo,
           s.bankName,
@@ -180,11 +182,11 @@ function RevenuePayoutView() {
           s.contractorName,
         ),
       ),
-      // 추가지급 대상자 — 지급내역은 등록 시 입력한 내역을 그대로 사용
+      // 추가지급 대상자 — 등록 시 입력한 지급명목 (예: 활동비)
       ...extras.map((e) =>
         line(
           e.name,
-          e.memo || '수당(활동비)',
+          e.memo || '-',
           e.amount,
           e.residentNo,
           e.bankName,
