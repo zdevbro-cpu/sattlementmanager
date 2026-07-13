@@ -349,6 +349,14 @@ export function updatePositionSalariesApi(value: string): Promise<string> {
   return sendJson('/api/system/config/position-salaries', 'PATCH', { value })
 }
 
+// ── 지점명(임용계약 소속지점) 목록 ─────────────────────────
+export function fetchBranches(): Promise<string> {
+  return getData('/api/system/config/branches')
+}
+export function updateBranchesApi(value: string): Promise<string> {
+  return sendJson('/api/system/config/branches', 'PATCH', { value })
+}
+
 // ── 교재구매 신청 관리 ──────────────────────────────────────
 export function fetchTextbookApplications(
   filter: TextbookApplicationFilter,

@@ -34,7 +34,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: '/dashboard', label: '대시보드', icon: LayoutDashboard, enabled: true },
       { to: '/contracts', label: '계약관리', icon: FileText, enabled: true },
       { to: '/sales', label: '매출관리', icon: Receipt, enabled: true },
-      { to: '/base', label: '조직관리', icon: Users, enabled: true },
+      { to: '/base', label: '임용관리', icon: Users, enabled: true },
     ],
   },
   {

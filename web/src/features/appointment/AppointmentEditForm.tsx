@@ -9,6 +9,7 @@ import {
 import { updateAppointment } from './appointmentStore'
 import InstitutionSelect from './InstitutionSelect'
 import { usePositionSalaries } from './positionSalaryStore'
+import { useBranches } from './branchStore'
 import { todayIso } from '../../lib/format'
 import DateTextInput from '../../components/ui/DateTextInput'
 import { useCodes } from '../../lib/codeStore'
@@ -30,6 +31,7 @@ export default function AppointmentEditForm({
   onCancel: () => void
 }) {
   const positionSalaries = usePositionSalaries()
+  const branches = useBranches()
   const codes = useCodes()
   const [name, setName] = useState(base.name)
   const [ref, setRef] = useState(base.ref)
@@ -111,7 +113,16 @@ export default function AppointmentEditForm({
           <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
         </Field>
         <Field label="지점명">
-          <input value={ref} onChange={(e) => setRef(e.target.value)} className={inputCls} />
+          <select value={ref} onChange={(e) => setRef(e.target.value)} className={inputCls}>
+            <option value="">-- 선택 --</option>
+            {/* 기존 값이 목록에 없더라도(과거 데이터) 사라지지 않도록 유지 */}
+            {ref && !branches.includes(ref) && <option value={ref}>{ref}</option>}
+            {branches.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field label="계약종류">
           <input value={typeName} onChange={(e) => setTypeName(e.target.value)} className={inputCls} />

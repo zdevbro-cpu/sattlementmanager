@@ -8,6 +8,7 @@ import {
   type CodeKind,
 } from '../../lib/codeStore'
 import { addBank, removeBank, useBanks } from '../appointment/bankStore'
+import { addBranch, removeBranch, useBranches } from '../appointment/branchStore'
 import {
   addDocType,
   removeDocType,
@@ -134,6 +135,7 @@ function CommonCodeAdmin() {
             items={codes[g.kind]}
           />
         ))}
+        <BranchCard />
         <BankCard />
         <DocTypeCard />
         <ReportEmailCard />
@@ -588,6 +590,58 @@ function DocTypeCard() {
         {types.length === 0 && (
           <li className="text-center text-[12px] text-[#64748b] py-3">
             등록된 서류종류가 없습니다.
+          </li>
+        )}
+      </ul>
+    </div>
+  )
+}
+
+/** 지점명 — 임용계약 등록·수정과 조직관리 검색필터가 이 목록을 쓴다 (Cloud SQL 저장) */
+function BranchCard() {
+  const branches = useBranches()
+  const [input, setInput] = useState('')
+  const [err, setErr] = useState('')
+  const submit = () => {
+    if (!addBranch(input)) {
+      setErr('지점명을 입력하거나, 이미 있는 지점이 아닌지 확인하세요.')
+      return
+    }
+    setInput('')
+    setErr('')
+  }
+  return (
+    <div className="rounded-[14px] border border-border bg-card p-4">
+      <h3 className="text-[15px] font-extrabold text-text-strong mb-3">지점명</h3>
+      <div className="flex gap-2 mb-3">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          placeholder="새 지점 입력 (예: 강남점)"
+          className="h-9 flex-1 min-w-0 rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary"
+        />
+        <button
+          onClick={submit}
+          className="h-9 shrink-0 whitespace-nowrap rounded-[8px] bg-primary px-3 text-[13px] font-bold text-white hover:brightness-110"
+        >
+          추가
+        </button>
+      </div>
+      {err && <div className="mb-2 text-[11.5px] text-danger">{err}</div>}
+      <ul className="space-y-1.5 max-h-[280px] overflow-y-auto">
+        {branches.map((b) => (
+          <li
+            key={b}
+            className="flex items-center justify-between rounded-[8px] border border-border px-3 py-1.5 text-[13px]"
+          >
+            <span className="text-[#c2cde0]">{b}</span>
+            <DeleteBtn onClick={() => removeBranch(b)} />
+          </li>
+        ))}
+        {branches.length === 0 && (
+          <li className="text-center text-[12px] text-[#64748b] py-3">
+            등록된 지점이 없습니다.
           </li>
         )}
       </ul>

@@ -11,6 +11,7 @@ import InstitutionSelect from './InstitutionSelect'
 import { getBanks } from './bankStore'
 import DocUploadList from './DocUploadList'
 import { usePositionSalaries } from './positionSalaryStore'
+import { useBranches } from './branchStore'
 import { todayIso } from '../../lib/format'
 import DateTextInput from '../../components/ui/DateTextInput'
 import { X } from 'lucide-react'
@@ -53,6 +54,7 @@ export default function AppointmentRegisterModal({
   onCreated: () => void
 }) {
   const positionSalaries = usePositionSalaries()
+  const branches = useBranches()
   const codes = useCodes()
   const [TODAY] = useState(() => todayIso())
   const [type, setType] = useState<AppointmentType>(APPOINTMENT_TYPES[0])
@@ -183,7 +185,14 @@ export default function AppointmentRegisterModal({
             <SectionTitle>계약정보</SectionTitle>
             <div className="grid grid-cols-3 gap-3">
               <Field label="지점명">
-                <input value={ref} onChange={(e) => setRef(e.target.value)} className={inputCls} placeholder="지점명 입력" />
+                <select value={ref} onChange={(e) => setRef(e.target.value)} className={inputCls}>
+                  <option value="">-- 선택 --</option>
+                  {branches.map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
+                </select>
               </Field>
               <Field label="계약자명">
                 <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />

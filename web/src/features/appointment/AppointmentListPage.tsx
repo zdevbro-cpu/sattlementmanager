@@ -18,6 +18,7 @@ import AppointmentRegisterModal from './AppointmentRegisterModal'
 import AppointmentDetailDrawer from './AppointmentDetailDrawer'
 import { useCodes } from '../../lib/codeStore'
 import { usePositionSalaries } from './positionSalaryStore'
+import { useBranches } from './branchStore'
 import Badge, { branchTone, positionTone } from '../../components/ui/Badge'
 
 const PAGE_SIZES = [20, 50, 100]
@@ -27,6 +28,7 @@ const INCLUDE_TERMINATED_VALUE = '__include_terminated__'
 export default function AppointmentListPage() {
   const codes = useCodes()
   const positionSalaries = usePositionSalaries()
+  const branches = useBranches()
   // 계약관리·매출관리와 동일하게 입력 즉시 목록에 반영 (별도 검색 버튼 없음)
   const [filter, setFilter] = useState<AppointmentFilter>(EMPTY_APPOINTMENT_FILTER)
   const [registerOpen, setRegisterOpen] = useState(false)
@@ -101,12 +103,12 @@ export default function AppointmentListPage() {
 
   // 계약자명·지점명·직급은 각각 독립 필터로 적용한다.
   // (서버는 keyword 를 이름 OR 지점으로 매칭하므로 상위집합을 주고, 여기서 정확히 좁힌다)
+  // 지점명·직급은 드롭다운 선택이므로 정확일치로 판정한다.
   const visibleRows = useMemo(() => {
     const kw = filter.keyword.trim()
-    const br = filter.branch.trim()
     return statusRows
       .filter((a) => !kw || a.name.includes(kw))
-      .filter((a) => !br || (a.ref || '').includes(br))
+      .filter((a) => !filter.branch || a.ref === filter.branch)
       .filter((a) => filter.position === '전체' || a.position === filter.position)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusRows, filter])
@@ -122,11 +124,11 @@ export default function AppointmentListPage() {
   }
 
   return (
-    <AppLayout title="조직관리 · 임용계약">
+    <AppLayout title="임용관리 · 임용계약">
       <div className="flex items-start justify-between mb-4">
         <div>
           <h1 className="text-[22px] font-extrabold tracking-[-0.5px] text-text-strong">
-            조직관리 (임용계약)
+            임용관리 (임용계약)
           </h1>
           <p className="text-[13px] text-[#94a3b8] mt-1">
             임용계약을 등록·관리합니다. 직급별 급여·활동비가 자동 적용됩니다.
@@ -177,7 +179,18 @@ export default function AppointmentListPage() {
             <input value={filter.keyword} onChange={(e) => setFilter({ ...filter, keyword: e.target.value })} placeholder="계약자명 검색" className={inputCls} />
           </Field>
           <Field label="지점명">
-            <input value={filter.branch} onChange={(e) => setFilter({ ...filter, branch: e.target.value })} placeholder="지점명 검색" className={inputCls} />
+            <select
+              value={filter.branch}
+              onChange={(e) => setFilter({ ...filter, branch: e.target.value })}
+              className={inputCls}
+            >
+              <option value="">전체</option>
+              {branches.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="직급">
             <select
