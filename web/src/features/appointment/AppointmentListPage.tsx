@@ -140,38 +140,34 @@ export default function AppointmentListPage() {
         </button>
       </div>
 
-      {/* 요약 카드 */}
+      {/* 요약 카드 — 좌: 임용계약 현황(4줄), 우: 직급별 인원수(각 1장, 2행) */}
       <div className="grid grid-cols-4 gap-4 mb-4">
-        <SummaryCard label="전체 임용계약" value={sum.total} tint="#e0edff" fg="#2563eb" />
-        <SummaryCard label="정상" value={sum.active} tint="#e2f7ec" fg="#16a34a" />
-        <SummaryCard label="휴직" value={sum.paused} tint="#fff1e0" fg="#f59e0b" />
-        <SummaryCard label="해지" value={sum.ended} tint="#fee2e2" fg="#ef4444" />
-      </div>
-
-      {/* 직급별 인원수 (해지 제외) */}
-      <div className="rounded-[12px] border border-border bg-card p-4 mb-4">
-        <div className="mb-3 text-[13px] font-semibold text-[#64748b]">
-          직급별 인원수{' '}
-          <span className="text-[11.5px] font-normal text-[#64748b]">(해지 제외)</span>
-        </div>
-        {byPosition.length === 0 ? (
-          <div className="text-[13px] text-[#64748b]">데이터가 없습니다.</div>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {byPosition.map(({ position, count }) => (
-              <div
-                key={position}
-                className="flex items-center gap-2 rounded-[10px] border border-border px-3 py-2"
-              >
-                <Badge tone={positionTone(position)}>{position}</Badge>
-                <span className="text-[17px] font-extrabold text-text-strong tabular leading-none">
-                  {count}
-                </span>
-                <span className="text-[12px] text-[#64748b]">명</span>
-              </div>
-            ))}
+        {/* 임용계약 현황 — 전체/정상/휴직/해지 4줄 */}
+        <div className="row-span-2 rounded-[12px] border border-border bg-card p-4">
+          <div className="mb-3 text-[13px] font-semibold text-[#64748b]">임용계약</div>
+          <div className="space-y-2">
+            <StatRow label="전체" value={sum.total} fg="#2563eb" />
+            <StatRow label="정상" value={sum.active} fg="#16a34a" />
+            <StatRow label="휴직" value={sum.paused} fg="#f59e0b" />
+            <StatRow label="해지" value={sum.ended} fg="#ef4444" />
           </div>
-        )}
+        </div>
+
+        {/* 직급별 인원수 — 직급마다 카드 1장 (해지 제외) */}
+        {byPosition.map(({ position, count }) => (
+          <div
+            key={position}
+            className="rounded-[12px] border border-border bg-card p-4 flex items-center justify-between gap-3"
+          >
+            <Badge tone={positionTone(position)}>{position}</Badge>
+            <div className="flex items-baseline gap-1">
+              <span className="text-[25px] font-extrabold text-text-strong tabular leading-none">
+                {count}
+              </span>
+              <span className="text-[12px] text-[#64748b]">명</span>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* 필터 */}
@@ -370,14 +366,20 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-function SummaryCard({ label, value, tint, fg }: { label: string; value: number; tint: string; fg: string }) {
+/** 임용계약 현황 카드의 한 줄 — 라벨 + 인원수 (상태별 색상 점) */
+function StatRow({ label, value, fg }: { label: string; value: number; fg: string }) {
   return (
-    <div className="rounded-[12px] border border-border bg-card p-4 flex items-center gap-3">
-      <div className="h-[38px] w-[38px] rounded-[11px] flex items-center justify-center text-lg font-black" style={{ background: tint, color: fg }}>◱</div>
-      <div>
-        <div className="text-[13px] font-semibold text-[#64748b]">{label}</div>
-        <div className="text-[25px] font-extrabold text-text-strong leading-tight">{value}</div>
-      </div>
+    <div className="flex items-center justify-between gap-2">
+      <span className="flex items-center gap-2 text-[13px] font-semibold text-[#c2cde0]">
+        <span className="h-2 w-2 rounded-full" style={{ background: fg }} />
+        {label}
+      </span>
+      <span className="flex items-baseline gap-1">
+        <span className="text-[18px] font-extrabold text-text-strong tabular leading-none">
+          {value}
+        </span>
+        <span className="text-[11.5px] text-[#64748b]">명</span>
+      </span>
     </div>
   )
 }
