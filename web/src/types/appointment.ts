@@ -54,6 +54,7 @@ export interface Appointment {
   accountNo: string // 계좌번호
   accountOwner: string // 예금주
   status: AppointmentStatus // 계약상태
+  memo?: string // 비고
   createdAt: string
   history?: AppointmentHistory[] // 변경 이력
   documents?: AppointmentDoc[] // 제출서류 (Google Drive)

@@ -32,6 +32,7 @@ function mapAppointment(a, history, documents) {
     accountNo: a.account_no || '',
     accountOwner: a.account_owner || '',
     status: a.status,
+    memo: a.memo || '',
     createdAt: isoDate(a.created_at),
     history: (history || []).map((h) => ({
       historyId: String(h.id),
@@ -91,15 +92,20 @@ function nn(v) {
 
 /** 신규 임용계약 등록 */
 async function createAppointment(a) {
-  const { rows: n } = await pool.query(`SELECT COUNT(*)::int AS c FROM appointments`)
-  const id = `AP${String(n[0].c + 1).padStart(3, '0')}`
+  // id는 기존 최대 번호 + 1 로 만든다.
+  // COUNT(*)+1 방식은 중간 삭제가 있으면 이미 쓰는 id와 충돌한다.
+  const { rows: n } = await pool.query(
+    `SELECT COALESCE(MAX(CAST(SUBSTRING(id FROM 3) AS INT)), 0)::int AS maxnum
+       FROM appointments WHERE id ~ '^AP[0-9]+$'`,
+  )
+  const id = `AP${String(n[0].maxnum + 1).padStart(3, '0')}`
   await pool.query(
     `INSERT INTO appointments
        (id, contract_no, name, type_name, ref, resident_no, phone, position,
         salary, activity, insurance_type, contract_date, payout_date,
         work_start_date, report_start_date, end_date,
-        bank_name, account_no, account_owner, status, created_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
+        bank_name, account_no, account_owner, status, memo, created_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
     [
       id,
       a.contractNo || '',
@@ -121,6 +127,7 @@ async function createAppointment(a) {
       a.accountNo || '',
       a.accountOwner || '',
       a.status || '정상운영',
+      a.memo || '',
       nn(a.createdAt) || new Date(),
     ],
   )
@@ -162,6 +169,7 @@ async function updateAppointment(id, patch, meta) {
     bankName: 'bank_name',
     accountNo: 'account_no',
     accountOwner: 'account_owner',
+    memo: 'memo',
   }
   const LABELS = {
     name: '계약자명',
@@ -183,6 +191,7 @@ async function updateAppointment(id, patch, meta) {
     bankName: '은행/기관',
     accountNo: '계좌번호',
     accountOwner: '예금주',
+    memo: '비고',
   }
 
   const changes = []

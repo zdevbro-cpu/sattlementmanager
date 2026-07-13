@@ -113,8 +113,11 @@ CREATE TABLE IF NOT EXISTS appointments (
   account_no         TEXT,                 -- 계좌번호
   account_owner      TEXT,                 -- 예금주
   status             TEXT NOT NULL DEFAULT '정상운영', -- 계약상태
+  memo               TEXT,                 -- 비고
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- 기존 테이블에도 비고 컬럼을 보강한다 (CREATE TABLE IF NOT EXISTS 는 컬럼을 추가하지 않는다)
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS memo TEXT;
 CREATE INDEX IF NOT EXISTS idx_appointment_status ON appointments(status);
 CREATE INDEX IF NOT EXISTS idx_appointment_payout ON appointments(payout_date);
 
