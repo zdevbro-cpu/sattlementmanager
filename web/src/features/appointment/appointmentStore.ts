@@ -45,7 +45,26 @@ export function summarizeAppointments(list: Appointment[]) {
   return { total: list.length, active, paused, ended }
 }
 
-/** 직급별 인원수 — 인원이 많은 직급부터. 해지 건은 제외한다. */
+/**
+ * 카드에 고정으로 노출할 직급 순서 (직위 순).
+ * 상단 row: 점주·예비과장·과장·차장 / 하단 row: 부장·이사·상무·전무
+ * 인원이 0명이어도 자리를 지켜야 두 줄 배치가 유지된다.
+ */
+export const POSITION_CARD_ORDER = [
+  '점주',
+  '예비과장',
+  '과장',
+  '차장',
+  '부장',
+  '이사',
+  '상무',
+  '전무',
+] as const
+
+/**
+ * 직급별 인원수 — 위 고정 순서대로. 해지 건은 제외한다.
+ * 고정 목록에 없는 직급(신규 추가 등)이 데이터에 있으면 뒤에 덧붙인다.
+ */
 export function summarizeByPosition(
   list: Appointment[],
 ): { position: string; count: number }[] {
@@ -56,7 +75,16 @@ export function summarizeByPosition(
       const p = a.position || '(미지정)'
       map.set(p, (map.get(p) ?? 0) + 1)
     })
-  return [...map.entries()]
+
+  const fixed = POSITION_CARD_ORDER.map((position) => ({
+    position,
+    count: map.get(position) ?? 0,
+  }))
+  // 고정 목록에 없는 직급은 인원 많은 순으로 뒤에 붙인다 (누락 방지)
+  const extra = [...map.entries()]
+    .filter(([p]) => !POSITION_CARD_ORDER.includes(p as (typeof POSITION_CARD_ORDER)[number]))
     .map(([position, count]) => ({ position, count }))
     .sort((a, b) => b.count - a.count || a.position.localeCompare(b.position, 'ko'))
+
+  return [...fixed, ...extra]
 }

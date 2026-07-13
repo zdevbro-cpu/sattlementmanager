@@ -140,8 +140,8 @@ export default function AppointmentListPage() {
         </button>
       </div>
 
-      {/* 요약 카드 — 좌: 임용계약 현황(4줄), 우: 직급별 인원수(각 1장, 2행) */}
-      <div className="grid grid-cols-4 gap-4 mb-4">
+      {/* 요약 카드 — 좌: 임용계약 현황(4줄), 우: 직급별 인원수(각 1장, 4칸 × 2행) */}
+      <div className="grid grid-cols-5 gap-4 mb-4">
         {/* 임용계약 현황 — 전체/정상/휴직/해지 4줄 */}
         <div className="row-span-2 rounded-[12px] border border-border bg-card p-4">
           <div className="mb-3 text-[13px] font-semibold text-[#64748b]">임용계약</div>
