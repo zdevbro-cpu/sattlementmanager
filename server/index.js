@@ -193,6 +193,22 @@ app.delete('/api/appointments/:id', async (req, res) => {
   }
 })
 
+// ── 스키마 마이그레이션 (schema.sql 재적용) ──
+// CREATE TABLE IF NOT EXISTS / ALTER TABLE ADD COLUMN IF NOT EXISTS 로만 구성되어 있어
+// 반복 실행해도 기존 데이터에 영향이 없다. CRON_SECRET 으로 보호한다.
+app.post('/api/admin/migrate', async (req, res) => {
+  try {
+    if (req.headers['x-cron-secret'] !== process.env.CRON_SECRET) {
+      return res.status(403).json({ ok: false, error: 'forbidden' })
+    }
+    const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8')
+    await pool.query(sql)
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 // 임용계약 제출서류 → Google Drive 업로드 + DB 기록 (JSON base64 방식)
 app.post('/api/appointments/:id/document', async (req, res) => {
   try {
