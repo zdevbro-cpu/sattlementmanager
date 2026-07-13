@@ -148,22 +148,49 @@ function RevenuePayoutView() {
     const created = await createExtraPayoutApi(p)
     setExtras((prev) => [created, ...prev])
   }
-  // contractmanager 출력 기능 준용 — 텍스트 파일(.txt) 다운로드
+  // 수익금지급 텍스트(.txt) 다운로드
+  // 포맷: 이름|수당(활동비)|금액|주민번호|은행명|계좌번호|예금주
   const onExport = () => {
     if (totalCount === 0) {
       alert('출력할 데이터가 없습니다.')
       return
     }
-    const amountOnly = (v: number) => `${v.toLocaleString('ko-KR')}원`
-    // 이름  내역  금액  주민번호 / 은행명  계좌번호  예금주
+    const amountOnly = (v: number) => v.toLocaleString('ko-KR')
+    const line = (
+      name: string,
+      item: string,
+      amount: number,
+      residentNo: string,
+      bankName: string,
+      accountNo: string,
+      accountOwner: string,
+    ) =>
+      [name, item, amountOnly(amount), residentNo, bankName, accountNo, accountOwner].join('|')
+
     const body = [
-      ...targets.map(
-        ({ s }) =>
-          `${s.contractorName}  수당  ${amountOnly(payout(s.allowance))}  ${s.residentNo} / ${s.bankName}  ${s.accountNo}  ${s.contractorName}`,
+      // 계약 파생 지급분 — 지급내역은 '수당(활동비)'
+      ...targets.map(({ s }) =>
+        line(
+          s.contractorName,
+          '수당(활동비)',
+          payout(s.allowance),
+          s.residentNo,
+          s.bankName,
+          s.accountNo,
+          s.contractorName,
+        ),
       ),
-      ...extras.map(
-        (e) =>
-          `${e.name}  ${e.memo || '-'}  ${amountOnly(e.amount)}  ${e.residentNo} / ${e.bankName}  ${e.accountNo}  ${e.accountOwner}`,
+      // 추가지급 대상자 — 지급내역은 등록 시 입력한 내역을 그대로 사용
+      ...extras.map((e) =>
+        line(
+          e.name,
+          e.memo || '수당(활동비)',
+          e.amount,
+          e.residentNo,
+          e.bankName,
+          e.accountNo,
+          e.accountOwner,
+        ),
       ),
     ]
     const content = body.join('\r\n')
