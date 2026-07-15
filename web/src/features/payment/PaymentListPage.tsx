@@ -819,16 +819,43 @@ function SalaryPayoutView() {
 
 function LasOnBonusView() {
   const [contracts, setContracts] = useState<Contract[]>([])
-  const [keyword, setKeyword] = useState('')
+  // 계약자·유치자·파트장/파트너·계약자명은 모두 별개 인물일 수 있어 각각 독립 필터로 둔다.
+  const [filter, setFilter] = useState({
+    regStart: '', // 등록구간 시작 (계약 등록일 createdAt)
+    regEnd: '', // 등록구간 종료
+    contractStart: '', // 계약구간 시작 (입금일 = 계약일)
+    contractEnd: '', // 계약구간 종료
+    partner: '', // 파트장/파트너 (파트장 검색 시 산하 파트너까지 묶임)
+    keyword: '', // 계약자명·유치자
+  })
+  const setF = (patch: Partial<typeof filter>) => setFilter((f) => ({ ...f, ...patch }))
+  const reset = () =>
+    setFilter({ regStart: '', regEnd: '', contractStart: '', contractEnd: '', partner: '', keyword: '' })
 
   useEffect(() => {
     listContracts(EMPTY_FILTER).then(setContracts)
   }, [])
 
   const rows = useMemo(() => buildLasOnBonusRows(contracts, TODAY), [contracts])
-  const visibleRows = keyword.trim()
-    ? rows.filter((r) => r.contractorName.includes(keyword.trim()) || r.recruiter.includes(keyword.trim()))
-    : rows
+
+  const visibleRows = useMemo(() => {
+    const kw = filter.keyword.trim()
+    const pt = filter.partner.trim()
+    return rows.filter((r) => {
+      // 등록구간 (createdAt)
+      if (filter.regStart && (!r.createdAt || r.createdAt < filter.regStart)) return false
+      if (filter.regEnd && (!r.createdAt || r.createdAt > filter.regEnd)) return false
+      // 계약구간 (입금일 = 계약일)
+      if (filter.contractStart && (!r.depositDate || r.depositDate < filter.contractStart)) return false
+      if (filter.contractEnd && (!r.depositDate || r.depositDate > filter.contractEnd)) return false
+      // 파트장/파트너 — 파트장명(leaderName)으로 검색하면 산하 파트너 행까지 함께 잡힌다.
+      if (pt && !(r.leaderName.includes(pt) || r.recipientName.includes(pt) || r.recruiter.includes(pt)))
+        return false
+      // 계약자명·유치자
+      if (kw && !(r.contractorName.includes(kw) || r.recruiter.includes(kw))) return false
+      return true
+    })
+  }, [rows, filter])
   const bonusTotal = visibleRows
     .filter((r, i) => !visibleRows[i - 1] || r.no !== visibleRows[i - 1].no)
     .reduce((a, r) => a + r.netAmount, 0)
@@ -874,9 +901,27 @@ function LasOnBonusView() {
       </div>
 
       <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
-        <Field label="계약자명·유치자 검색">
-          <input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="계약자명 또는 유치자 검색" className={inputCls} />
-        </Field>
+        <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1.2fr_1.4fr_auto] gap-3 items-end">
+          <Field label="등록구간 시작">
+            <DateInput value={filter.regStart} onChange={(v) => setF({ regStart: v })} />
+          </Field>
+          <Field label="등록구간 종료">
+            <DateInput value={filter.regEnd} onChange={(v) => setF({ regEnd: v })} />
+          </Field>
+          <Field label="계약구간 시작">
+            <DateInput value={filter.contractStart} onChange={(v) => setF({ contractStart: v })} />
+          </Field>
+          <Field label="계약구간 종료">
+            <DateInput value={filter.contractEnd} onChange={(v) => setF({ contractEnd: v })} />
+          </Field>
+          <Field label="파트장·파트너">
+            <input value={filter.partner} onChange={(e) => setF({ partner: e.target.value })} placeholder="파트장 검색 시 산하 파트너 포함" className={inputCls} />
+          </Field>
+          <Field label="계약자명·유치자">
+            <input value={filter.keyword} onChange={(e) => setF({ keyword: e.target.value })} placeholder="계약자명 또는 유치자" className={inputCls} />
+          </Field>
+          <button onClick={reset} className="h-[38px] rounded-[8px] border border-border px-4 text-sm font-semibold text-[#c2cde0] hover:bg-hover whitespace-nowrap">초기화</button>
+        </div>
       </div>
 
       <div className="rounded-[14px] border border-border bg-card overflow-hidden">

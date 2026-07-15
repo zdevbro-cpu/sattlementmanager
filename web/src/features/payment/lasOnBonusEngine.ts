@@ -10,8 +10,15 @@ export const BONUS_WITHHOLDING = 0.033
 export interface LasOnBonusRow {
   no: number
   depositDate: string
+  /** 계약 등록일(createdAt) — 등록구간 필터용 */
+  createdAt: string
   contractorName: string
   recruiter: string
+  /** 유치자(수령인)의 소속 파트장 계약 id — 파트장 검색 시 산하 파트너까지 묶기 위한 키.
+   *  유치자가 파트장이면 자기 계약 id, 파트너면 그 파트너의 소속 파트장 id. */
+  leaderId: string
+  /** 소속 파트장 계약자명 — 파트장 검색 표시·매칭용 */
+  leaderName: string
   depositTotal: number
   cashAmount: number
   cardAmount: number
@@ -65,13 +72,48 @@ function toLegs(s: ContractSnapshot): Leg[] {
   ]
 }
 
+interface Recipient {
+  snapshot: ContractSnapshot
+  contractId: string
+  /** 소속 파트장 계약 id (파트장 본인이면 자기 id) */
+  leaderId: string
+  /** 소속 파트장 계약자명 (파트장 본인이면 자기 이름) */
+  leaderName: string
+}
+
 /** 계약자명 → LAS-On 수당 수령인 정보 맵 (LAS-On파트장/파트너 계약의 현재 스냅샷 기준) */
-function buildRecipientMap(contracts: Contract[]): Map<string, ContractSnapshot> {
-  const map = new Map<string, ContractSnapshot>()
+function buildRecipientMap(contracts: Contract[]): Map<string, Recipient> {
+  // id → 계약 (파트장 체인 추적용)
+  const byId = new Map<string, Contract>()
+  contracts.forEach((c) => byId.set(c.id, c))
+
+  // 파트너 → 소속 파트장을 parentContractId 로 거슬러 올라가 최상위 파트장을 찾는다.
+  const leaderOf = (c: Contract): { id: string; name: string } => {
+    let node = c
+    const seen = new Set<string>()
+    while (
+      node.current.contractType === 'LAS-On파트너' &&
+      node.current.parentContractId &&
+      byId.has(node.current.parentContractId) &&
+      !seen.has(node.id)
+    ) {
+      seen.add(node.id)
+      node = byId.get(node.current.parentContractId)!
+    }
+    return { id: node.id, name: node.current.contractorName }
+  }
+
+  const map = new Map<string, Recipient>()
   for (const c of contracts) {
     const cur = c.current
     if (cur.contractType === 'LAS-On파트장' || cur.contractType === 'LAS-On파트너') {
-      map.set(cur.contractorName, cur)
+      const leader = leaderOf(c)
+      map.set(cur.contractorName, {
+        snapshot: cur,
+        contractId: c.id,
+        leaderId: leader.id,
+        leaderName: leader.name,
+      })
     }
   }
   return map
@@ -113,17 +155,21 @@ export function buildLasOnBonusRows(contracts: Contract[], today: string): LasOn
       return { bonusAmount, tax, netAmount: bonusAmount - tax }
     }
 
+    const rs = recipient.snapshot
     const common = {
       no,
       depositDate: cur.contractDate,
+      createdAt: (cur.createdAt || '').slice(0, 10),
       contractorName: cur.contractorName,
       recruiter: cur.recruiter,
-      recipientName: recipient.recipientName || '',
+      leaderId: recipient.leaderId,
+      leaderName: recipient.leaderName,
+      recipientName: rs.recipientName || '',
       bonusRate: BONUS_RATE * 100,
-      bankName: recipient.recipientBankName || '',
-      accountNo: recipient.recipientAccountNo || '',
-      accountOwner: recipient.recipientAccountOwner || '',
-      residentNo: recipient.recipientResidentNo || '',
+      bankName: rs.recipientBankName || '',
+      accountNo: rs.recipientAccountNo || '',
+      accountOwner: rs.recipientAccountOwner || '',
+      residentNo: rs.recipientResidentNo || '',
       memo: cur.memo || '',
     }
 
