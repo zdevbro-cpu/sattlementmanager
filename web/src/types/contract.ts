@@ -129,6 +129,13 @@ export interface ContractSnapshot {
   residentNo: string // 주민등록번호
   phone: string // 전화번호
 
+  // ── LAS-On 수당 수령인 (계약자와 별개, LAS-On파트장/파트너 전용) ──
+  recipientName?: string // 수령인 이름
+  recipientBankName?: string // 수령인 은행명
+  recipientAccountNo?: string // 수령인 계좌번호
+  recipientAccountOwner?: string // 수령인 예금주
+  recipientResidentNo?: string // 수령인 주민등록번호
+
   // ── 결재정보 ───────────────────────────────
   payment: PaymentInfo
 

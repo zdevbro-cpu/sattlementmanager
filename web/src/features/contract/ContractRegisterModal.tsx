@@ -43,6 +43,11 @@ interface FormState {
   residentNo: string
   phone: string
   memo: string
+  recipientName: string
+  recipientBankName: string
+  recipientAccountNo: string
+  recipientAccountOwner: string
+  recipientResidentNo: string
 }
 
 export default function ContractRegisterModal({
@@ -75,6 +80,11 @@ export default function ContractRegisterModal({
     residentNo: '',
     phone: '',
     memo: '',
+    recipientName: '',
+    recipientBankName: '',
+    recipientAccountNo: '',
+    recipientAccountOwner: '',
+    recipientResidentNo: '',
   })
   const [payment, setPayment] = useState<PaymentInfo>(emptyPayment())
   const [contractFile, setContractFile] = useState<File | null>(null)
@@ -99,6 +109,7 @@ export default function ContractRegisterModal({
   const depositMatched = payTotal === f.deposit
   // LAS-On파트너는 소속 파트장을 먼저 지정해야 나머지 입력을 진행할 수 있다
   const isPartner = f.contractType === 'LAS-On파트너'
+  const isLasOn = f.contractType === 'LAS-On파트너' || f.contractType === 'LAS-On파트장'
   const partnerLocked = isPartner && !f.parentContractId
 
   const submit = async (isDraft: boolean) => {
@@ -139,6 +150,11 @@ export default function ContractRegisterModal({
         accountOwner: f.accountOwner.trim() || f.contractorName.trim(),
         residentNo: f.residentNo,
         phone: f.phone,
+        recipientName: isLasOn ? f.recipientName.trim() : '',
+        recipientBankName: isLasOn ? f.recipientBankName : '',
+        recipientAccountNo: isLasOn ? f.recipientAccountNo : '',
+        recipientAccountOwner: isLasOn ? f.recipientAccountOwner.trim() || f.recipientName.trim() : '',
+        recipientResidentNo: isLasOn ? f.recipientResidentNo : '',
         payment,
         documents,
         memo: f.memo,
@@ -290,6 +306,27 @@ export default function ContractRegisterModal({
                     ))}
                   </select>
                 </Field>
+              )}
+
+              {/* 5행 — LAS-On 수당 수령인 (계약자 본인과 별개, 수당 지급 대상자 정보) */}
+              {isLasOn && (
+                <>
+                  <Field label="수령인">
+                    <input value={f.recipientName} onChange={(e) => set('recipientName', e.target.value)} className={inputCls} placeholder="수당 받을 사람" disabled={partnerLocked} />
+                  </Field>
+                  <Field label="수령인 은행명">
+                    <input value={f.recipientBankName} onChange={(e) => set('recipientBankName', e.target.value)} className={inputCls} disabled={partnerLocked} />
+                  </Field>
+                  <Field label="수령인 계좌번호">
+                    <input value={f.recipientAccountNo} onChange={(e) => set('recipientAccountNo', e.target.value)} className={inputCls} disabled={partnerLocked} />
+                  </Field>
+                  <Field label="수령인 예금주">
+                    <input value={f.recipientAccountOwner} onChange={(e) => set('recipientAccountOwner', e.target.value)} className={inputCls} placeholder="미입력 시 수령인명" disabled={partnerLocked} />
+                  </Field>
+                  <Field label="수령인 주민번호">
+                    <input value={f.recipientResidentNo} onChange={(e) => set('recipientResidentNo', residentNoFmt(e.target.value))} className={inputCls} disabled={partnerLocked} />
+                  </Field>
+                </>
               )}
             </div>
             {partnerLocked && (

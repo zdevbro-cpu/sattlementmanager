@@ -60,6 +60,11 @@ export default function HistoryCorrectForm({
   const [bankName, setBankName] = useState(base.bankName)
   const [accountNo, setAccountNo] = useState(base.accountNo)
   const [accountOwner, setAccountOwner] = useState(base.accountOwner)
+  const [recipientName, setRecipientName] = useState(base.recipientName ?? '')
+  const [recipientBankName, setRecipientBankName] = useState(base.recipientBankName ?? '')
+  const [recipientAccountNo, setRecipientAccountNo] = useState(base.recipientAccountNo ?? '')
+  const [recipientAccountOwner, setRecipientAccountOwner] = useState(base.recipientAccountOwner ?? '')
+  const [recipientResidentNo, setRecipientResidentNo] = useState(base.recipientResidentNo ?? '')
   const [memo, setMemo] = useState(base.memo ?? '')
   const [payment, setPayment] = useState<PaymentInfo>(base.payment)
   const [saving, setSaving] = useState(false)
@@ -93,6 +98,11 @@ export default function HistoryCorrectForm({
         bankName,
         accountNo,
         accountOwner,
+        recipientName: recipientName.trim(),
+        recipientBankName,
+        recipientAccountNo,
+        recipientAccountOwner: recipientAccountOwner.trim() || recipientName.trim(),
+        recipientResidentNo,
         memo,
         payment,
       }
@@ -212,6 +222,25 @@ export default function HistoryCorrectForm({
               ))}
             </select>
           </Field>
+        )}
+        {(contractType === 'LAS-On파트너' || contractType === 'LAS-On파트장') && (
+          <>
+            <Field label="수령인">
+              <input value={recipientName} onChange={(e) => setRecipientName(e.target.value)} className={inputCls} placeholder="수당 받을 사람" />
+            </Field>
+            <Field label="수령인 은행명">
+              <input value={recipientBankName} onChange={(e) => setRecipientBankName(e.target.value)} className={inputCls} />
+            </Field>
+            <Field label="수령인 계좌번호">
+              <input value={recipientAccountNo} onChange={(e) => setRecipientAccountNo(e.target.value)} className={inputCls} />
+            </Field>
+            <Field label="수령인 예금주">
+              <input value={recipientAccountOwner} onChange={(e) => setRecipientAccountOwner(e.target.value)} className={inputCls} placeholder="미입력 시 수령인명" />
+            </Field>
+            <Field label="수령인 주민번호">
+              <input value={recipientResidentNo} onChange={(e) => setRecipientResidentNo(residentNoFmt(e.target.value))} className={inputCls} />
+            </Field>
+          </>
         )}
       </div>
       <Field label="비고">

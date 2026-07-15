@@ -616,7 +616,12 @@ function saleToLegs(s) {
   ]
 }
 
-/** 매출 목록 → 출력행 계획. 단건은 1행, 분할결제는 합계행(번호 있음, 굵게) + 회차행(번호 없음)으로 펼친다. */
+/**
+ * 매출 목록 → 출력행 계획. 단건은 1행, 분할결제는 합계행(굵게) + 회차행으로 펼친다.
+ * 번호·날짜·사업부·구매자·내용·담당은 회차행도 공란 없이 합계행과 동일하게 채운다.
+ * 결재구분만 회차행은 그 회차의 개별 결제수단(카드/현금)을 쓰고, 합계행은 전체 대표값
+ * (카드/현금/카드+현금)을 쓴다.
+ */
 function buildSalesReportPlan(sales) {
   const plan = []
   let no = 0
@@ -643,9 +648,14 @@ function buildSalesReportPlan(sales) {
       return
     }
 
+    const hasCard = legs.some((l) => l.method === '카드')
+    const hasCash = legs.some((l) => l.method === '현금')
+    const summaryMethod = hasCard && hasCash ? '카드+현금' : hasCard ? '카드' : '현금'
+
     plan.push({
       no,
       date: s.date,
+      method: summaryMethod,
       businessUnit: s.businessUnit,
       buyer: s.buyer,
       category: s.category,
@@ -655,13 +665,18 @@ function buildSalesReportPlan(sales) {
     })
     legs.forEach((leg) => {
       plan.push({
-        no: null,
+        no,
+        date: s.date,
         method: leg.method,
         terminalNo: leg.terminalNo,
+        businessUnit: s.businessUnit,
+        buyer: s.buyer,
+        category: s.category,
         amount: leg.amount,
         issuer: leg.issuer,
         cardNumber: leg.cardNumber,
         approvalNo: leg.approvalNo,
+        manager: s.manager,
       })
     })
   })
@@ -691,7 +706,7 @@ function resizeReportSheet(ws, total) {
 
 /**
  * 매출 목록 → "매출 일일 보고" 양식(server/templates)에 채운 워크북 반환.
- * 번호는 거래 단위 일련번호로 새로 생성하고, 분할결제 회차행은 번호를 비운다.
+ * 번호는 거래 단위 일련번호로 새로 생성하고, 분할결제 회차행도 합계행과 동일한 번호를 쓴다.
  * 데이터 행 수에 맞춰 템플릿 서식을 유지한 채 나머지 행은 삭제한다.
  */
 async function buildSalesReportWorkbook(sales, label) {
@@ -732,7 +747,11 @@ async function buildSalesReportWorkbook(sales, label) {
   return wb
 }
 
-/** 전일 22:00 KST ~ 금일 22:00 KST 마감 창 계산 (호출 시각 기준 가장 최근 마감 구간) */
+/**
+ * 이번달 1일 00:00 KST ~ 금일 22:00 KST 마감 시각까지의 누적 보고 구간을 계산한다
+ * (호출 시각 기준 가장 최근 마감 시점). 매일 같은 달 안에서는 1일 데이터가 계속 누적되고,
+ * 월이 바뀌면 from이 새 달 1일로 초기화된다.
+ */
 function reportWindow() {
   const KST_OFFSET = 9 * 3600 * 1000
   const now = new Date()
@@ -741,7 +760,10 @@ function reportWindow() {
     Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate(), 22, 0, 0) - KST_OFFSET,
   )
   if (now < to) to = new Date(to.getTime() - 24 * 3600 * 1000)
-  const from = new Date(to.getTime() - 24 * 3600 * 1000)
+  const toKst = new Date(to.getTime() + KST_OFFSET)
+  const from = new Date(
+    Date.UTC(toKst.getUTCFullYear(), toKst.getUTCMonth(), 1, 0, 0, 0) - KST_OFFSET,
+  )
   return { from, to }
 }
 function kstDateLabel(d) {
@@ -788,7 +810,8 @@ app.post('/api/cron/daily-sales-report', async (req, res) => {
 
     const toLabel = kstDateLabel(to)
     const fromLabel = kstDateLabel(from)
-    const wb = await buildSalesReportWorkbook(inWindow, toLabel)
+    const rangeLabel = `${fromLabel} ~ ${toLabel}`
+    const wb = await buildSalesReportWorkbook(inWindow, rangeLabel)
     const buf = await wb.xlsx.writeBuffer()
 
     const { rows: cfg } = await pool.query(
@@ -807,7 +830,7 @@ app.post('/api/cron/daily-sales-report', async (req, res) => {
       from: mailFrom(),
       to: emails.join(','),
       subject: `[Settlement Manager] 매출 일일보고 ${toLabel}`,
-      text: `전일(${fromLabel}) 오후 10:00 ~ 금일(${toLabel}) 오후 10:00까지 매출을 취합하여 송부합니다.\n\n대상 건수: ${inWindow.length}건`,
+      text: `이번달 1일(${fromLabel}) 이후 ~ 금일(${toLabel}) 오후 10:00까지 누적 매출을 취합하여 송부합니다.\n\n대상 건수: ${inWindow.length}건`,
       attachments: [
         {
           filename: `매출일일보고_${toLabel}.xlsx`,

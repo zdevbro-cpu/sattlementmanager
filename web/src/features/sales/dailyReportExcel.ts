@@ -61,7 +61,7 @@ function toLegs(s: Sale): Leg[] {
 }
 
 interface PlanRow {
-  no: number | null // null = 분할결제 회차행(번호 없음)
+  no: number
   date?: string
   method?: string // 결재구분(카드/현금/카드+현금)
   terminalNo?: string
@@ -76,7 +76,11 @@ interface PlanRow {
   bold?: boolean
 }
 
-/** 매출 목록 → 출력행 계획. 단건은 1행, 분할결제는 합계행(번호 있음, 굵게) + 회차행(번호 없음)으로 펼친다. */
+/**
+ * 매출 목록 → 출력행 계획. 단건은 1행, 분할결제는 합계행(굵게) + 회차행으로 펼친다.
+ * 번호·날짜·사업부·구매자·내용·담당은 회차행도 공란 없이 합계행과 동일하게 채운다.
+ * 결재구분만 회차행은 그 회차의 개별 결제수단(카드/현금)을, 합계행은 전체 대표값을 쓴다.
+ */
 function buildPlan(sales: Sale[]): PlanRow[] {
   const plan: PlanRow[] = []
   let no = 0
@@ -120,13 +124,18 @@ function buildPlan(sales: Sale[]): PlanRow[] {
     })
     legs.forEach((leg) => {
       plan.push({
-        no: null,
+        no,
+        date: s.date,
         method: leg.method,
         terminalNo: leg.terminalNo,
+        businessUnit: s.businessUnit,
+        buyer: s.buyer,
+        category: s.category,
         amount: leg.amount,
         issuer: leg.issuer,
         cardNumber: leg.cardNumber,
         approvalNo: leg.approvalNo,
+        manager: s.manager,
       })
     })
   })
@@ -157,7 +166,8 @@ function resizeToPlan(ws: ExcelJS.Worksheet, total: number): void {
 
 /**
  * 매출 목록을 템플릿 시트에 채운다. 번호는 거래 단위 일련번호로 새로 생성하고,
- * 분할결제 회차행은 번호를 비운다. 데이터 행 수에 맞춰 템플릿 서식을 유지한 채 나머지 행은 삭제한다.
+ * 분할결제 회차행도 합계행과 동일한 번호를 쓴다. 데이터 행 수에 맞춰 템플릿 서식을 유지한 채
+ * 나머지 행은 삭제한다.
  */
 function fillRows(ws: ExcelJS.Worksheet, sales: Sale[]): number {
   const plan = buildPlan(sales)
@@ -192,17 +202,25 @@ function fillRows(ws: ExcelJS.Worksheet, sales: Sale[]): number {
   return plan.length
 }
 
-/** 해당 일자 매출을 템플릿에 채운 Workbook 반환 */
+/**
+ * 해당 일자가 속한 달의 1일부터 해당 일자까지 누적 매출을 템플릿에 채운 Workbook 반환.
+ * 예) 7/2 보고서 = 7/1 + 7/2 누적 (매일 새로 집계하므로 번호도 자연히 누적 건수만큼 이어진다).
+ */
 export async function buildDailyReportWorkbook(
   date: string,
 ): Promise<{ wb: ExcelJS.Workbook; rows: Sale[] }> {
   const wb = await loadTemplate()
   const ws = wb.worksheets[0]
   const all = await listSales(EMPTY_SALES_FILTER)
-  // 등록일(createdAt) 기준 집계 — 그날 등록된 매출(직접등록 + 계약 보증금 연동)을 모두 포함
-  const rows = all.filter((s) => (s.createdAt ?? '').slice(0, 10) === date)
+  const monthStart = `${date.slice(0, 7)}-01`
+  // 등록일(createdAt) 기준 집계 — 이번달 1일부터 해당 일자까지 등록된 매출을 모두 포함
+  const rows = all.filter((s) => {
+    const d = (s.createdAt ?? '').slice(0, 10)
+    return d >= monthStart && d <= date
+  })
 
-  ws.getCell('A1').value = `매출 일일 보고(교육사업부)   ·   ${date}`
+  const rangeLabel = `${monthStart} ~ ${date}`
+  ws.getCell('A1').value = `매출 일일 보고(교육사업부)   ·   ${rangeLabel}`
   fillRows(ws, rows)
 
   return { wb, rows }

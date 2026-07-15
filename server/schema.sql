@@ -41,6 +41,11 @@ CREATE TABLE IF NOT EXISTS contract_history (
   payment_total            BIGINT DEFAULT 0,
   memo                     TEXT,
   is_draft                 BOOLEAN NOT NULL DEFAULT FALSE, -- 임시저장 여부 (계약등록 확정 전)
+  recipient_name           TEXT,                   -- LAS-On 수당 수령인 (계약자와 별개, LAS-On파트장/파트너 전용)
+  recipient_bank_name      TEXT,                   -- 수령인 은행명
+  recipient_account_no     TEXT,                   -- 수령인 계좌번호
+  recipient_account_owner  TEXT,                   -- 수령인 예금주
+  recipient_resident_no    TEXT,                   -- 수령인 주민등록번호
   created_at               TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_history_contract ON contract_history(contract_id);

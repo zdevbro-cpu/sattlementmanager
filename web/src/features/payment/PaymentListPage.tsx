@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Calendar, ChevronLeft, ChevronRight, DollarSign, Eye, Landmark, Plus, Wallet, X } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, DollarSign, Download, Eye, Landmark, Plus, Wallet, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import { comma, dateText, won } from '../../lib/format'
@@ -11,6 +11,8 @@ import { listAppointments } from '../appointment/appointmentStore'
 import { usePositionSalaries } from '../appointment/positionSalaryStore'
 import { calcPayroll, payrollTextLines, type PayrollRow } from './payrollEngine'
 import PayslipDrawer from './PayslipDrawer'
+import { buildLasOnBonusRows } from './lasOnBonusEngine'
+import { downloadLasOnBonusReport } from './lasOnBonusExcel'
 import {
   createExtraPayoutApi,
   deleteExtraPayoutApi,
@@ -71,9 +73,18 @@ export default function PaymentListPage() {
         <TabButton active={category === '급여'} onClick={() => setCategory('급여')}>
           급여관리
         </TabButton>
+        <TabButton active={category === 'LAS-On'} onClick={() => setCategory('LAS-On')}>
+          라스온수당지급
+        </TabButton>
       </div>
 
-      {category === '수익금' ? <RevenuePayoutView /> : <SalaryPayoutView />}
+      {category === '수익금' ? (
+        <RevenuePayoutView />
+      ) : category === '급여' ? (
+        <SalaryPayoutView />
+      ) : (
+        <LasOnBonusView />
+      )}
     </AppLayout>
   )
 }
@@ -800,6 +811,128 @@ function SalaryPayoutView() {
           onClose={() => setDetailId(null)}
         />
       )}
+    </div>
+  )
+}
+
+/* ── LAS-On 수당지급 (유치보너스 — 유치자가 LAS-On파트장/파트너인 신규 계약 파생) ──── */
+
+function LasOnBonusView() {
+  const [contracts, setContracts] = useState<Contract[]>([])
+  const [keyword, setKeyword] = useState('')
+
+  useEffect(() => {
+    listContracts(EMPTY_FILTER).then(setContracts)
+  }, [])
+
+  const rows = useMemo(() => buildLasOnBonusRows(contracts, TODAY), [contracts])
+  const visibleRows = keyword.trim()
+    ? rows.filter((r) => r.contractorName.includes(keyword.trim()) || r.recruiter.includes(keyword.trim()))
+    : rows
+  const bonusTotal = visibleRows
+    .filter((r, i) => !visibleRows[i - 1] || r.no !== visibleRows[i - 1].no)
+    .reduce((a, r) => a + r.netAmount, 0)
+  const targetCount = new Set(visibleRows.map((r) => r.no)).size
+
+  const [excelBusy, setExcelBusy] = useState(false)
+  const onExcelDownload = async () => {
+    if (visibleRows.length === 0) {
+      alert('출력할 데이터가 없습니다.')
+      return
+    }
+    setExcelBusy(true)
+    try {
+      await downloadLasOnBonusReport(visibleRows, TODAY)
+    } catch (e) {
+      alert((e as Error).message)
+    } finally {
+      setExcelBusy(false)
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h2 className="text-[18px] font-extrabold text-text-strong">라스온수당지급</h2>
+          <p className="text-[13px] text-[#94a3b8] mt-1">
+            유치자가 LAS-On파트장/파트너인 신규 계약의 유치보너스(15%)를 관리합니다.
+          </p>
+        </div>
+        <button
+          onClick={onExcelDownload}
+          disabled={excelBusy}
+          className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-success px-4 text-sm font-bold text-white hover:brightness-110 disabled:opacity-60"
+        >
+          {excelBusy ? '다운로드 중…' : (<><Download size={15} /> 엑셀 다운로드</>)}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <SummaryCard label="지급대상 건수" value={`${targetCount} 건`} sub="계약 기준" tint="#e0edff" fg="#2563eb" icon={<Wallet size={18} />} />
+        <SummaryCard label="지급예정 금액" value={won(bonusTotal)} sub="실지급액 합계" tint="#e2f7ec" fg="#16a34a" icon={<DollarSign size={18} />} />
+      </div>
+
+      <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
+        <Field label="계약자명·유치자 검색">
+          <input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="계약자명 또는 유치자 검색" className={inputCls} />
+        </Field>
+      </div>
+
+      <div className="rounded-[14px] border border-border bg-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1700px] text-[13px]">
+            <thead>
+              <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
+                {[
+                  ['연번', 'center'], ['입금일', 'center'], ['신규 계약자', ''], ['유치자', ''],
+                  ['보증금 합계', 'right'], ['현금', 'right'], ['카드금액', 'right'], ['카드사', ''], ['승인번호', ''],
+                  ['수당기준금액', 'right'],
+                  ['수령인', ''], ['보너스율(%)', 'center'], ['보너스금액', 'right'], ['세금(3.3%)', 'right'], ['실지급액', 'right'],
+                  ['은행', ''], ['계좌번호', ''], ['예금주', ''], ['주민번호', ''], ['비고', ''],
+                ].map(([h, a]) => (
+                  <th key={h} className={`px-3 py-1.5 font-semibold whitespace-nowrap ${a === 'right' ? 'text-right' : a === 'center' ? 'text-center' : ''}`}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {visibleRows.map((r, i) => (
+                <tr key={i} className={`border-b border-border hover:bg-hover ${r.bold ? 'font-bold text-[#f59e0b]' : ''}`}>
+                  <td className="px-3 py-1.5 text-center whitespace-nowrap tabular">{r.no}</td>
+                  <td className="px-3 py-1.5 text-center whitespace-nowrap tabular">{dateText(r.depositDate)}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{r.contractorName}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{r.recruiter}</td>
+                  <td className="px-3 py-1.5 text-right whitespace-nowrap tabular">{comma(r.depositTotal)}</td>
+                  <td className="px-3 py-1.5 text-right whitespace-nowrap tabular">{r.cashAmount ? comma(r.cashAmount) : ''}</td>
+                  <td className="px-3 py-1.5 text-right whitespace-nowrap tabular">{r.cardAmount ? comma(r.cardAmount) : ''}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{r.cardIssuer}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{r.approvalNo}</td>
+                  <td className="px-3 py-1.5 text-right whitespace-nowrap tabular">{comma(r.baseAmount)}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{r.recipientName}</td>
+                  <td className="px-3 py-1.5 text-center whitespace-nowrap tabular">{r.bonusRate}</td>
+                  <td className="px-3 py-1.5 text-right whitespace-nowrap tabular">{comma(r.bonusAmount)}</td>
+                  <td className="px-3 py-1.5 text-right whitespace-nowrap tabular">{comma(r.tax)}</td>
+                  <td className="px-3 py-1.5 text-right whitespace-nowrap tabular font-bold text-primary">{comma(r.netAmount)}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{r.bankName}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap tabular">{r.accountNo}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{r.accountOwner}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap tabular">{r.residentNo}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{r.memo}</td>
+                </tr>
+              ))}
+              {visibleRows.length === 0 && (
+                <tr>
+                  <td colSpan={20} className="px-3 py-10 text-center text-[#64748b]">
+                    조건에 맞는 유치보너스 대상이 없습니다.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }

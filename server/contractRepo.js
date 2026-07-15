@@ -58,6 +58,11 @@ function mapSnapshot(h, installments, documents) {
     accountOwner: h.account_owner || '',
     residentNo: h.resident_no || '',
     phone: h.phone || '',
+    recipientName: h.recipient_name || '',
+    recipientBankName: h.recipient_bank_name || '',
+    recipientAccountNo: h.recipient_account_no || '',
+    recipientAccountOwner: h.recipient_account_owner || '',
+    recipientResidentNo: h.recipient_resident_no || '',
     payment: {
       method,
       totalAmount: Number(h.payment_total || 0),
@@ -161,8 +166,9 @@ async function insertHistory(client, contractId, snap) {
         deposit,allowance,allowance_pay_day,first_allowance_pay_date,
         contract_end_date,branch,manager,recruiter,
         bank_name,account_no,account_owner,resident_no,phone,
-        payment_method,payment_total,memo,is_draft)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
+        payment_method,payment_total,memo,is_draft,
+        recipient_name,recipient_bank_name,recipient_account_no,recipient_account_owner,recipient_resident_no)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32)
      RETURNING id`,
     [
       contractId,
@@ -192,6 +198,11 @@ async function insertHistory(client, contractId, snap) {
       p.totalAmount || 0,
       snap.memo || '',
       !!snap.isDraft,
+      snap.recipientName || '',
+      snap.recipientBankName || '',
+      snap.recipientAccountNo || '',
+      snap.recipientAccountOwner || '',
+      snap.recipientResidentNo || '',
     ],
   )
   const historyId = rows[0].id
@@ -302,7 +313,9 @@ async function correctHistory(historyId, snap) {
          deposit=$9, allowance=$10, allowance_pay_day=$11, first_allowance_pay_date=$12,
          contract_end_date=$13, branch=$14, manager=$15, recruiter=$16,
          bank_name=$17, account_no=$18, account_owner=$19, resident_no=$20, phone=$21,
-         payment_method=$22, payment_total=$23, memo=$24, is_draft=$25
+         payment_method=$22, payment_total=$23, memo=$24, is_draft=$25,
+         recipient_name=$26, recipient_bank_name=$27, recipient_account_no=$28,
+         recipient_account_owner=$29, recipient_resident_no=$30
        WHERE id=$1`,
       [
         historyId,
@@ -330,6 +343,11 @@ async function correctHistory(historyId, snap) {
         p.totalAmount || 0,
         snap.memo || '',
         !!snap.isDraft,
+        snap.recipientName || '',
+        snap.recipientBankName || '',
+        snap.recipientAccountNo || '',
+        snap.recipientAccountOwner || '',
+        snap.recipientResidentNo || '',
       ],
     )
     if (rowCount === 0) throw new Error('이력을 찾을 수 없습니다.')
