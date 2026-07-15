@@ -77,6 +77,15 @@ app.post('/api/contracts', async (req, res) => {
   }
 })
 
+app.delete('/api/contracts/:id', async (req, res) => {
+  try {
+    await repo.deleteContract(req.params.id)
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 // ── 계약 이력 추가 (증액/양수/양도/해지/폐기 등) ──
 app.post('/api/contracts/:id/history', async (req, res) => {
   try {

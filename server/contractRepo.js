@@ -425,6 +425,11 @@ async function addDocument(contractId, doc) {
   return rows[0].id
 }
 
+/** 계약 1건 삭제 (이력·분할결제·문서는 FK ON DELETE CASCADE로 함께 삭제) */
+async function deleteContract(id) {
+  await pool.query(`DELETE FROM contracts WHERE id = $1`, [id])
+}
+
 module.exports = {
   listContracts,
   getContract,
@@ -432,4 +437,5 @@ module.exports = {
   addHistory,
   correctHistory,
   addDocument,
+  deleteContract,
 }
