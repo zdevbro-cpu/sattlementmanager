@@ -7,6 +7,18 @@ import type { Contract, ContractSnapshot } from '../../types/contract'
 export const BONUS_RATE = 0.15
 export const BONUS_WITHHOLDING = 0.033
 
+/** LAS-On 파트장/파트너 인원수 (임시저장 제외). 상단 카드용. */
+export function countLasOnPartners(contracts: Contract[]): { leaders: number; partners: number } {
+  let leaders = 0
+  let partners = 0
+  for (const c of contracts) {
+    if (c.current.isDraft) continue
+    if (c.current.contractType === 'LAS-On파트장') leaders++
+    else if (c.current.contractType === 'LAS-On파트너') partners++
+  }
+  return { leaders, partners }
+}
+
 export interface LasOnBonusRow {
   no: number
   depositDate: string

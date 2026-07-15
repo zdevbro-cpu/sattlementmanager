@@ -11,7 +11,8 @@ import { listAppointments } from '../appointment/appointmentStore'
 import { usePositionSalaries } from '../appointment/positionSalaryStore'
 import { calcPayroll, payrollTextLines, type PayrollRow } from './payrollEngine'
 import PayslipDrawer from './PayslipDrawer'
-import { buildLasOnBonusRows } from './lasOnBonusEngine'
+import DateTextInput from '../../components/ui/DateTextInput'
+import { buildLasOnBonusRows, countLasOnPartners } from './lasOnBonusEngine'
 import { downloadLasOnBonusReport } from './lasOnBonusExcel'
 import {
   createExtraPayoutApi,
@@ -837,6 +838,7 @@ function LasOnBonusView() {
   }, [])
 
   const rows = useMemo(() => buildLasOnBonusRows(contracts, TODAY), [contracts])
+  const partnerCount = useMemo(() => countLasOnPartners(contracts), [contracts])
 
   const visibleRows = useMemo(() => {
     const kw = filter.keyword.trim()
@@ -895,24 +897,34 @@ function LasOnBonusView() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-3 gap-4 mb-4">
         <SummaryCard label="지급대상 건수" value={`${targetCount} 건`} sub="계약 기준" tint="#e0edff" fg="#2563eb" icon={<Wallet size={18} />} />
         <SummaryCard label="지급예정 금액" value={won(bonusTotal)} sub="실지급액 합계" tint="#e2f7ec" fg="#16a34a" icon={<DollarSign size={18} />} />
+        <SummaryCard
+          label="파트장 · 파트너"
+          value={`${partnerCount.leaders} · ${partnerCount.partners} 명`}
+          sub="파트장 인원 · 파트너 인원"
+          tint="#f3e8ff"
+          fg="#7c3aed"
+          icon={<Landmark size={18} />}
+        />
       </div>
 
       <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
-        <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1.2fr_1.4fr_auto] gap-3 items-end">
-          <Field label="등록구간 시작">
-            <DateInput value={filter.regStart} onChange={(v) => setF({ regStart: v })} />
+        <div className="grid grid-cols-[1.6fr_1.6fr_1.2fr_1.4fr_auto] gap-3 items-end">
+          <Field label="등록구간">
+            <div className="flex items-center gap-1">
+              <DateTextInput value={filter.regStart} onChange={(v) => setF({ regStart: v })} className={inputCls} />
+              <span className="shrink-0 text-[#64748b]">~</span>
+              <DateTextInput value={filter.regEnd} onChange={(v) => setF({ regEnd: v })} className={inputCls} />
+            </div>
           </Field>
-          <Field label="등록구간 종료">
-            <DateInput value={filter.regEnd} onChange={(v) => setF({ regEnd: v })} />
-          </Field>
-          <Field label="계약구간 시작">
-            <DateInput value={filter.contractStart} onChange={(v) => setF({ contractStart: v })} />
-          </Field>
-          <Field label="계약구간 종료">
-            <DateInput value={filter.contractEnd} onChange={(v) => setF({ contractEnd: v })} />
+          <Field label="계약구간">
+            <div className="flex items-center gap-1">
+              <DateTextInput value={filter.contractStart} onChange={(v) => setF({ contractStart: v })} className={inputCls} />
+              <span className="shrink-0 text-[#64748b]">~</span>
+              <DateTextInput value={filter.contractEnd} onChange={(v) => setF({ contractEnd: v })} className={inputCls} />
+            </div>
           </Field>
           <Field label="파트장·파트너">
             <input value={filter.partner} onChange={(e) => setF({ partner: e.target.value })} placeholder="파트장 검색 시 산하 파트너 포함" className={inputCls} />
