@@ -232,7 +232,10 @@ function SnapshotCard({
   s: ContractSnapshot
   highlight?: boolean
 }) {
-  const rows: [string, string][] = [
+  const isLasOn = s.contractType === 'LAS-On파트너' || s.contractType === 'LAS-On파트장'
+
+  // 계약자 본인 관련 내용 — 상단에 배치
+  const contractRows: [string, string][] = [
     ['소속', s.org],
     ['계약구분', s.contractType],
     ...(s.contractType === 'LAS-On파트너' ? [['소속 파트장', s.parentContractId || '-'] as [string, string]] : []),
@@ -243,27 +246,51 @@ function SnapshotCard({
     ['수당지급기준일', dateText(s.firstAllowancePayDate)],
     ['계약종료일', dateText(s.contractEndDate)],
     ['지점명', s.branch],
-    ['관리자', s.manager],
-    ['유치자', s.recruiter],
     ['은행명', s.bankName],
     ['계좌번호', s.accountNo],
     ['예금주', s.accountOwner],
     ['주민등록번호', s.residentNo],
     ['전화번호', s.phone],
   ]
+
+  // 유치자·관리자·수령인 — 계약자 정보와 구분해 한 단에 모아 배치
+  const staffRows: [string, string][] = [
+    ['유치자', s.recruiter],
+    ['관리자', s.manager],
+    ...(isLasOn
+      ? ([
+          ['수령인', s.recipientName || '-'],
+          ['수령인 은행명', s.recipientBankName || '-'],
+          ['수령인 계좌번호', s.recipientAccountNo || '-'],
+          ['수령인 예금주', s.recipientAccountOwner || '-'],
+          ['수령인 주민번호', s.recipientResidentNo || '-'],
+        ] as [string, string][])
+      : []),
+  ]
+
+  const cardCls = [
+    'rounded-[10px] border p-3',
+    highlight ? 'border-primary/40 bg-input/30' : 'border-border',
+  ].join(' ')
+
   return (
-    <div
-      className={[
-        'rounded-[10px] border p-3 grid grid-cols-2 gap-x-6 gap-y-2',
-        highlight ? 'border-primary/40 bg-input/30' : 'border-border',
-      ].join(' ')}
-    >
-      {rows.map(([k, v]) => (
-        <div key={k} className="flex justify-between text-[12.5px]">
-          <span className="text-[#64748b]">{k}</span>
-          <span className="text-[#e2e8f0] tabular">{v}</span>
-        </div>
-      ))}
+    <div className="space-y-2">
+      <div className={`${cardCls} grid grid-cols-2 gap-x-6 gap-y-2`}>
+        {contractRows.map(([k, v]) => (
+          <div key={k} className="flex justify-between text-[12.5px]">
+            <span className="text-[#64748b]">{k}</span>
+            <span className="text-[#e2e8f0] tabular">{v}</span>
+          </div>
+        ))}
+      </div>
+      <div className={`${cardCls} flex flex-wrap gap-x-6 gap-y-2`}>
+        {staffRows.map(([k, v]) => (
+          <div key={k} className="flex items-center gap-1.5 text-[12.5px]">
+            <span className="text-[#64748b]">{k}</span>
+            <span className="text-[#e2e8f0] tabular">{v}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

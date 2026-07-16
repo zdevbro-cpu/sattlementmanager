@@ -213,7 +213,23 @@ export default function HistoryCorrectForm({
         </Field>
         {contractType === 'LAS-On파트너' && (
           <Field label="소속 파트장">
-            <select value={parentContractId} onChange={(e) => setParentContractId(e.target.value)} className={inputCls}>
+            <select
+              value={parentContractId}
+              onChange={(e) => {
+                const id = e.target.value
+                setParentContractId(id)
+                const leader = leaders.find((l) => l.id === id)
+                if (leader) {
+                  // 소속 파트장 선택 시 수당 수령인 기본값을 파트장 본인 정보(이름/계좌)로 자동입력
+                  setRecipientName(leader.current.contractorName)
+                  setRecipientBankName(leader.current.bankName || '')
+                  setRecipientAccountNo(leader.current.accountNo || '')
+                  setRecipientAccountOwner(leader.current.accountOwner || '')
+                  setRecipientResidentNo(leader.current.residentNo || '')
+                }
+              }}
+              className={inputCls}
+            >
               <option value="">선택 안 함</option>
               {leaders.map((l) => (
                 <option key={l.id} value={l.id}>

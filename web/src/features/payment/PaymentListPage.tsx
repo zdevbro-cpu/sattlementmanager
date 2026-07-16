@@ -897,13 +897,21 @@ function LasOnBonusView() {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-4 gap-4 mb-4">
         <SummaryCard label="지급대상 건수" value={`${targetCount} 건`} sub="계약 기준" tint="#e0edff" fg="#2563eb" icon={<Wallet size={18} />} />
         <SummaryCard label="지급예정 금액" value={won(bonusTotal)} sub="실지급액 합계" tint="#e2f7ec" fg="#16a34a" icon={<DollarSign size={18} />} />
         <SummaryCard
-          label="파트장 · 파트너"
-          value={`${partnerCount.leaders} · ${partnerCount.partners} 명`}
-          sub="파트장 인원 · 파트너 인원"
+          label="파트장 인원"
+          value={`${partnerCount.leaders} 명`}
+          sub="LAS-On파트장"
+          tint="#f3e8ff"
+          fg="#7c3aed"
+          icon={<Landmark size={18} />}
+        />
+        <SummaryCard
+          label="파트너 인원"
+          value={`${partnerCount.partners} 명`}
+          sub="LAS-On파트너"
           tint="#f3e8ff"
           fg="#7c3aed"
           icon={<Landmark size={18} />}

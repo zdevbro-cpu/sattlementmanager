@@ -295,7 +295,25 @@ export default function ContractRegisterModal({
                 <Field label="소속 파트장">
                   <select
                     value={f.parentContractId}
-                    onChange={(e) => set('parentContractId', e.target.value)}
+                    onChange={(e) => {
+                      const id = e.target.value
+                      const leader = leaders.find((l) => l.id === id)
+                      if (leader) {
+                        // 소속 파트장 선택 시 수당 수령인 기본값을 파트장 본인 정보(이름/계좌)로
+                        // 자동입력한다 — 기본적으로 파트장 본인이 수령인이 되며, 이후 자유롭게 수정 가능하다.
+                        setF({
+                          ...f,
+                          parentContractId: id,
+                          recipientName: leader.current.contractorName,
+                          recipientBankName: leader.current.bankName || '',
+                          recipientAccountNo: leader.current.accountNo || '',
+                          recipientAccountOwner: leader.current.accountOwner || '',
+                          recipientResidentNo: leader.current.residentNo || '',
+                        })
+                      } else {
+                        set('parentContractId', id)
+                      }
+                    }}
                     className={`${inputCls} ${!f.parentContractId ? 'ring-2 ring-warning border-warning animate-pulse' : ''}`}
                   >
                     <option value="">선택 안 함</option>

@@ -1,16 +1,29 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Download } from 'lucide-react'
-import { comma, dateText } from '../../lib/format'
+import { comma, dateText, todayIso } from '../../lib/format'
 import { useCodes } from '../../lib/codeStore'
-import { EMPTY_FILTER, type Contract } from '../../types/contract'
+import StatusBadge from '../../components/ui/StatusBadge'
+import Badge from '../../components/ui/Badge'
+import DateTextInput from '../../components/ui/DateTextInput'
+import { useBranches } from '../appointment/branchStore'
+import { EMPTY_FILTER, type Contract, type ContractFilter } from '../../types/contract'
 import { listContracts } from './contractStore'
 import { downloadLasOnStatusReport, type LasOnRow } from './lasOnExcel'
 
 const HEADERS = [
-  '번호', '계약일자', '이름', '주민번호', '구분',
+  '번호', '계약일자', '이름', '주민번호', '구분', '상태',
   '합계', '현금입금', '카드결제', '카드사', '승인번호', '단말기NO', '입금은행',
   '유치자', '은행명', '계좌번호', '예금주', '비고',
 ]
+
+// 등록구간·계약구간 종료일은 오늘 날짜를 기본값으로 사용 (시작은 비워둠 = 전체 이력 포함) — 계약조회와 동일
+const DEFAULT_FILTER: ContractFilter = {
+  ...EMPTY_FILTER,
+  regEndDate: todayIso(),
+  contractEndDate: todayIso(),
+}
+// 상태 드롭다운 전용 sentinel — 실제 status 값이 아니라 "전체 + 폐기 포함"을 뜻하는 선택지 (계약조회와 동일)
+const INCLUDE_DISCARDED_VALUE = '__include_discarded__'
 
 function sumAmount(list: { amount: number }[]): number {
   return list.reduce((a, x) => a + (x.amount || 0), 0)
@@ -35,15 +48,22 @@ function depositBank(c: Contract): string {
 /**
  * 라스온(파트장,파트너) 계약 현황 — docs/양식_라스온 파트장 파트너 계약현황.xlsx 양식 준용.
  * 매출관리와 동일하게 계약관리 페이지의 탭으로 내장된다 (별도 페이지/라우트 아님).
+ * 검색필터는 계약조회(ContractListPage) 목록과 동일한 필터를 사용한다.
  */
 export default function LasOnStatusPage() {
   const codes = useCodes()
+  const branches = useBranches()
   const [businessUnit, setBusinessUnit] = useState('전체')
+  const [filter, setFilter] = useState<ContractFilter>(DEFAULT_FILTER)
+  const [includeDiscarded, setIncludeDiscarded] = useState(false)
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
+  const contractEndDateRef = useRef<HTMLInputElement>(null)
+  const regEndDateRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     let alive = true
+    setLoading(true)
     listContracts(EMPTY_FILTER).then((list) => {
       if (alive) {
         setContracts(
@@ -59,9 +79,31 @@ export default function LasOnStatusPage() {
     }
   }, [])
 
-  const filtered = contracts.filter(
-    (c) => businessUnit === '전체' || c.current.businessUnit === businessUnit,
-  )
+  // 관리자·유치자 자동완성 목록 — 현재 불러온 계약에 실제로 입력된 값 기준 (하드코딩 목록 아님)
+  const managerOptions = Array.from(new Set(contracts.map((c) => c.current.manager).filter(Boolean))).sort()
+  const recruiterOptions = Array.from(new Set(contracts.map((c) => c.current.recruiter).filter(Boolean))).sort()
+
+  // 계약조회와 동일한 필터 조건(소속·지점명·관리자·유치자·계약자명·계약구간·등록구간·상태) + 사업부
+  const filtered = contracts.filter((c) => {
+    const s = c.current
+    if (businessUnit !== '전체' && s.businessUnit !== businessUnit) return false
+    if (filter.org !== '전체' && s.org !== filter.org) return false
+    if (filter.branch !== '전체' && s.branch !== filter.branch) return false
+    if (filter.manager && !s.manager.includes(filter.manager)) return false
+    if (filter.recruiter && !s.recruiter.includes(filter.recruiter)) return false
+    if (filter.keyword && !s.contractorName.includes(filter.keyword)) return false
+    if (filter.contractDate && s.contractDate && s.contractDate < filter.contractDate) return false
+    if (filter.contractEndDate && s.contractDate && s.contractDate > filter.contractEndDate) return false
+    if (filter.regStartDate && s.createdAt && s.createdAt < filter.regStartDate) return false
+    if (filter.regEndDate && s.createdAt && s.createdAt > filter.regEndDate) return false
+    if (filter.status !== '전체') {
+      if (s.status !== filter.status) return false
+    } else if (!includeDiscarded && s.status === '폐기') {
+      return false
+    }
+    return true
+  })
+
   const leaders = filtered.filter((c) => c.current.contractType === 'LAS-On파트장')
   const partnersOf = (leaderId: string) =>
     filtered.filter((c) => c.current.contractType === 'LAS-On파트너' && c.current.parentContractId === leaderId)
@@ -72,18 +114,18 @@ export default function LasOnStatusPage() {
   )
 
   const rows: LasOnRow[] = []
-  let no = 0
   leaders.forEach((leader) => {
-    no++
-    rows.push({ no, c: leader, isLeader: true })
+    rows.push({ no: 0, c: leader, isLeader: true })
     partnersOf(leader.id).forEach((p) => {
-      no++
-      rows.push({ no, c: p, isLeader: false })
+      rows.push({ no: 0, c: p, isLeader: false })
     })
   })
   unassignedPartners.forEach((p) => {
-    no++
-    rows.push({ no, c: p, isLeader: false })
+    rows.push({ no: 0, c: p, isLeader: false })
+  })
+  // 계약조회 목록과 동일하게 번호를 역순으로 표시 (맨 위가 전체 건수, 맨 아래가 1)
+  rows.forEach((r, i) => {
+    r.no = rows.length - i
   })
 
   const [excelBusy, setExcelBusy] = useState(false)
@@ -118,20 +160,146 @@ export default function LasOnStatusPage() {
         </button>
       </div>
 
-      <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
-        <label className="block max-w-[240px]">
-          <span className="mb-1 block text-[11.5px] font-semibold text-[#94a3b8]">사업부</span>
-          <select
-            value={businessUnit}
-            onChange={(e) => setBusinessUnit(e.target.value)}
-            className="h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary"
+      {/* 필터 바 — 계약조회 목록과 동일 구성 + 사업부 */}
+      <div className="rounded-[14px] border border-border bg-card p-4 mb-4 overflow-x-auto">
+        <div className="grid grid-cols-[repeat(11,minmax(120px,1fr))_auto] gap-2 items-end min-w-[1750px]">
+          <Field label="사업부">
+            <select
+              value={businessUnit}
+              onChange={(e) => setBusinessUnit(e.target.value)}
+              className={inputCls}
+            >
+              <option value="전체">전체</option>
+              {codes.businessUnits.map((b) => (
+                <option key={b}>{b}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="소속">
+            <SelectFilter
+              value={filter.org}
+              options={codes.orgs}
+              onChange={(v) => setFilter({ ...filter, org: v })}
+            />
+          </Field>
+          <div className="col-span-2">
+            <span className="mb-1 block text-[11.5px] font-semibold text-[#94a3b8]">
+              등록구간
+            </span>
+            <div className="flex items-center gap-1">
+              <DateTextInput
+                value={filter.regStartDate}
+                onChange={(v) => setFilter({ ...filter, regStartDate: v })}
+                onTabNext={() => regEndDateRef.current?.focus()}
+                className={inputCls}
+              />
+              <span className="shrink-0 text-[#64748b]">~</span>
+              <DateTextInput
+                ref={regEndDateRef}
+                value={filter.regEndDate}
+                onChange={(v) => setFilter({ ...filter, regEndDate: v })}
+                className={inputCls}
+              />
+            </div>
+          </div>
+          <Field label="계약자명">
+            <input
+              value={filter.keyword}
+              onChange={(e) => setFilter({ ...filter, keyword: e.target.value })}
+              placeholder="계약자명 검색"
+              className={inputCls}
+            />
+          </Field>
+          <div className="col-span-2">
+            <span className="mb-1 block text-[11.5px] font-semibold text-[#94a3b8]">
+              계약구간
+            </span>
+            <div className="flex items-center gap-1">
+              <DateTextInput
+                value={filter.contractDate}
+                onChange={(v) => setFilter({ ...filter, contractDate: v })}
+                onTabNext={() => contractEndDateRef.current?.focus()}
+                className={inputCls}
+              />
+              <span className="shrink-0 text-[#64748b]">~</span>
+              <DateTextInput
+                ref={contractEndDateRef}
+                value={filter.contractEndDate}
+                onChange={(v) => setFilter({ ...filter, contractEndDate: v })}
+                className={inputCls}
+              />
+            </div>
+          </div>
+          <Field label="지점명">
+            <SelectFilter
+              value={filter.branch}
+              options={branches}
+              onChange={(v) => setFilter({ ...filter, branch: v })}
+            />
+          </Field>
+          <Field label="관리자">
+            <input
+              value={filter.manager}
+              onChange={(e) => setFilter({ ...filter, manager: e.target.value })}
+              placeholder="관리자 검색"
+              list="lason-manager-filter-list"
+              className={inputCls}
+            />
+            <datalist id="lason-manager-filter-list">
+              {managerOptions.map((m) => (
+                <option key={m} value={m} />
+              ))}
+            </datalist>
+          </Field>
+          <Field label="유치자">
+            <input
+              value={filter.recruiter}
+              onChange={(e) => setFilter({ ...filter, recruiter: e.target.value })}
+              placeholder="유치자 검색"
+              list="lason-recruiter-filter-list"
+              className={inputCls}
+            />
+            <datalist id="lason-recruiter-filter-list">
+              {recruiterOptions.map((r) => (
+                <option key={r} value={r} />
+              ))}
+            </datalist>
+          </Field>
+          <Field label="상태">
+            <select
+              value={includeDiscarded && filter.status === '전체' ? INCLUDE_DISCARDED_VALUE : filter.status}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === INCLUDE_DISCARDED_VALUE) {
+                  setIncludeDiscarded(true)
+                  setFilter({ ...filter, status: '전체' })
+                } else {
+                  setIncludeDiscarded(false)
+                  setFilter({ ...filter, status: v })
+                }
+              }}
+              className={inputCls}
+            >
+              <option value="전체">전체(폐기미포함)</option>
+              {codes.statuses.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+              <option value={INCLUDE_DISCARDED_VALUE}>전체(폐기포함)</option>
+            </select>
+          </Field>
+          <button
+            onClick={() => {
+              setFilter(DEFAULT_FILTER)
+              setIncludeDiscarded(false)
+              setBusinessUnit('전체')
+            }}
+            className="h-[38px] rounded-[8px] border border-border px-5 text-sm font-semibold text-[#c2cde0] hover:bg-hover whitespace-nowrap"
           >
-            <option value="전체">전체</option>
-            {codes.businessUnits.map((b) => (
-              <option key={b}>{b}</option>
-            ))}
-          </select>
-        </label>
+            초기화
+          </button>
+        </div>
       </div>
 
       <div className="rounded-[14px] border border-border bg-card overflow-hidden">
@@ -141,7 +309,7 @@ export default function LasOnStatusPage() {
           </span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1500px] text-[13px]">
+          <table className="w-full min-w-[1560px] text-[13px]">
             <thead>
               <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
                 {HEADERS.map((h) => (
@@ -172,13 +340,10 @@ export default function LasOnStatusPage() {
                     </td>
                     <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{s.residentNo || '-'}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-bold ${
-                          r.isLeader ? 'bg-[#e0edff] text-[#2563eb]' : 'bg-[#e2f7ec] text-[#16a34a]'
-                        }`}
-                      >
-                        {r.isLeader ? '파트장' : '파트너'}
-                      </span>
+                      <Badge tone={r.isLeader ? 'blue' : 'green'}>{r.isLeader ? '파트장' : '파트너'}</Badge>
+                    </td>
+                    <td className="px-3 py-1.5 whitespace-nowrap">
+                      <StatusBadge status={s.status} />
                     </td>
                     <td className="px-3 py-1.5 tabular text-right font-bold text-warning whitespace-nowrap">
                       {comma(s.payment.totalAmount)}
@@ -213,5 +378,38 @@ export default function LasOnStatusPage() {
         </div>
       </div>
     </>
+  )
+}
+
+const inputCls =
+  'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
+
+function SelectFilter({
+  value,
+  options,
+  onChange,
+}: {
+  value: string
+  options: string[]
+  onChange: (v: string) => void
+}) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className={inputCls}>
+      <option value="전체">전체</option>
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[11.5px] font-semibold text-[#94a3b8]">{label}</span>
+      {children}
+    </label>
   )
 }

@@ -248,13 +248,13 @@ export default function SalesListPage() {
                   ))}
                 </datalist>
               </Field>
-              <Field label="구매자">
+              <Field label="계약자">
                 <input value={filter.buyer} onChange={(e) => setFilter({ ...filter, buyer: e.target.value })} placeholder="포함" className={inputCls} />
               </Field>
-              <Field label="입력자 소속">
+              <Field label="소속">
                 <input value={filter.inputterOrg} onChange={(e) => setFilter({ ...filter, inputterOrg: e.target.value })} placeholder="포함" className={inputCls} />
               </Field>
-              <Field label="입력자 성명">
+              <Field label="담당자">
                 <input value={filter.inputterName} onChange={(e) => setFilter({ ...filter, inputterName: e.target.value })} placeholder="포함" className={inputCls} />
               </Field>
               <div className="flex items-end gap-2">
@@ -279,7 +279,7 @@ export default function SalesListPage() {
               <table className="w-full min-w-[1200px] text-[13px]">
                 <thead>
                   <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
-                    {['번호', '소속', '등록일', '계약일', 'CAT ID', '사업부', '구매자', '내용', '금액', '카드사/입금은행', '카드번호', '승인번호/입금자', '담당', '관리'].map(
+                    {['번호', '소속', '등록일', '계약일', 'CAT ID', '사업부', '계약자', '내용', '금액', '카드사/입금은행', '카드번호', '승인번호/입금자', '담당자', '관리'].map(
                       (h) => {
                         const sortKeyFor: SortKey | null =
                           h === '등록일' ? 'createdAt' : h === '계약일' ? 'date' : null

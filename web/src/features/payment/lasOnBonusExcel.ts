@@ -46,6 +46,17 @@ export async function downloadLasOnBonusReport(rows: LasOnBonusRow[], label: str
   ws.getCell('A1').value = `${label} 라스온 파트너 유치 보너스`
   resizeToPlan(ws, rows.length)
 
+  // 목록(헤더+데이터) 전체를 감싸는 바깥 테두리를 동일한 굵기(medium — thick보다 한 단계 얇게)로
+  // 통일한다. 2행(제목과 목록 사이 빈 행)은 테두리를 주지 않고, 헤더 3행 윗줄을 목록 상단
+  // 테두리로 삼는다. 헤더 영역은 열(A/T)이 병합돼 있어 병합 앵커 셀에만 좌우 테두리를 설정한다.
+  const OUTER_BORDER = 'medium' as const
+  for (let c = 1; c <= 20; c++) {
+    const cell = ws.getCell(3, c)
+    cell.border = { ...cell.border, top: { style: OUTER_BORDER } }
+  }
+  ws.getCell('A3').border = { ...ws.getCell('A3').border, left: { style: OUTER_BORDER } }
+  ws.getCell('T3').border = { ...ws.getCell('T3').border, right: { style: OUTER_BORDER } }
+
   // 템플릿 행마다 정렬이 제각각이라 컬럼별로 정렬을 명시적으로 통일한다.
   const CENTER_COLS = new Set([1, 2, 8, 9, 12, 19])
   const RIGHT_COLS = new Set([5, 6, 7, 10, 13, 14, 15])
@@ -64,20 +75,27 @@ export async function downloadLasOnBonusReport(rows: LasOnBonusRow[], label: str
 
     // 주의: alignment/font/border를 셀마다 따로따로(cell.alignment=…, cell.font=…, cell.border=…)
     // 나눠서 지정하면 ExcelJS가 내부적으로 스타일을 잘못 병합/공유하는 현상이 확인되어(재현·검증 완료),
-    // 반드시 style 전체를 한 번에 새 객체로 교체한다.
+    // 반드시 style 전체를 한 번에 새 객체로 교체한다. 원본 서식(테두리·서식)은 value 대입 전에
+    // 미리 캡처해둔다 — value 대입 이후에 읽으면 ExcelJS가 초기화한 상태를 읽어올 수 있다.
     for (let c = 1; c <= 20; c++) {
       const cell = row.getCell(c)
+      const originalNumFmt = cell.numFmt
       cell.value = values[c - 1]
       const horizontal = CENTER_COLS.has(c) ? 'center' : RIGHT_COLS.has(c) ? 'right' : 'left'
+      const isTableStart = i === 0
+      const isTableEnd = i === rows.length - 1
       cell.style = {
-        font: { ...cell.style.font, bold: !!r.bold },
+        font: { ...cell.font, bold: !!r.bold },
         alignment: { vertical: 'middle', horizontal },
         border: {
-          ...cell.style.border,
-          top: { style: isGroupStart ? 'double' : 'dotted' },
-          bottom: { style: isGroupEnd ? 'double' : 'dotted' },
+          // 표 전체 바깥 테두리(맨 아래/좌우)는 헤더 상단과 동일한 굵기로,
+          // 그 외 연번 그룹 경계는 기존대로 이중실선/점선으로 표시한다.
+          top: { style: isTableStart ? OUTER_BORDER : isGroupStart ? 'double' : 'dotted' },
+          bottom: { style: isTableEnd ? OUTER_BORDER : isGroupEnd ? 'double' : 'dotted' },
+          ...(c === 1 ? { left: { style: OUTER_BORDER } } : {}),
+          ...(c === 20 ? { right: { style: OUTER_BORDER } } : {}),
         },
-        numFmt: NUM_COLS.has(c) ? '#,##0' : cell.style.numFmt,
+        numFmt: NUM_COLS.has(c) ? '#,##0' : c === 12 ? '0%' : originalNumFmt,
       }
     }
     row.commit?.()

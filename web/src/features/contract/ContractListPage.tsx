@@ -12,7 +12,7 @@ import {
   type ContractFilter,
 } from '../../types/contract'
 import { useCodes } from '../../lib/codeStore'
-import { BRANCHES, MANAGERS, RECRUITERS } from '../../data/mockContracts'
+import { useBranches } from '../appointment/branchStore'
 import { addHistory, listContracts, summarize } from './contractStore'
 import ContractRegisterModal from './ContractRegisterModal'
 import ContractDetailDrawer from './ContractDetailDrawer'
@@ -56,6 +56,7 @@ const INCLUDE_DISCARDED_VALUE = '__include_discarded__'
 
 export default function ContractListPage() {
   const codes = useCodes()
+  const branches = useBranches()
   const [tab, setTab] = useState<Tab>('list')
   // 매출관리와 동일하게 입력 즉시 목록에 반영 (별도 검색 버튼 없음)
   const [filter, setFilter] = useState<ContractFilter>(DEFAULT_CONTRACT_FILTER)
@@ -112,10 +113,25 @@ export default function ContractListPage() {
   }, [filter, sortKey, sortDir, perPage, includeDiscarded])
 
   // 상태='전체'일 때만 의미 있음 — 특정 상태를 골랐다면(예: 폐기) 그대로 보여준다
-  const visibleRows =
+  const statusFiltered =
     filter.status === '전체' && !includeDiscarded
       ? rows.filter((c) => c.current.status !== '폐기')
       : rows
+  // 서버(listContracts)는 상태·소속·계약자명·계약구간만 필터링하므로, 지점명·관리자·유치자·
+  // 등록구간은 클라이언트에서 추가로 걸러낸다. 관리자·유치자는 자유입력이라 부분일치로 비교한다.
+  const visibleRows = statusFiltered.filter((c) => {
+    const s = c.current
+    if (filter.branch !== '전체' && s.branch !== filter.branch) return false
+    if (filter.manager && !s.manager.includes(filter.manager)) return false
+    if (filter.recruiter && !s.recruiter.includes(filter.recruiter)) return false
+    if (filter.regStartDate && s.createdAt && s.createdAt < filter.regStartDate) return false
+    if (filter.regEndDate && s.createdAt && s.createdAt > filter.regEndDate) return false
+    return true
+  })
+
+  // 관리자·유치자 자동완성 목록 — 현재 불러온 계약에 실제로 입력된 값 기준 (하드코딩 목록 아님)
+  const managerOptions = Array.from(new Set(rows.map((c) => c.current.manager).filter(Boolean))).sort()
+  const recruiterOptions = Array.from(new Set(rows.map((c) => c.current.recruiter).filter(Boolean))).sort()
 
   const sortedRows = [...visibleRows].sort((a, b) => {
     const av = sortKey === 'createdAt' ? a.current.createdAt : a.current.contractDate
@@ -308,23 +324,37 @@ export default function ContractListPage() {
           <Field label="지점명">
             <SelectFilter
               value={filter.branch}
-              options={BRANCHES}
+              options={branches}
               onChange={(v) => setFilter({ ...filter, branch: v })}
             />
           </Field>
           <Field label="관리자">
-            <SelectFilter
+            <input
               value={filter.manager}
-              options={MANAGERS}
-              onChange={(v) => setFilter({ ...filter, manager: v })}
+              onChange={(e) => setFilter({ ...filter, manager: e.target.value })}
+              placeholder="관리자 검색"
+              list="manager-filter-list"
+              className={inputCls}
             />
+            <datalist id="manager-filter-list">
+              {managerOptions.map((m) => (
+                <option key={m} value={m} />
+              ))}
+            </datalist>
           </Field>
           <Field label="유치자">
-            <SelectFilter
+            <input
               value={filter.recruiter}
-              options={RECRUITERS}
-              onChange={(v) => setFilter({ ...filter, recruiter: v })}
+              onChange={(e) => setFilter({ ...filter, recruiter: e.target.value })}
+              placeholder="유치자 검색"
+              list="recruiter-filter-list"
+              className={inputCls}
             />
+            <datalist id="recruiter-filter-list">
+              {recruiterOptions.map((r) => (
+                <option key={r} value={r} />
+              ))}
+            </datalist>
           </Field>
           <Field label="상태">
             <select

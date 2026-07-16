@@ -1,5 +1,7 @@
 // LAS-On 수당지급(유치보너스) 계산 — 순수 계산 모듈.
-// 유치자가 LAS-On파트장/파트너로 등록된 사람인 신규 계약을 찾아, 그 계약의 보증금(=수당기준금액)의
+// 유치보너스는 LAS-On파트장/파트너가 새로운 LAS-On파트너를 유치했을 때만 발생한다.
+// 대상 계약구분은 반드시 'LAS-On파트너'여야 하며, 계약구분과 무관하게 유치자 이름만
+// 일치하는 다른 계약(예: LAS매장점주)은 절대 대상이 아니다. 그 계약의 보증금(=수당기준금액)의
 // 15%를 보너스로, 3.3% 원천징수 후 실지급액을 계산한다. 수령인은 계약자 본인이 아니라 LAS-On
 // 등록 시 별도로 입력한 수당 수령인이다.
 import type { Contract, ContractSnapshot } from '../../types/contract'
@@ -133,8 +135,9 @@ function buildRecipientMap(contracts: Contract[]): Map<string, Recipient> {
 
 /**
  * 유치보너스 대상 계약 → 출력행 계획.
- * 대상: status='신규', 유치자가 LAS-On파트장/파트너 계약자명과 일치, 임시저장 아님,
- *       입금일(계약일) 다음날 이후(= 오늘이 계약일보다 늦음)에만 노출.
+ * 대상: 계약구분='LAS-On파트너'(신규 파트너 유치 건만), status='신규', 임시저장 아님,
+ *       유치자가 LAS-On파트장/파트너 계약자명과 일치, 입금일(계약일) 다음날 이후(= 오늘이 계약일보다 늦음)에만 노출.
+ *       LAS매장점주 등 다른 계약구분은 유치자 이름이 우연히 일치해도 절대 대상이 아니다.
  * 분할결제는 합계행(굵게) + 회차행으로 펼치며, 번호·입금일·신규계약자·유치자·수령인·계좌정보는
  * 회차행도 공란 없이 합계행과 동일하게 채운다. 보증금 합계·수당기준금액·보너스금액·세금·실지급액은
  * 그 행 자신의 금액 기준으로 각각 계산한다 — 합계행은 전체 보증금, 회차행은 그 회차 결제액.
@@ -147,9 +150,15 @@ export function buildLasOnBonusRows(contracts: Contract[], today: string): LasOn
   for (const c of contracts) {
     const cur = c.current
     if (cur.status !== '신규' || cur.isDraft) continue
+    // 유치보너스는 "LAS-On파트장/파트너가 새 LAS-On파트너를 유치"했을 때만 발생한다 —
+    // LAS매장점주 등 다른 계약구분은 유치자 이름이 우연히 일치해도 대상이 아니다.
+    if (cur.contractType !== 'LAS-On파트너') continue
     if (!cur.recruiter) continue
     const recipient = recipients.get(cur.recruiter)
     if (!recipient) continue
+    // 유치자가 LAS-On파트장/파트너로 등록되기 전에 이미 존재하던(계약일이 더 빠른) 계약은
+    // 소급 적용 대상이 아니다 — LAS-On 등록일 이후 유치 건만 보너스 대상으로 삼는다.
+    if (recipient.snapshot.contractDate && cur.contractDate < recipient.snapshot.contractDate) continue
     if (!(cur.contractDate < today)) continue // 입금일 다음날부터 노출
 
     const legs = toLegs(cur)
@@ -224,5 +233,10 @@ export function buildLasOnBonusRows(contracts: Contract[], today: string): LasOn
       })
     })
   }
+  // 계약조회 등 다른 목록과 동일하게 번호를 역순으로 표시 (같은 계약의 합계행·회차행은 번호를 그대로 공유)
+  const maxNo = no
+  rows.forEach((r) => {
+    r.no = maxNo - r.no + 1
+  })
   return rows
 }

@@ -163,12 +163,12 @@ export interface ContractFilter {
   keyword: string // 계약자명 검색
   status: string // 상태 ('전체' 포함)
   branch: string // 지점명 ('전체' 포함)
-  manager: string // 관리자 ('전체' 포함)
+  manager: string // 관리자 (자유입력 부분일치 검색, 빈 문자열 = 전체)
   contractDate: string // 계약일자 (해당일 이후)
   contractEndDate: string // 계약종료일 (해당일 이전)
   regStartDate: string // 등록시작 (등록일 이후)
   regEndDate: string // 등록종료 (등록일 이전)
-  recruiter: string // 유치자 ('전체' 포함)
+  recruiter: string // 유치자 (자유입력 부분일치 검색, 빈 문자열 = 전체)
   org: string // 소속 ('전체' 포함)
 }
 
@@ -176,11 +176,11 @@ export const EMPTY_FILTER: ContractFilter = {
   keyword: '',
   status: '전체',
   branch: '전체',
-  manager: '전체',
+  manager: '',
   contractDate: '',
   contractEndDate: '',
   regStartDate: '',
   regEndDate: '',
-  recruiter: '전체',
+  recruiter: '',
   org: '전체',
 }
