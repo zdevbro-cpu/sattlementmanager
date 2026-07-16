@@ -97,6 +97,19 @@ app.post('/api/contracts/:id/history', async (req, res) => {
   }
 })
 
+// ── 양수 처리 — 양수인 계약에 이력 추가 + 양도인 계약에 자동으로 '양도' 이력 추가 ──
+app.post('/api/contracts/:id/transfer-in', async (req, res) => {
+  try {
+    const { transferorContractId, transferAmount, snap } = req.body
+    if (!transferorContractId) return res.status(400).json({ ok: false, error: '양도인 계약을 선택하세요.' })
+    const c = await repo.transferIn(req.params.id, transferorContractId, transferAmount || 0, snap)
+    if (!c) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: c })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 // ── 계약 이력 오타수정 (새 이력행 추가 없이 기존 스냅샷을 그대로 고침) ──
 app.patch('/api/contracts/:id/history/:historyId', async (req, res) => {
   try {

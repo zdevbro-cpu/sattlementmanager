@@ -252,6 +252,19 @@ export function addContractHistoryApi(
 ): Promise<Contract> {
   return sendJson(`/api/contracts/${encodeURIComponent(id)}/history`, 'POST', snapshot)
 }
+/** 양수 처리 — 양수인 계약에 이력 추가 + 양도인 계약에 자동으로 '양도' 이력 추가 */
+export function transferInApi(
+  id: string,
+  transferorContractId: string,
+  transferAmount: number,
+  snap: ContractSnapshot,
+): Promise<Contract> {
+  return sendJson(`/api/contracts/${encodeURIComponent(id)}/transfer-in`, 'POST', {
+    transferorContractId,
+    transferAmount,
+    snap,
+  })
+}
 /** 오타수정 — 새 이력행 추가 없이 기존 스냅샷(historyId)을 그대로 고친다 */
 export function correctContractHistoryApi(
   id: string,

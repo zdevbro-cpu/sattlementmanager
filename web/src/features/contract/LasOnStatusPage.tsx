@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Download } from 'lucide-react'
+import { Download, Eye, FileText, PlusCircle, Trash2, XCircle } from 'lucide-react'
+import type { ComponentType } from 'react'
 import { comma, dateText, todayIso } from '../../lib/format'
 import { useCodes } from '../../lib/codeStore'
 import StatusBadge from '../../components/ui/StatusBadge'
@@ -7,13 +8,14 @@ import Badge from '../../components/ui/Badge'
 import DateTextInput from '../../components/ui/DateTextInput'
 import { useBranches } from '../appointment/branchStore'
 import { EMPTY_FILTER, type Contract, type ContractFilter } from '../../types/contract'
-import { listContracts } from './contractStore'
+import { addHistory, listContracts, summarize } from './contractStore'
 import { downloadLasOnStatusReport, type LasOnRow } from './lasOnExcel'
+import ContractDetailDrawer from './ContractDetailDrawer'
 
 const HEADERS = [
   '번호', '계약일자', '이름', '주민번호', '구분', '상태',
   '합계', '현금입금', '카드결제', '카드사', '승인번호', '단말기NO', '입금은행',
-  '유치자', '은행명', '계좌번호', '예금주', '비고',
+  '유치자', '은행명', '계좌번호', '예금주', '비고', '관리',
 ]
 
 // 등록구간·계약구간 종료일은 오늘 날짜를 기본값으로 사용 (시작은 비워둠 = 전체 이력 포함) — 계약조회와 동일
@@ -58,6 +60,8 @@ export default function LasOnStatusPage() {
   const [includeDiscarded, setIncludeDiscarded] = useState(false)
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
+  const [detailId, setDetailId] = useState<string | null>(null)
+  const [refresh, setRefresh] = useState(0)
   const contractEndDateRef = useRef<HTMLInputElement>(null)
   const regEndDateRef = useRef<HTMLInputElement>(null)
 
@@ -77,7 +81,25 @@ export default function LasOnStatusPage() {
     return () => {
       alive = false
     }
-  }, [])
+  }, [refresh])
+
+  const onDelete = async (c: Contract) => {
+    if (c.current.status === '폐기') {
+      alert('이미 폐기 처리된 계약입니다.')
+      return
+    }
+    if (!confirm(`${c.current.contractorName} 계약을 폐기 처리할까요? (삭제 대신 상태가 "폐기"로 전환되며 이력은 보존됩니다)`))
+      return
+    await addHistory(c.id, {
+      ...c.current,
+      historyId: '',
+      status: '폐기',
+      eventDate: todayIso(),
+      memo: '목록에서 폐기 처리',
+      createdAt: todayIso(),
+    })
+    setRefresh((n) => n + 1)
+  }
 
   // 관리자·유치자 자동완성 목록 — 현재 불러온 계약에 실제로 입력된 값 기준 (하드코딩 목록 아님)
   const managerOptions = Array.from(new Set(contracts.map((c) => c.current.manager).filter(Boolean))).sort()
@@ -128,6 +150,9 @@ export default function LasOnStatusPage() {
     r.no = rows.length - i
   })
 
+  // 요약 카드 — 계약조회와 동일하게 검색필터와 무관한 전체 라스온 계약 기준 집계
+  const sum = summarize(contracts)
+
   const [excelBusy, setExcelBusy] = useState(false)
   const onExcelDownload = async () => {
     setExcelBusy(true)
@@ -158,6 +183,14 @@ export default function LasOnStatusPage() {
         >
           <Download size={15} /> {excelBusy ? '다운로드 중…' : '엑셀 다운로드'}
         </button>
+      </div>
+
+      {/* 요약 카드 — 계약조회와 동일한 항목 */}
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <SummaryCard label="전체 계약" value={sum.total} tint="#e0edff" fg="#2563eb" icon={FileText} />
+        <SummaryCard label="진행중" value={sum.active} tint="#e2f7ec" fg="#16a34a" icon={FileText} />
+        <SummaryCard label="이번달 신규" value={sum.newThisMonth} tint="#fff1e0" fg="#f59e0b" icon={PlusCircle} />
+        <SummaryCard label="해지·폐기" value={sum.terminated} tint="#fee2e2" fg="#ef4444" icon={XCircle} />
       </div>
 
       {/* 필터 바 — 계약조회 목록과 동일 구성 + 사업부 */}
@@ -316,7 +349,7 @@ export default function LasOnStatusPage() {
                   <th
                     key={h}
                     className={`px-3 py-1.5 font-semibold whitespace-nowrap ${
-                      ['합계', '현금입금', '카드결제'].includes(h) ? 'text-right' : ''
+                      ['합계', '현금입금', '카드결제'].includes(h) ? 'text-right' : h === '관리' ? 'text-center' : ''
                     }`}
                   >
                     {h}
@@ -363,6 +396,24 @@ export default function LasOnStatusPage() {
                     <td className="px-3 py-1.5 tabular whitespace-nowrap">{s.accountNo || '-'}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{s.accountOwner || '-'}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap text-[#94a3b8]">{s.memo || '-'}</td>
+                    <td className="px-3 py-1.5 text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => setDetailId(r.c.id)}
+                          title="상세 보기"
+                          className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover hover:text-white"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button
+                          onClick={() => onDelete(r.c)}
+                          title="폐기 처리"
+                          className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-danger hover:bg-hover hover:brightness-125"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 )
               })}
@@ -377,6 +428,14 @@ export default function LasOnStatusPage() {
           </table>
         </div>
       </div>
+
+      {detailId && (
+        <ContractDetailDrawer
+          contractId={detailId}
+          onClose={() => setDetailId(null)}
+          onChanged={() => setRefresh((n) => n + 1)}
+        />
+      )}
     </>
   )
 }
@@ -411,5 +470,34 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-1 block text-[11.5px] font-semibold text-[#94a3b8]">{label}</span>
       {children}
     </label>
+  )
+}
+
+function SummaryCard({
+  label,
+  value,
+  tint,
+  fg,
+  icon: Icon,
+}: {
+  label: string
+  value: number
+  tint: string
+  fg: string
+  icon: ComponentType<{ size?: number }>
+}) {
+  return (
+    <div className="rounded-[12px] border border-border bg-card p-4 flex items-center gap-3">
+      <div
+        className="h-[38px] w-[38px] rounded-[11px] flex items-center justify-center"
+        style={{ background: tint, color: fg }}
+      >
+        <Icon size={18} />
+      </div>
+      <div>
+        <div className="text-[13px] font-semibold text-[#64748b]">{label}</div>
+        <div className="text-[18px] font-extrabold text-text-strong leading-tight tabular">{value}</div>
+      </div>
+    </div>
   )
 }

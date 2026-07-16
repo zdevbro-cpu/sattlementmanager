@@ -7,6 +7,7 @@ import {
   createContractApi,
   fetchContract,
   fetchContracts,
+  transferInApi,
 } from '../../lib/api'
 
 /** 필터를 적용해 목록 반환 (최신 계약일 내림차순, 서버에서 정렬)
@@ -38,6 +39,16 @@ export function addHistory(
   snapshot: ContractSnapshot,
 ): Promise<Contract> {
   return addContractHistoryApi(id, snapshot)
+}
+
+/** 양수 처리 — 양수인 계약(id)에 이력 추가 + 선택된 양도인 계약에 자동으로 '양도' 이력 추가 */
+export function transferIn(
+  id: string,
+  transferorContractId: string,
+  transferAmount: number,
+  snapshot: ContractSnapshot,
+): Promise<Contract> {
+  return transferInApi(id, transferorContractId, transferAmount, snapshot)
 }
 
 /** 오타수정 — 새 이력행을 추가하지 않고 지정 스냅샷(historyId)을 그대로 고침 */

@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import { Paperclip } from 'lucide-react'
-import type { ContractSnapshot, PaymentInfo } from '../../types/contract'
+import { useEffect, useState } from 'react'
+import { Paperclip, Search } from 'lucide-react'
+import { EMPTY_FILTER, type Contract, type ContractSnapshot, type PaymentInfo } from '../../types/contract'
 import { useCodes } from '../../lib/codeStore'
-import { addHistory } from './contractStore'
+import { addHistory, listContracts, transferIn } from './contractStore'
 import PaymentEditor from './PaymentEditor'
 import DateTextInput from '../../components/ui/DateTextInput'
 import DropZone from '../../components/ui/DropZone'
@@ -44,8 +44,90 @@ export default function HistoryAddForm({
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
+  // LAS-On파트너 소속 파트장 변경 — 파트장 교체도 이력(감사 기록)으로 남긴다
+  const isPartner = base.contractType === 'LAS-On파트너'
+  const [parentContractId, setParentContractId] = useState(base.parentContractId ?? '')
+  const [recipientName, setRecipientName] = useState(base.recipientName ?? '')
+  const [recipientBankName, setRecipientBankName] = useState(base.recipientBankName ?? '')
+  const [recipientAccountNo, setRecipientAccountNo] = useState(base.recipientAccountNo ?? '')
+  const [recipientAccountOwner, setRecipientAccountOwner] = useState(base.recipientAccountOwner ?? '')
+  const [recipientResidentNo, setRecipientResidentNo] = useState(base.recipientResidentNo ?? '')
+  const [leaders, setLeaders] = useState<Contract[]>([])
+
+  useEffect(() => {
+    if (!isPartner) return
+    let alive = true
+    listContracts(EMPTY_FILTER).then((list) => {
+      if (alive) setLeaders(list.filter((c) => c.current.contractType === 'LAS-On파트장' && c.id !== contractId))
+    })
+    return () => {
+      alive = false
+    }
+  }, [isPartner, contractId])
+
+  const selectLeader = (id: string) => {
+    setParentContractId(id)
+    const leader = leaders.find((l) => l.id === id)
+    if (leader) {
+      // 소속 파트장 변경 시 수당 수령인 기본값도 새 파트장 본인 정보로 갱신
+      setRecipientName(leader.current.contractorName)
+      setRecipientBankName(leader.current.bankName || '')
+      setRecipientAccountNo(leader.current.accountNo || '')
+      setRecipientAccountOwner(leader.current.accountOwner || '')
+      setRecipientResidentNo(leader.current.residentNo || '')
+    }
+  }
+
+  // 양수 처리 — 양도인 검색/선택 (동명이인 대비 주민번호·전화번호로 확인 후 확정)
+  const [transferorQuery, setTransferorQuery] = useState('')
+  const [transferorCandidates, setTransferorCandidates] = useState<Contract[]>([])
+  const [selectedTransferor, setSelectedTransferor] = useState<Contract | null>(null)
+  const [transferAmount, setTransferAmount] = useState(0)
+  const [searching, setSearching] = useState(false)
+  const [searched, setSearched] = useState(false)
+
+  // 계약자명 입력 시 자동 검색 (디바운스)
+  useEffect(() => {
+    if (selectedTransferor || !transferorQuery.trim()) {
+      setSearched(false)
+      setTransferorCandidates([])
+      return
+    }
+    const timer = setTimeout(() => {
+      searchTransferor()
+    }, 350)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transferorQuery])
+
+  const searchTransferor = async () => {
+    if (!transferorQuery.trim()) return
+    setSearching(true)
+    setSearched(true)
+    try {
+      const list = await listContracts({ ...EMPTY_FILTER, keyword: transferorQuery.trim() })
+      setTransferorCandidates(list.filter((c) => c.id !== contractId))
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  const selectTransferor = (c: Contract) => {
+    setSelectedTransferor(c)
+    setTransferAmount(c.current.deposit)
+    setTransferorCandidates([])
+  }
+
+  const cancelTransferor = () => {
+    setSelectedTransferor(null)
+    setTransferorCandidates([])
+    setTransferorQuery('')
+    setSearched(false)
+  }
+
   const save = async () => {
     if (!eventDate) return setErr('변경일(이벤트 발생일)을 입력하세요.')
+    if (status === '양수' && !selectedTransferor) return setErr('양도인을 검색해서 선택하세요.')
     setSaving(true)
     setErr('')
     try {
@@ -62,8 +144,21 @@ export default function HistoryAddForm({
         memo,
         createdAt: eventDate,
         documents: [],
+        ...(isPartner
+          ? {
+              parentContractId,
+              recipientName,
+              recipientBankName,
+              recipientAccountNo,
+              recipientAccountOwner,
+              recipientResidentNo,
+            }
+          : {}),
       }
-      const updated = await addHistory(contractId, snap)
+      const updated =
+        status === '양수' && selectedTransferor
+          ? await transferIn(contractId, selectedTransferor.id, transferAmount, snap)
+          : await addHistory(contractId, snap)
       if (contractFile) {
         try {
           await uploadToDrive(contractId, contractFile, status, updated.current.historyId)
@@ -110,10 +205,90 @@ export default function HistoryAddForm({
         <Field label="계약종료일">
           <DateTextInput value={contractEndDate} onChange={setContractEndDate} className={inputCls} />
         </Field>
+        {isPartner && (
+          <Field label="소속 파트장 변경">
+            <select value={parentContractId} onChange={(e) => selectLeader(e.target.value)} className={inputCls}>
+              <option value="">선택 안 함</option>
+              {leaders.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.current.contractorName} ({l.id})
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
       </div>
       <Field label="변경 사유/메모">
         <input value={memo} onChange={(e) => setMemo(e.target.value)} className={inputCls} placeholder="예: 보증금 증액" />
       </Field>
+
+      {status === '양수' && (
+        <div className="rounded-[10px] border border-primary/40 bg-input/40 p-3 space-y-2.5">
+          <div className="text-[12.5px] font-bold text-text-strong">양도인 지정</div>
+          {!selectedTransferor && (
+            <>
+              <div className="flex gap-2">
+                <input
+                  value={transferorQuery}
+                  onChange={(e) => setTransferorQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && searchTransferor()}
+                  placeholder="양도인 계약자명 입력"
+                  className={inputCls}
+                />
+                <button
+                  type="button"
+                  onClick={searchTransferor}
+                  disabled={searching}
+                  className="h-9 shrink-0 inline-flex items-center gap-1 rounded-[8px] border border-border px-3 text-[12.5px] font-semibold text-[#c2cde0] hover:bg-hover disabled:opacity-60"
+                >
+                  <Search size={13} /> 검색
+                </button>
+              </div>
+              {transferorCandidates.length > 0 && (
+                <div className="rounded-[8px] border border-border divide-y divide-border max-h-40 overflow-y-auto">
+                  {transferorCandidates.map((c) => (
+                    <button
+                      type="button"
+                      key={c.id}
+                      onClick={() => selectTransferor(c)}
+                      className="w-full text-left px-3 py-2 text-[12.5px] hover:bg-hover flex items-center justify-between gap-2"
+                    >
+                      <span className="font-semibold text-text-strong">
+                        {c.current.contractorName}{' '}
+                        <span className="font-normal text-[#94a3b8]">({c.current.contractType})</span>
+                      </span>
+                      <span className="text-[#94a3b8] whitespace-nowrap">
+                        주민번호 : {c.current.residentNo || '-'}    연락처 : {c.current.phone || '-'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {searched && !searching && transferorCandidates.length === 0 && (
+                <div className="text-[12px] text-[#94a3b8]">검색된 계약자가 없습니다.</div>
+              )}
+            </>
+          )}
+          {selectedTransferor && (
+            <div className="rounded-[8px] border border-primary/40 bg-primary/5 p-2.5 text-[12.5px] space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-text-strong">{selectedTransferor.current.contractorName}</span>
+                <button type="button" onClick={cancelTransferor} className="text-[11.5px] text-danger hover:underline">
+                  선택 취소
+                </button>
+              </div>
+              <div className="text-[#94a3b8]">주민번호 : {selectedTransferor.current.residentNo || '-'}</div>
+              <div className="text-[#94a3b8]">연락처 : {selectedTransferor.current.phone || '-'}</div>
+              <div className="text-[#94a3b8]">
+                계약구분: {selectedTransferor.current.contractType} · 보증금 {comma(selectedTransferor.current.deposit)}원
+              </div>
+            </div>
+          )}
+          <Field label="양수받는 금액 (일부양도 시 수정)">
+            <NumInput value={transferAmount} onChange={setTransferAmount} />
+          </Field>
+        </div>
+      )}
 
       <div>
         <div className="mb-1.5 flex items-center justify-between">

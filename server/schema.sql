@@ -46,6 +46,8 @@ CREATE TABLE IF NOT EXISTS contract_history (
   recipient_account_no     TEXT,                   -- 수령인 계좌번호
   recipient_account_owner  TEXT,                   -- 수령인 예금주
   recipient_resident_no    TEXT,                   -- 수령인 주민등록번호
+  linked_contract_id       TEXT REFERENCES contracts(id), -- 양수·양도 상대방 계약 id (양수 이력엔 양도인, 양도 이력엔 양수인)
+  transfer_amount          BIGINT DEFAULT 0,       -- 이 건에서 실제 양수·양도된 금액 (일부양도 지원, 기본은 전액)
   created_at               TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_history_contract ON contract_history(contract_id);

@@ -21,16 +21,38 @@ export default function ContractDetailDrawer({
   const [correctOpen, setCorrectOpen] = useState(false)
   const [tick, setTick] = useState(0)
   const [contract, setContract] = useState<Contract | null>(null)
+  // 양수·양도로 연결된 상대방 계약으로 드로어 안에서 바로 이동해 볼 수 있게 함
+  const [viewId, setViewId] = useState(contractId)
+  const [linked, setLinked] = useState<Contract | null>(null)
+
+  useEffect(() => {
+    setViewId(contractId)
+  }, [contractId])
 
   useEffect(() => {
     let alive = true
-    getContract(contractId).then((c) => {
+    getContract(viewId).then((c) => {
       if (alive) setContract(c)
     })
     return () => {
       alive = false
     }
-  }, [contractId, tick])
+  }, [viewId, tick])
+
+  useEffect(() => {
+    let alive = true
+    const linkedId = contract?.current.linkedContractId
+    if (!linkedId) {
+      setLinked(null)
+      return
+    }
+    getContract(linkedId).then((c) => {
+      if (alive) setLinked(c)
+    })
+    return () => {
+      alive = false
+    }
+  }, [contract?.current.linkedContractId, tick])
 
   if (!contract) return null
   const cur = contract.current
@@ -61,6 +83,14 @@ export default function ContractDetailDrawer({
             <span className="text-[12px] text-[#64748b]">#{contract.id}</span>
           </div>
           <div className="flex items-center gap-2">
+            {viewId !== contractId && (
+              <button
+                onClick={() => setViewId(contractId)}
+                className="inline-flex h-9 items-center gap-1 rounded-[8px] border border-border px-3 text-[13px] font-semibold text-[#c2cde0] hover:bg-hover"
+              >
+                ← 원래 계약으로
+              </button>
+            )}
             {cur.isDraft && (
               <button
                 onClick={confirmDraft}
@@ -139,6 +169,37 @@ export default function ContractDetailDrawer({
             </h3>
             <SnapshotCard s={cur} highlight />
           </section>
+
+          {/* 양수·양도 연결 계약 */}
+          {cur.linkedContractId && (
+            <section>
+              <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">
+                {cur.status === '양수' ? '양도인 정보' : cur.status === '양도' ? '양수인 정보' : '연결된 계약'}
+              </h3>
+              {linked ? (
+                <button
+                  onClick={() => setViewId(linked.id)}
+                  className="w-full flex items-center justify-between gap-2 rounded-[10px] border border-primary/40 bg-primary/5 px-3 py-2.5 text-left hover:bg-primary/10"
+                >
+                  <div className="text-[12.5px] space-y-0.5">
+                    <div className="font-bold text-text-strong">
+                      {linked.current.contractorName}{' '}
+                      <span className="text-[#64748b] font-normal">#{linked.id}</span>
+                    </div>
+                    <div className="text-[#94a3b8]">
+                      주민번호: {linked.current.residentNo || '-'} · 전화번호: {linked.current.phone || '-'}
+                    </div>
+                    <div className="text-[#94a3b8]">
+                      양수·양도 금액: {comma(cur.transferAmount || 0)}원
+                    </div>
+                  </div>
+                  <ExternalLink size={16} className="shrink-0 text-primary" />
+                </button>
+              ) : (
+                <Empty>연결된 계약 정보를 불러오는 중…</Empty>
+              )}
+            </section>
+          )}
 
           {/* 결재정보 */}
           <section>

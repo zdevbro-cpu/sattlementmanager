@@ -63,6 +63,8 @@ function mapSnapshot(h, installments, documents) {
     recipientAccountNo: h.recipient_account_no || '',
     recipientAccountOwner: h.recipient_account_owner || '',
     recipientResidentNo: h.recipient_resident_no || '',
+    linkedContractId: h.linked_contract_id || '',
+    transferAmount: Number(h.transfer_amount || 0),
     payment: {
       method,
       totalAmount: Number(h.payment_total || 0),
@@ -167,8 +169,9 @@ async function insertHistory(client, contractId, snap) {
         contract_end_date,branch,manager,recruiter,
         bank_name,account_no,account_owner,resident_no,phone,
         payment_method,payment_total,memo,is_draft,
-        recipient_name,recipient_bank_name,recipient_account_no,recipient_account_owner,recipient_resident_no)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32)
+        recipient_name,recipient_bank_name,recipient_account_no,recipient_account_owner,recipient_resident_no,
+        linked_contract_id,transfer_amount)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34)
      RETURNING id`,
     [
       contractId,
@@ -203,6 +206,8 @@ async function insertHistory(client, contractId, snap) {
       snap.recipientAccountNo || '',
       snap.recipientAccountOwner || '',
       snap.recipientResidentNo || '',
+      snap.linkedContractId || null,
+      snap.transferAmount || 0,
     ],
   )
   const historyId = rows[0].id
@@ -315,7 +320,8 @@ async function correctHistory(historyId, snap) {
          bank_name=$17, account_no=$18, account_owner=$19, resident_no=$20, phone=$21,
          payment_method=$22, payment_total=$23, memo=$24, is_draft=$25,
          recipient_name=$26, recipient_bank_name=$27, recipient_account_no=$28,
-         recipient_account_owner=$29, recipient_resident_no=$30
+         recipient_account_owner=$29, recipient_resident_no=$30,
+         linked_contract_id=$31, transfer_amount=$32
        WHERE id=$1`,
       [
         historyId,
@@ -348,6 +354,8 @@ async function correctHistory(historyId, snap) {
         snap.recipientAccountNo || '',
         snap.recipientAccountOwner || '',
         snap.recipientResidentNo || '',
+        snap.linkedContractId || null,
+        snap.transferAmount || 0,
       ],
     )
     if (rowCount === 0) throw new Error('이력을 찾을 수 없습니다.')
@@ -406,6 +414,55 @@ async function correctHistory(historyId, snap) {
   }
 }
 
+/**
+ * 양수·양도 처리 — 두 계약을 하나의 트랜잭션으로 함께 갱신한다.
+ * 1) 양수인(contractId) 계약에 status='양수' 이력 추가 (linkedContractId=양도인, transferAmount)
+ * 2) 양도인(transferorContractId) 계약의 최신 스냅샷을 그대로 이어받아 status='양도' 이력 자동 추가
+ *    (linkedContractId=양수인, transferAmount) — 일부양도도 동일하게 상태를 '양도'로 표기한다.
+ */
+async function transferIn(contractId, transferorContractId, transferAmount, snap) {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    await insertHistory(client, contractId, {
+      ...snap,
+      linkedContractId: transferorContractId,
+      transferAmount,
+    })
+
+    const { rows: hist } = await client.query(
+      `SELECT * FROM contract_history WHERE contract_id = $1 ORDER BY id DESC LIMIT 1`,
+      [transferorContractId],
+    )
+    if (!hist.length) throw new Error('양도인 계약을 찾을 수 없습니다.')
+    const { rows: inst } = await client.query(
+      `SELECT * FROM payment_installments WHERE history_id = $1 ORDER BY seq`,
+      [hist[0].id],
+    )
+    const transferorSnap = mapSnapshot(hist[0], inst, [])
+    await insertHistory(client, transferorContractId, {
+      ...transferorSnap,
+      historyId: '',
+      status: '양도',
+      eventDate: snap.eventDate,
+      memo: `${snap.contractorName}에게 ${
+        transferAmount >= transferorSnap.deposit ? '전체' : '일부'
+      } 양도`,
+      linkedContractId: contractId,
+      transferAmount,
+      createdAt: snap.eventDate,
+    })
+
+    await client.query('COMMIT')
+    return await getContract(contractId)
+  } catch (e) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
 /** 문서(계약서/전표/입금증) Drive 링크 저장 */
 async function addDocument(contractId, doc) {
   const { rows } = await pool.query(
@@ -435,6 +492,7 @@ module.exports = {
   getContract,
   createContract,
   addHistory,
+  transferIn,
   correctHistory,
   addDocument,
   deleteContract,

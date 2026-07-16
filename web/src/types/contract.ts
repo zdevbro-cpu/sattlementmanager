@@ -136,6 +136,10 @@ export interface ContractSnapshot {
   recipientAccountOwner?: string // 수령인 예금주
   recipientResidentNo?: string // 수령인 주민등록번호
 
+  // ── 양수·양도 연결 (계약구분과 무관, 상태='양수'/'양도' 전용) ──
+  linkedContractId?: string // 상대방 계약 id (양수 이력엔 양도인, 양도 이력엔 양수인)
+  transferAmount?: number // 이 건에서 실제 양수·양도된 금액 (일부양도 지원, 기본은 전액)
+
   // ── 결재정보 ───────────────────────────────
   payment: PaymentInfo
 
