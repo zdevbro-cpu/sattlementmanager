@@ -23,8 +23,12 @@ async function listExtraPayouts() {
 }
 
 async function createExtraPayout(p) {
-  const { rows: n } = await pool.query(`SELECT COUNT(*)::int AS c FROM extra_payouts`)
-  const id = `EX${String(n[0].c + 1).padStart(4, '0')}`
+  // COUNT(*)+1 방식은 중간 삭제가 있으면 이미 쓰는 id와 충돌한다 — MAX+1로 다음 번호를 구한다.
+  const { rows: n } = await pool.query(
+    `SELECT COALESCE(MAX(CAST(SUBSTRING(id FROM 3) AS INT)), 0)::int AS maxnum
+       FROM extra_payouts WHERE id ~ '^EX[0-9]+$'`,
+  )
+  const id = `EX${String(n[0].maxnum + 1).padStart(4, '0')}`
   await pool.query(
     `INSERT INTO extra_payouts (id, source, name, memo, amount, resident_no, bank_name, account_no, account_owner)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,

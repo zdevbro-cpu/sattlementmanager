@@ -8,13 +8,20 @@ export interface SalesCategory {
 }
 
 const DEFAULTS: SalesCategory[] = [
-  { name: 'LAS On 파트장', max: 10 },
-  { name: 'LAS On 파트너', max: 10 },
+  { name: 'LAS-On파트장', max: 10 },
+  { name: 'LAS-On파트너', max: 10 },
   { name: '매장결제', max: 10 },
   { name: '구독회원 S2', max: 10 },
   { name: '현금(소득공제)', max: 10 },
   { name: '독서지도사', max: 5 },
   { name: '점주보증금', max: 10 },
+]
+
+// 계약구분과 동일한 표기(LAS-On파트장/LAS-On파트너)로 매출 종류를 맞추면서 추가된 코드 —
+// 이미 저장된 목록에도 없으면 자동으로 채워 넣어(마이그레이션) 기존 사용자도 바로 필터에서 쓸 수 있게 한다.
+const REQUIRED: SalesCategory[] = [
+  { name: 'LAS-On파트장', max: 10 },
+  { name: 'LAS-On파트너', max: 10 },
 ]
 
 const KEY = 'sm.salesCategories.v1'
@@ -25,9 +32,11 @@ function load(): SalesCategory[] {
     if (!raw) return [...DEFAULTS]
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return [...DEFAULTS]
-    return parsed
+    const list = parsed
       .filter((x) => x && typeof x.name === 'string')
       .map((x) => ({ name: x.name, max: Number(x.max) || 10 }))
+    const missing = REQUIRED.filter((r) => !list.some((c) => c.name === r.name))
+    return missing.length ? [...list, ...missing] : list
   } catch {
     return [...DEFAULTS]
   }

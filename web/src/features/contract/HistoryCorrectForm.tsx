@@ -41,7 +41,12 @@ export default function HistoryCorrectForm({
   useEffect(() => {
     let alive = true
     listContracts(EMPTY_FILTER).then((list) => {
-      if (alive) setLeaders(list.filter((c) => c.current.contractType === 'LAS-On파트장' && c.id !== contractId))
+      if (alive)
+        setLeaders(
+          list.filter(
+            (c) => c.current.contractType === 'LAS-On파트장' && c.current.status !== '폐기' && c.id !== contractId,
+          ),
+        )
     })
     return () => {
       alive = false

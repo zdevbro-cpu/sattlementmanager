@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { PaymentInfo } from '../../types/contract'
-import { BUSINESS_UNITS, SALES_MANAGERS } from '../../data/mockSales'
+import { SALES_MANAGERS } from '../../data/mockSales'
 import { useCodes } from '../../lib/codeStore'
 import { createSale } from './salesStore'
 import { useSalesCategories } from './salesCategoryStore'
@@ -18,11 +18,11 @@ export default function MobileSalesRegisterPage() {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const categories = useSalesCategories()
-  const { orgs } = useCodes()
+  const { orgs, businessUnits } = useCodes()
   const [org, setOrg] = useState(orgs[0] ?? '')
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [category, setCategory] = useState(categories[0]?.name ?? '')
-  const [businessUnit, setBusinessUnit] = useState(BUSINESS_UNITS[0])
+  const [businessUnit, setBusinessUnit] = useState(businessUnits[0] ?? '')
   const [buyer, setBuyer] = useState('')
   const [manager, setManager] = useState('')
   const [memo, setMemo] = useState('')
@@ -108,7 +108,7 @@ export default function MobileSalesRegisterPage() {
             </Field>
             <Field label="사업부">
               <select value={businessUnit} onChange={(e) => setBusinessUnit(e.target.value)} className={inputCls}>
-                {BUSINESS_UNITS.map((b) => (
+                {businessUnits.map((b) => (
                   <option key={b}>{b}</option>
                 ))}
               </select>

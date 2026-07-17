@@ -1,6 +1,7 @@
-// 라스온(파트장,파트너) 계약현황 엑셀 — docs/양식_라스온 파트장 파트너 계약현황.xlsx 양식 채우기.
+// 라스온(파트장,파트너) 계약현황 엑셀 — public/라스온 파트장 파트너 계약현황.xlsx 양식 채우기.
 // 카드/현금 분할결재는 매출관리 엑셀다운로드(dailyReportExcel.ts)와 동일한 규칙을 적용한다 —
-// 합계행(번호 있음, 굵게) + 회차별 상세행(번호 없음)으로 펼친다.
+// 합계행(번호 있음, 굵게) + 회차별 상세행으로 펼치되, 일일매출보고와 동일하게 번호·계약일자·이름·
+// 주민번호·구분·유치자·계좌정보·비고는 회차행에도 그대로 반복해서 채운다(빈칸으로 남기지 않는다).
 import ExcelJS from 'exceljs'
 import type { Contract } from '../../types/contract'
 import { dateText } from '../../lib/format'
@@ -8,7 +9,9 @@ import { dateText } from '../../lib/format'
 const TEMPLATE_FILE = '라스온 파트장 파트너 계약현황.xlsx'
 const TEMPLATE_URL = encodeURI('/' + TEMPLATE_FILE)
 const DATA_START_ROW = 7 // R7부터 데이터 (R5~R6=헤더)
-const TEMPLATE_DATA_ROWS = 96 // R7~R102
+const TEMPLATE_DATA_ROWS = 94 // R7~R100
+const COL_COUNT = 18
+const OUTER_BORDER: ExcelJS.BorderStyle = 'medium' // 표 전체(헤더~마지막 행) 외곽선 — 한 단계 굵은 실선
 
 export interface LasOnRow {
   no: number
@@ -59,22 +62,22 @@ function toLegs(c: Contract): Leg[] {
 }
 
 interface PlanRow {
-  no: number | null // null = 분할결제 회차행(번호 없음)
-  contractDate?: string
-  contractorName?: string
-  residentNo?: string
-  isLeader?: boolean
+  no: number
+  contractDate: string
+  contractorName: string
+  residentNo: string
+  isLeader: boolean
   cashAmount: number
   cardAmount: number
   issuer?: string
   approvalNo?: string
   terminalNo?: string
   depositBank?: string
-  recruiter?: string
-  bankName?: string
-  accountNo?: string
-  accountOwner?: string
-  memo?: string
+  recruiter: string
+  bankName: string
+  accountNo: string
+  accountOwner: string
+  memo: string
   bold?: boolean
 }
 
@@ -83,48 +86,43 @@ function buildPlan(rows: LasOnRow[]): PlanRow[] {
   rows.forEach((r) => {
     const s = r.c.current
     const legs = toLegs(r.c)
+    // 번호·계약일자·이름·주민번호·구분·유치자·계좌정보·비고 — 회차행에도 동일하게 반복 (일일매출보고와 동일 규칙)
+    const common = {
+      no: r.no,
+      contractDate: dateText(s.contractDate),
+      contractorName: s.contractorName,
+      residentNo: s.residentNo,
+      isLeader: r.isLeader,
+      recruiter: s.recruiter,
+      bankName: s.bankName,
+      accountNo: s.accountNo,
+      accountOwner: s.accountOwner,
+      memo: s.memo || '',
+    }
 
     if (legs.length <= 1) {
       const only = legs[0]
       plan.push({
-        no: r.no,
-        contractDate: dateText(s.contractDate),
-        contractorName: s.contractorName,
-        residentNo: s.residentNo,
-        isLeader: r.isLeader,
+        ...common,
         cashAmount: only?.method === '현금' ? only.amount : 0,
         cardAmount: only?.method === '카드' ? only.amount : 0,
         issuer: only?.issuer || '',
         approvalNo: only?.approvalNo || '',
         terminalNo: only?.terminalNo || '',
         depositBank: only?.bank || '',
-        recruiter: s.recruiter,
-        bankName: s.bankName,
-        accountNo: s.accountNo,
-        accountOwner: s.accountOwner,
-        memo: s.memo || '',
       })
       return
     }
 
     plan.push({
-      no: r.no,
-      contractDate: dateText(s.contractDate),
-      contractorName: s.contractorName,
-      residentNo: s.residentNo,
-      isLeader: r.isLeader,
+      ...common,
       cashAmount: legs.filter((l) => l.method === '현금').reduce((a, l) => a + l.amount, 0),
       cardAmount: legs.filter((l) => l.method === '카드').reduce((a, l) => a + l.amount, 0),
-      recruiter: s.recruiter,
-      bankName: s.bankName,
-      accountNo: s.accountNo,
-      accountOwner: s.accountOwner,
-      memo: s.memo || '',
       bold: true,
     })
     legs.forEach((leg) => {
       plan.push({
-        no: null,
+        ...common,
         cashAmount: leg.method === '현금' ? leg.amount : 0,
         cardAmount: leg.method === '카드' ? leg.amount : 0,
         issuer: leg.issuer,
@@ -142,7 +140,7 @@ function resizeToPlan(ws: ExcelJS.Worksheet, total: number): void {
   if (total > TEMPLATE_DATA_ROWS) {
     ws.duplicateRow(templateLastRow, total - TEMPLATE_DATA_ROWS, true)
   }
-  const keepThrough = DATA_START_ROW + total - 1
+  const keepThrough = DATA_START_ROW + Math.max(total, 1) - 1
   if (ws.rowCount > keepThrough) {
     // eslint-disable-next-line no-underscore-dangle
     ;(ws as unknown as { _rows: unknown[] })._rows.length = keepThrough
@@ -161,42 +159,62 @@ export async function downloadLasOnStatusReport(rows: LasOnRow[], businessUnitLa
   const plan = buildPlan(rows)
   resizeToPlan(ws, plan.length)
 
+  const lastDataRow = DATA_START_ROW + Math.max(plan.length, 1) - 1
+
   plan.forEach((p, i) => {
     const row = ws.getRow(DATA_START_ROW + i)
+    const isGroupStart = i === 0 || plan[i - 1].no !== p.no
+    const isGroupEnd = i === plan.length - 1 || plan[i + 1].no !== p.no
+    const isTableStart = i === 0
+    const isTableEnd = i === plan.length - 1
+
     row.getCell(1).value = p.no
-    if (p.contractDate !== undefined) row.getCell(2).value = p.contractDate
-    if (p.contractorName !== undefined) row.getCell(3).value = p.contractorName
-    if (p.residentNo !== undefined) row.getCell(4).value = p.residentNo
-    if (p.isLeader !== undefined) {
-      row.getCell(5).value = p.isLeader ? p.contractorName ?? '' : ''
-      row.getCell(6).value = p.isLeader ? '' : p.contractorName ?? ''
-    }
+    row.getCell(2).value = p.contractDate
+    row.getCell(3).value = p.contractorName
+    row.getCell(4).value = p.residentNo
+    row.getCell(5).value = p.isLeader ? p.contractorName : ''
+    row.getCell(6).value = p.isLeader ? '' : p.contractorName
     const total = p.cashAmount + p.cardAmount
     row.getCell(7).value = total
-    row.getCell(7).numFmt = '#,##0'
     row.getCell(8).value = p.cashAmount || ''
-    if (p.cashAmount) row.getCell(8).numFmt = '#,##0'
     row.getCell(9).value = p.cardAmount || ''
-    if (p.cardAmount) row.getCell(9).numFmt = '#,##0'
     row.getCell(10).value = p.issuer ?? ''
     row.getCell(11).value = p.approvalNo ?? ''
     row.getCell(12).value = p.terminalNo ?? ''
     row.getCell(13).value = p.depositBank ?? ''
-    if (p.recruiter !== undefined) row.getCell(14).value = p.recruiter
-    if (p.bankName !== undefined) row.getCell(15).value = p.bankName
-    if (p.accountNo !== undefined) row.getCell(16).value = p.accountNo
-    if (p.accountOwner !== undefined) row.getCell(17).value = p.accountOwner
-    if (p.memo !== undefined) row.getCell(18).value = p.memo
-    if (p.bold) {
-      // 주의: row.font = {...}는 템플릿에서 여러 행이 공유하는 스타일 객체를 그대로 변경(mutate)해
-      // 손대지 않은 다른 행의 글꼴까지 깨뜨린다. 셀마다 기존 font를 복사한 새 객체로 교체해야 안전하다.
-      for (let c = 1; c <= 18; c++) {
-        const cell = row.getCell(c)
-        cell.font = { ...cell.font, bold: true }
+    row.getCell(14).value = p.recruiter
+    row.getCell(15).value = p.bankName
+    row.getCell(16).value = p.accountNo
+    row.getCell(17).value = p.accountOwner
+    row.getCell(18).value = p.memo
+
+    for (let c = 1; c <= COL_COUNT; c++) {
+      const cell = row.getCell(c)
+      const originalNumFmt = cell.numFmt
+      // ExcelJS는 alignment/font/border를 각각 별도로 대입하면 행이 많을 때 스타일 테이블이
+      // 내부적으로 어긋나는 버그가 있다 — 반드시 style 객체 하나로 한 번에 대입해야 안전하다.
+      cell.style = {
+        font: { ...cell.font, bold: !!p.bold },
+        alignment: { horizontal: 'center', vertical: 'middle' },
+        numFmt: [7, 8, 9].includes(c) ? '#,##0' : originalNumFmt,
+        border: {
+          top: { style: isTableStart ? OUTER_BORDER : isGroupStart ? 'double' : 'dotted' },
+          bottom: { style: isTableEnd ? OUTER_BORDER : isGroupEnd ? 'double' : 'dotted' },
+          left: { style: c === 1 ? OUTER_BORDER : 'thin' },
+          right: { style: c === COL_COUNT ? OUTER_BORDER : 'thin' },
+        },
       }
     }
     row.commit?.()
   })
+
+  // 표 외곽(헤더 5행부터 데이터 마지막 행까지) 좌우 변을 한 단계 굵은 실선으로 통일
+  for (let r = 5; r <= lastDataRow; r++) {
+    const left = ws.getRow(r).getCell(1)
+    left.border = { ...left.border, left: { style: OUTER_BORDER } }
+    const right = ws.getRow(r).getCell(COL_COUNT)
+    right.border = { ...right.border, right: { style: OUTER_BORDER } }
+  }
 
   const outBuf = await wb.xlsx.writeBuffer()
   const blob = new Blob([outBuf], {

@@ -194,6 +194,14 @@ async function updateAppointment(id, patch, meta) {
     memo: '비고',
   }
 
+  const DATE_FIELDS = new Set([
+    'contractDate',
+    'payoutDate',
+    'workStartDate',
+    'reportStartDate',
+    'endDate',
+  ])
+
   const changes = []
   const sets = []
   const vals = []
@@ -205,7 +213,7 @@ async function updateAppointment(id, patch, meta) {
     const after = String(patch[key] ?? '')
     if (before !== after) changes.push({ label: LABELS[key], before, after })
     sets.push(`${col} = $${i++}`)
-    vals.push(patch[key])
+    vals.push(DATE_FIELDS.has(key) ? nn(patch[key]) : patch[key])
   }
   if (sets.length) {
     vals.push(id)

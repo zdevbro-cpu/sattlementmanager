@@ -84,7 +84,9 @@ export function methodTone(method: string): Tone {
 export function categoryTone(cat: string): Tone {
   if (cat.includes('점주보증금') || cat.includes('보증금')) return 'green'
   if (cat.includes('구독')) return 'sky'
-  if (cat.includes('파트장') || cat.includes('파트너')) return 'green'
+  // 라스온현황(LasOnStatusPage)의 구분 배지와 동일한 색상 규칙 — 파트장=blue, 파트너=green과 구분되도록 파트너는 purple
+  if (cat.includes('파트장')) return 'blue'
+  if (cat.includes('파트너')) return 'purple'
   if (cat.includes('매장')) return 'teal'
   if (cat.includes('독서')) return 'sky'
   if (cat.includes('현금')) return 'green'
@@ -126,4 +128,20 @@ export function branchTone(branch: string): Tone {
   let h = 0
   for (let i = 0; i < branch.length; i++) h = (h * 31 + branch.charCodeAt(i)) >>> 0
   return BRANCH_TONES[h % BRANCH_TONES.length]
+}
+
+/** 계약구분 → 톤. 시스템관리 공통코드로 새 구분이 추가돼도 지점명과 같은 해시 방식으로 대응한다. */
+export function contractTypeTone(type: string): Tone {
+  switch (type) {
+    case 'LAS매장점주':
+      return 'teal'
+    case '직원':
+      return 'slate'
+    case 'LAS-On파트장':
+      return 'blue'
+    case 'LAS-On파트너':
+      return 'purple'
+    default:
+      return branchTone(type)
+  }
 }

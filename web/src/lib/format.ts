@@ -65,10 +65,13 @@ export function phoneFmt(v: string): string {
 /**
  * 주민등록번호 입력값 자동 포맷 (앞6자리-뒤7자리). 입력 중에도 실시간으로 하이픈을 붙인다.
  * 여권번호 등 영문이 섞인 외국인 식별자는 숫자만 남기지 않고 원본 그대로 통과시킨다.
+ * 사업자등록번호(10자리, 000-00-00000)도 같은 입력창에 받을 수 있어야 하므로,
+ * 자릿수가 정확히 10개일 때는 주민번호(6-7)가 아니라 사업자번호(3-2-5) 형식으로 묶는다.
  */
 export function residentNoFmt(v: string): string {
   if (/[a-zA-Z]/.test(v)) return v
   const n = v.replace(/\D/g, '').slice(0, 13)
   if (n.length <= 6) return n
+  if (n.length === 10) return `${n.slice(0, 3)}-${n.slice(3, 5)}-${n.slice(5)}`
   return `${n.slice(0, 6)}-${n.slice(6)}`
 }

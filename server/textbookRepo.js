@@ -61,8 +61,12 @@ async function getApplication(id) {
 
 /** 신규 교재구매 신청 등록 */
 async function createApplication(a) {
-  const { rows: n } = await pool.query(`SELECT COUNT(*)::int AS c FROM textbook_applications`)
-  const id = `T${String(n[0].c + 1).padStart(4, '0')}`
+  // COUNT(*)+1 방식은 중간 삭제가 있으면 이미 쓰는 id와 충돌한다 — MAX+1로 다음 번호를 구한다.
+  const { rows: n } = await pool.query(
+    `SELECT COALESCE(MAX(CAST(SUBSTRING(id FROM 2) AS INT)), 0)::int AS maxnum
+       FROM textbook_applications WHERE id ~ '^T[0-9]+$'`,
+  )
+  const id = `T${String(n[0].maxnum + 1).padStart(4, '0')}`
   await pool.query(
     `INSERT INTO textbook_applications
        (id, apply_date, buyer_name, child_name, child_birthdate, phone, address, delivery_memo,

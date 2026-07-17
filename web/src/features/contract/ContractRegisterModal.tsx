@@ -95,7 +95,10 @@ export default function ContractRegisterModal({
   useEffect(() => {
     let alive = true
     listContracts(EMPTY_FILTER).then((list) => {
-      if (alive) setLeaders(list.filter((c) => c.current.contractType === 'LAS-On파트장'))
+      if (alive)
+        setLeaders(
+          list.filter((c) => c.current.contractType === 'LAS-On파트장' && c.current.status !== '폐기'),
+        )
     })
     return () => {
       alive = false

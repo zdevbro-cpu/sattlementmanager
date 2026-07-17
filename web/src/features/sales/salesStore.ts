@@ -6,13 +6,18 @@ import { EMPTY_FILTER, type Contract } from '../../types/contract'
 import { createSaleApi, deleteSaleApi, fetchSale, fetchSales, updateSaleApi } from '../../lib/api'
 import { getContract } from '../contract/contractStore'
 
-/** 계약(보증금 결재) → 매출(점주보증금) 변환 */
+/** 계약(보증금 결재) → 매출 변환. 종류는 계약구분을 그대로 따르되,
+ *  LAS-On파트장/파트너가 아니면 기존처럼 '점주보증금'으로 표시한다. */
 function contractToSale(c: Contract): Sale {
   const cur = c.current
+  const category =
+    cur.contractType === 'LAS-On파트장' || cur.contractType === 'LAS-On파트너'
+      ? cur.contractType
+      : '점주보증금'
   return {
     id: `CS-${c.id}`,
     date: cur.contractDate,
-    category: '점주보증금',
+    category,
     org: cur.org,
     businessUnit: cur.businessUnit,
     buyer: cur.contractorName,

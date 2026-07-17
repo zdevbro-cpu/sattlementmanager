@@ -3,7 +3,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, Down
 import type { ComponentType } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import StatusBadge from '../../components/ui/StatusBadge'
-import Badge, { methodTone } from '../../components/ui/Badge'
+import Badge, { contractTypeTone, methodTone } from '../../components/ui/Badge'
 import DateTextInput from '../../components/ui/DateTextInput'
 import { comma, dateText, todayIso } from '../../lib/format'
 import {
@@ -654,7 +654,7 @@ function Row({
         {dateText(s.createdAt)}
       </td>
       <td className="px-3 py-1.5 text-center whitespace-nowrap">
-        {s.contractType}
+        <Badge tone={contractTypeTone(s.contractType)}>{s.contractType}</Badge>
       </td>
       <td
         className="px-3 py-1.5 tabular text-right whitespace-nowrap"

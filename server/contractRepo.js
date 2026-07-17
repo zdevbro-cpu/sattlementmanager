@@ -267,11 +267,13 @@ async function createContract(snap) {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
+    // COUNT(*)+1 방식은 중간 삭제가 있으면 이미 쓰는 id와 충돌한다 — MAX+1로 다음 번호를 구한다.
     const { rows: n } = await client.query(
-      `SELECT COUNT(*)::int AS c FROM contracts`,
+      `SELECT COALESCE(MAX(CAST(SUBSTRING(id FROM 2) AS INT)), 0)::int AS maxnum
+         FROM contracts WHERE id ~ '^C[0-9]+$'`,
     )
-    const id = `C${String(n[0].c + 1).padStart(3, '0')}`
-    const contractorId = `M${String(n[0].c + 1).padStart(3, '0')}`
+    const id = `C${String(n[0].maxnum + 1).padStart(3, '0')}`
+    const contractorId = `M${String(n[0].maxnum + 1).padStart(3, '0')}`
     await client.query(
       `INSERT INTO contracts (id, contractor_id) VALUES ($1,$2)`,
       [id, contractorId],
