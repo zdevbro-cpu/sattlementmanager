@@ -298,6 +298,7 @@ function SnapshotCard({
   // 계약자 본인 관련 내용 — 상단에 배치
   const contractRows: [string, string][] = [
     ['소속', s.org],
+    ['계약번호', s.contractNo || '-'],
     ['계약구분', s.contractType],
     ...(s.contractType === 'LAS-On파트너' ? [['소속 파트장', s.parentContractId || '-'] as [string, string]] : []),
     ['계약일', dateText(s.contractDate)],

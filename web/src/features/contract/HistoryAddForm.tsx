@@ -34,6 +34,7 @@ export default function HistoryAddForm({
     codes.statuses.find((s) => s !== '신규') ?? codes.statuses[0] ?? '증액',
   )
   const [eventDate, setEventDate] = useState('')
+  const [contractNo, setContractNo] = useState(base.contractNo ?? '')
   const [deposit, setDeposit] = useState(base.deposit)
   const [allowance, setAllowance] = useState(base.allowance)
   const [allowancePayDay, setAllowancePayDay] = useState(base.allowancePayDay || 25)
@@ -141,6 +142,7 @@ export default function HistoryAddForm({
         historyId: '',
         status,
         eventDate,
+        contractNo,
         deposit,
         allowance,
         allowancePayDay,
@@ -191,6 +193,9 @@ export default function HistoryAddForm({
         </Field>
         <Field label="변경일">
           <DateTextInput value={eventDate} onChange={setEventDate} className={inputCls} />
+        </Field>
+        <Field label="계약번호">
+          <input value={contractNo} onChange={(e) => setContractNo(e.target.value)} className={inputCls} placeholder="계약번호" />
         </Field>
         <Field label="보증금">
           <NumInput value={deposit} onChange={setDeposit} />
