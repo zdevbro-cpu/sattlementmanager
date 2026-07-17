@@ -183,7 +183,7 @@ export default function HistoryAddForm({
 
   return (
     <div className="rounded-[10px] border border-primary/40 bg-input/30 p-3 space-y-3">
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-3 gap-2.5">
         <Field label="변경 상태">
           <select value={status} onChange={(e) => setStatus(e.target.value)} className={inputCls}>
             {codes.statuses.map((s) => (
