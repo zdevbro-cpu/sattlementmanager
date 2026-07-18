@@ -859,9 +859,12 @@ function LasOnBonusView() {
       return true
     })
   }, [rows, filter])
-  const bonusTotal = visibleRows
-    .filter((r, i) => !visibleRows[i - 1] || r.no !== visibleRows[i - 1].no)
-    .reduce((a, r) => a + r.netAmount, 0)
+  // 합계는 연번(no) 단위 합계행만 집계한다 (분할결제 회차행 중복 방지)
+  const summaryRows = visibleRows.filter(
+    (r, i) => !visibleRows[i - 1] || r.no !== visibleRows[i - 1].no,
+  )
+  const bonusTotal = summaryRows.reduce((a, r) => a + r.netAmount, 0)
+  const depositSum = summaryRows.reduce((a, r) => a + r.depositTotal, 0)
   const targetCount = new Set(visibleRows.map((r) => r.no)).size
 
   const [excelBusy, setExcelBusy] = useState(false)
@@ -899,8 +902,8 @@ function LasOnBonusView() {
       </div>
 
       <div className="grid grid-cols-4 gap-4 mb-4">
-        <SummaryCard label="지급대상 건수" value={`${targetCount} 건`} sub="계약 기준" tint="#e0edff" fg="#2563eb" icon={<Wallet size={18} />} />
-        <SummaryCard label="지급예정 금액" value={won(bonusTotal)} sub="실지급액 합계" tint="#e2f7ec" fg="#16a34a" icon={<DollarSign size={18} />} />
+        <SummaryCard label="보증금 합계" value={won(depositSum)} sub="대상 계약 보증금" tint="#e0edff" fg="#2563eb" icon={<Wallet size={18} />} />
+        <SummaryCard label="지급예정 금액" value={won(bonusTotal)} sub={`지급대상 ${targetCount}건 · 실지급액 합계`} tint="#e2f7ec" fg="#16a34a" icon={<DollarSign size={18} />} />
         <SummaryCard
           label="파트장 인원"
           value={`${partnerCount.leaders} 명`}
