@@ -50,3 +50,28 @@ To ensure absolute compliance and prevent unauthorized creative interference, th
 3. **Quantitative Modification Audit**:
    - Before execution, the Agent must estimate the number of files and lines to be changed.
    - Post-execution, the Agent must run `git diff --stat` to verify that no unauthorized files were touched. Any discrepancy must be reported as a critical failure.
+
+# 엑셀 보고서 양식(ExcelJS) 작업 규칙
+
+- **스타일은 반드시 `cell.style = {...}` 하나로 한 번에 대입한다.** `cell.font = {...}`,
+  `cell.border = {...}`처럼 속성을 따로따로 대입하면, 행이 많을 때 ExcelJS가 내부 스타일
+  테이블을 서로 다른 행끼리 뒤섞어버리는 버그가 있다(실제로 겪음 — 셀 정렬/테두리가
+  엉뚱한 행에 적용됨).
+- **`numFmt`는 `cell.value =` 대입 전에 미리 읽어서 보존한다.** 값을 먼저 쓰면 그 다음에
+  읽는 numFmt가 초기화된 값으로 나올 수 있다.
+- **병합 셀은 반복문으로 스타일을 주지 않는다.** 병합 범위의 각 열에 대해 `getCell(row, col)`을
+  반복 호출하면 전부 같은 anchor 셀 객체를 반환해 마지막 반복만 남고 앞선 것들이 사라진다.
+  병합 셀은 anchor 셀 하나에 필요한 변(top/bottom/left/right)을 한 번에 지정한다.
+- **표 테두리 3단계 컨벤션** (연번/그룹 단위로 묶이는 보고서 공통 규칙):
+  - 표 전체 외곽(헤더 ~ 데이터 마지막 행, 좌우 포함): `medium`(굵은 실선)
+  - 연번(그룹)이 바뀌는 위/아래 경계: `double`(이중선)
+  - 같은 연번 내부(분할행 사이): `dotted`(점선)
+- **행 늘리기/줄이기**: `ws.duplicateRow(마지막템플릿행, 추가행수, true)`로 늘리고,
+  줄일 때는 `(ws as any)._rows.length = 유지할행수`로 직접 자른다 —
+  `spliceRows`는 삭제 범위가 시트 끝까지 이어지면 아무것도 못 지우는 버그가 있다.
+- **분할결제(카드+현금 등) 행 전개 시**: 번호·날짜·이름·구분 등 식별 정보는 합계행뿐
+  아니라 회차별 상세행에도 전부 반복해서 채운다(빈칸으로 남기지 않는다) — 매출일일보고
+  방식을 기준으로 통일한다.
+- **템플릿 파일이 수정되면 행 수/시작행 상수(`DATA_START_ROW`, `TEMPLATE_DATA_ROWS`)를
+  반드시 다시 확인한다** — 열 너비 변경은 코드에 영향 없지만 행 수 변경은 리사이즈 로직이
+  깨진다.

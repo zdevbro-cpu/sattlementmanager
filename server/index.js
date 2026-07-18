@@ -741,8 +741,18 @@ async function buildSalesReportWorkbook(sales, label) {
   const plan = buildSalesReportPlan(sales)
   resizeReportSheet(ws, plan.length)
 
+  const COL_COUNT = 12
+  const HEADER_ROW = REPORT_DATA_START_ROW - 1 // 헤더(R3)부터 외곽선을 굵게 통일
+  const OUTER_BORDER = 'medium'
+  const lastDataRow = REPORT_DATA_START_ROW + Math.max(plan.length, 1) - 1
+
   plan.forEach((p, i) => {
     const row = ws.getRow(REPORT_DATA_START_ROW + i)
+    const isGroupStart = i === 0 || plan[i - 1].no !== p.no
+    const isGroupEnd = i === plan.length - 1 || plan[i + 1].no !== p.no
+    const isTableStart = i === 0
+    const isTableEnd = i === plan.length - 1
+
     row.getCell(1).value = p.no ?? null
     if (p.date !== undefined) row.getCell(2).value = p.date
     row.getCell(3).value = p.method ?? ''
@@ -751,21 +761,39 @@ async function buildSalesReportWorkbook(sales, label) {
     if (p.buyer !== undefined) row.getCell(6).value = p.buyer
     if (p.category !== undefined) row.getCell(7).value = p.category
     row.getCell(8).value = p.amount
-    row.getCell(8).numFmt = '#,##0'
     row.getCell(9).value = p.issuer ?? ''
     row.getCell(10).value = p.cardNumber ?? ''
     row.getCell(11).value = p.approvalNo ?? ''
     if (p.manager !== undefined) row.getCell(12).value = p.manager
-    if (p.bold) {
-      // 주의: row.font = {...}는 템플릿에서 여러 행이 공유하는 스타일 객체를 그대로 변경(mutate)해
-      // 손대지 않은 다른 행의 글꼴까지 깨뜨린다. 셀마다 기존 font를 복사한 새 객체로 교체해야 안전하다.
-      for (let c = 1; c <= 12; c++) {
-        const cell = row.getCell(c)
-        cell.font = { ...cell.font, bold: true }
+
+    // 주의: 여러 셀 스타일(font/border 등)을 별도 대입으로 나눠서 쓰면 ExcelJS가 행이 많을 때
+    // 스타일 테이블을 내부적으로 어긋나게 만드는 버그가 있다 — 반드시 style 객체 하나로 대입한다.
+    for (let c = 1; c <= COL_COUNT; c++) {
+      const cell = row.getCell(c)
+      const originalNumFmt = cell.numFmt
+      cell.style = {
+        font: { ...cell.font, bold: !!p.bold },
+        alignment: cell.alignment,
+        numFmt: c === 8 ? '#,##0' : originalNumFmt,
+        border: {
+          top: { style: isTableStart ? OUTER_BORDER : isGroupStart ? 'double' : 'dotted' },
+          bottom: { style: isTableEnd ? OUTER_BORDER : isGroupEnd ? 'double' : 'dotted' },
+          left: { style: c === 1 ? OUTER_BORDER : 'thin' },
+          right: { style: c === COL_COUNT ? OUTER_BORDER : 'thin' },
+        },
       }
     }
     row.commit?.()
   })
+
+  // 표 외곽(헤더 R3부터 데이터 마지막 행까지) 좌우 변을 한 단계 굵은 실선으로 통일
+  for (let r = HEADER_ROW; r <= lastDataRow; r++) {
+    const left = ws.getRow(r).getCell(1)
+    left.border = { ...left.border, left: { style: OUTER_BORDER } }
+    const right = ws.getRow(r).getCell(COL_COUNT)
+    right.border = { ...right.border, right: { style: OUTER_BORDER } }
+  }
+
   return wb
 }
 

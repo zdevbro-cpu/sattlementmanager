@@ -122,7 +122,17 @@ export default function HistoryAddForm({
     setSelectedTransferor(c)
     setTransferAmount(c.current.deposit)
     setTransferorCandidates([])
+    // 양수 시 보증금 = 본인 보증금 + 양수금액으로 자동 계산 (이후 수동 수정 가능)
+    setDeposit(base.deposit + c.current.deposit)
   }
+
+  // 양수받는 금액을 수정(일부양도)하면 보증금도 그에 맞춰 다시 자동 계산
+  useEffect(() => {
+    if (status === '양수' && selectedTransferor) {
+      setDeposit(base.deposit + transferAmount)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transferAmount])
 
   const cancelTransferor = () => {
     setSelectedTransferor(null)
@@ -134,6 +144,8 @@ export default function HistoryAddForm({
   const save = async () => {
     if (!eventDate) return setErr('변경일(이벤트 발생일)을 입력하세요.')
     if (status === '양수' && !selectedTransferor) return setErr('양도인을 검색해서 선택하세요.')
+    if (status === '양수' && selectedTransferor && transferAmount > selectedTransferor.current.deposit)
+      return setErr('양수받는 금액이 양도인의 보증금을 초과할 수 없습니다.')
     setSaving(true)
     setErr('')
     try {

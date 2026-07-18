@@ -442,14 +442,17 @@ async function transferIn(contractId, transferorContractId, transferAmount, snap
       [hist[0].id],
     )
     const transferorSnap = mapSnapshot(hist[0], inst, [])
+    // 양도인의 수당지급기준액(보증금)은 양도한 금액만큼 차감한 잔여 금액으로 남는다.
+    const remainingDeposit = Math.max(0, transferorSnap.deposit - transferAmount)
     await insertHistory(client, transferorContractId, {
       ...transferorSnap,
       historyId: '',
       status: '양도',
       eventDate: snap.eventDate,
+      deposit: remainingDeposit,
       memo: `${snap.contractorName}에게 ${
         transferAmount >= transferorSnap.deposit ? '전체' : '일부'
-      } 양도`,
+      } 양도 (${transferAmount.toLocaleString('ko-KR')}원)`,
       linkedContractId: contractId,
       transferAmount,
       createdAt: snap.eventDate,

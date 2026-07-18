@@ -138,6 +138,7 @@ function RevenuePayoutView() {
       )
       if (!effective) continue // 어떤 이력도 아직 기준일 도래 전 → 대상 아님
       if (!(effective.allowance > 0)) continue
+      if (!(effective.deposit > 0)) continue // 양도 등으로 잔여 보증금이 없으면 지급 대상에서 제외
       if (kw && !effective.contractorName.includes(kw)) continue
       result.push({ s: effective, payBaseDate })
     }

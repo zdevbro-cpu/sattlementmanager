@@ -183,7 +183,7 @@ export default function SalesListPage() {
 
           {/* 요약 카드 */}
           <div className="grid grid-cols-4 gap-4 mb-4">
-            <SummaryCard label="전체 건수" value={`${sum.total}건`} sub="기간 필터 기준" tint="#e0edff" fg="#2563eb" icon={<Layers size={18} />} />
+            <SummaryCard label="전체 건수" value={`${won(sum.cardTotal + sum.cashTotal)} / ${sum.total}건`} sub="기간 내 매출총액 / 전체건수" tint="#e0edff" fg="#2563eb" icon={<Layers size={18} />} />
             <SummaryCard label="카드매출" value={won(sum.cardTotal)} sub="기간 내 카드 매출 합계" tint="#e0edff" fg="#2563eb" icon={<CreditCard size={18} />} />
             <SummaryCard label="현금매출" value={won(sum.cashTotal)} sub="기간 내 현금 매출 합계" tint="#e2f7ec" fg="#16a34a" icon={<Banknote size={18} />} />
             <SummaryCard label="분할 / 미검증" value={`${sum.splitCount} / ${sum.unverified}`} sub="분할결제 / 미검증 건수" tint="#fff1e0" fg="#f59e0b" icon={<AlertTriangle size={18} />} />

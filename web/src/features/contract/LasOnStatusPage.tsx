@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Download, Eye, FileText, PlusCircle, Trash2, XCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, Eye, FileText, PlusCircle, Trash2, XCircle } from 'lucide-react'
 import type { ComponentType } from 'react'
 import { comma, dateText, todayIso } from '../../lib/format'
 import { useCodes } from '../../lib/codeStore'
@@ -26,6 +26,7 @@ const DEFAULT_FILTER: ContractFilter = {
 }
 // 상태 드롭다운 전용 sentinel — 실제 status 값이 아니라 "전체 + 폐기 포함"을 뜻하는 선택지 (계약조회와 동일)
 const INCLUDE_DISCARDED_VALUE = '__include_discarded__'
+const PAGE_SIZES = [20, 50, 100]
 
 function sumAmount(list: { amount: number }[]): number {
   return list.reduce((a, x) => a + (x.amount || 0), 0)
@@ -62,6 +63,8 @@ export default function LasOnStatusPage() {
   const [loading, setLoading] = useState(true)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [refresh, setRefresh] = useState(0)
+  const [perPage, setPerPage] = useState(20)
+  const [page, setPage] = useState(1)
   const contractEndDateRef = useRef<HTMLInputElement>(null)
   const regEndDateRef = useRef<HTMLInputElement>(null)
 
@@ -82,6 +85,10 @@ export default function LasOnStatusPage() {
       alive = false
     }
   }, [refresh])
+
+  useEffect(() => {
+    setPage(1)
+  }, [filter, businessUnit, includeDiscarded, perPage])
 
   const onDelete = async (c: Contract) => {
     if (c.current.status === '폐기') {
@@ -152,6 +159,10 @@ export default function LasOnStatusPage() {
 
   // 요약 카드 — 계약조회와 동일하게 검색필터와 무관한 전체 라스온 계약 기준 집계
   const sum = summarize(contracts)
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / perPage))
+  const safePage = Math.min(page, totalPages)
+  const pagedRows = rows.slice((safePage - 1) * perPage, safePage * perPage)
 
   const [excelBusy, setExcelBusy] = useState(false)
   const onExcelDownload = async () => {
@@ -358,7 +369,7 @@ export default function LasOnStatusPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => {
+              {pagedRows.map((r) => {
                 const s = r.c.current
                 return (
                   <tr
@@ -427,6 +438,34 @@ export default function LasOnStatusPage() {
             </tbody>
           </table>
         </div>
+        {rows.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+            <div className="flex gap-1">
+              <button onClick={() => setPage(Math.max(1, safePage - 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronLeft size={16} /></button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setPage(n)}
+                  className={`h-8 min-w-8 px-2 rounded-md border text-[13px] font-semibold ${n === safePage ? 'border-primary text-primary' : 'border-border text-[#94a3b8] hover:bg-hover'}`}
+                >
+                  {n}
+                </button>
+              ))}
+              <button onClick={() => setPage(Math.min(totalPages, safePage + 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronRight size={16} /></button>
+            </div>
+            <div className="flex gap-1">
+              {PAGE_SIZES.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setPerPage(n)}
+                  className={`h-8 px-3 rounded-md border text-[13px] font-semibold ${n === perPage ? 'border-primary text-primary' : 'border-border text-[#94a3b8] hover:bg-hover'}`}
+                >
+                  {n}개
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {detailId && (
