@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import type { ComponentType } from 'react'
-import { ChevronRight, NotebookPen, Wallet } from 'lucide-react'
+import { ChevronRight, LayoutDashboard, NotebookPen, Wallet } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 
 /** 모바일 접속 시 첫 화면 — 결재/교재신청 중 사용할 기능을 선택한다. */
@@ -29,6 +29,14 @@ export default function MobileHomePage() {
       <p className="mb-3 text-[13px] font-semibold text-[#94a3b8]">사용할 기능을 선택하세요</p>
 
       <div className="flex flex-col gap-3">
+        <MenuCard
+          icon={LayoutDashboard}
+          title="현황"
+          sub="전체 모듈 카드 현황을 한눈에 확인 (조회 전용)"
+          tint="#e0edff"
+          fg="#2563eb"
+          onClick={() => navigate('/dashboard')}
+        />
         <MenuCard
           icon={Wallet}
           title="결재"

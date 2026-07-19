@@ -37,6 +37,7 @@ function AuthedApp() {
       <Routes>
         <Route path="/mobile-sales" element={<MobileSalesRegisterPage />} />
         <Route path="/textbook-apply" element={<TextbookApplyMobilePage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="*" element={<MobileHomePage />} />
       </Routes>
     )
