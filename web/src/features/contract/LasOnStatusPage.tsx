@@ -537,8 +537,8 @@ function SummaryCard({
       </div>
       <div className="min-w-0">
         <div className="text-[13px] font-semibold text-[#64748b]">{label}</div>
-        <div className="text-[18px] font-extrabold text-text-strong leading-tight tabular truncate">{value}</div>
-        {sub && <div className="text-[11.5px] text-[#64748b] mt-0.5 truncate">{sub}</div>}
+        <div className="text-[18px] font-extrabold text-text-strong leading-tight tabular whitespace-nowrap">{value}</div>
+        {sub && <div className="text-[12px] font-semibold text-[#94a3b8] mt-0.5 whitespace-nowrap">{sub}</div>}
       </div>
     </div>
   )
