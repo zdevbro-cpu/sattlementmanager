@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Download, Eye, FileText, PlusCircle, Trash2, XCircle } from 'lucide-react'
 import type { ComponentType } from 'react'
-import { comma, dateText, todayIso } from '../../lib/format'
+import { comma, dateText, todayIso, won } from '../../lib/format'
 import { useCodes } from '../../lib/codeStore'
 import StatusBadge from '../../components/ui/StatusBadge'
 import Badge from '../../components/ui/Badge'
@@ -198,9 +198,9 @@ export default function LasOnStatusPage() {
 
       {/* 요약 카드 — 계약조회와 동일한 항목 */}
       <div className="grid grid-cols-4 gap-4 mb-4">
-        <SummaryCard label="전체 계약" value={sum.total} tint="#e0edff" fg="#2563eb" icon={FileText} />
+        <SummaryCard label="계약총액" value={won(sum.depositTotal)} sub={`총 ${sum.active}건 (해지·폐기 제외)`} tint="#e0edff" fg="#2563eb" icon={FileText} />
+        <SummaryCard label="이번달 계약총액" value={won(sum.monthTotal)} sub={`이번주 ${won(sum.weekTotal)}`} tint="#fff1e0" fg="#f59e0b" icon={PlusCircle} />
         <SummaryCard label="진행중" value={sum.active} tint="#e2f7ec" fg="#16a34a" icon={FileText} />
-        <SummaryCard label="이번달 신규" value={sum.newThisMonth} tint="#fff1e0" fg="#f59e0b" icon={PlusCircle} />
         <SummaryCard label="해지·폐기" value={sum.terminated} tint="#fee2e2" fg="#ef4444" icon={XCircle} />
       </div>
 
@@ -515,12 +515,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function SummaryCard({
   label,
   value,
+  sub,
   tint,
   fg,
   icon: Icon,
 }: {
   label: string
-  value: number
+  value: number | string
+  sub?: string
   tint: string
   fg: string
   icon: ComponentType<{ size?: number }>
@@ -528,14 +530,15 @@ function SummaryCard({
   return (
     <div className="rounded-[12px] border border-border bg-card p-4 flex items-center gap-3">
       <div
-        className="h-[38px] w-[38px] rounded-[11px] flex items-center justify-center"
+        className="h-[38px] w-[38px] shrink-0 rounded-[11px] flex items-center justify-center"
         style={{ background: tint, color: fg }}
       >
         <Icon size={18} />
       </div>
-      <div>
+      <div className="min-w-0">
         <div className="text-[13px] font-semibold text-[#64748b]">{label}</div>
-        <div className="text-[18px] font-extrabold text-text-strong leading-tight tabular">{value}</div>
+        <div className="text-[18px] font-extrabold text-text-strong leading-tight tabular truncate">{value}</div>
+        {sub && <div className="text-[11.5px] text-[#64748b] mt-0.5 truncate">{sub}</div>}
       </div>
     </div>
   )

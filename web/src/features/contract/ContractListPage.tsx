@@ -5,7 +5,7 @@ import AppLayout from '../../components/layout/AppLayout'
 import StatusBadge from '../../components/ui/StatusBadge'
 import Badge, { contractTypeTone, methodTone } from '../../components/ui/Badge'
 import DateTextInput from '../../components/ui/DateTextInput'
-import { comma, dateText, todayIso } from '../../lib/format'
+import { comma, dateText, todayIso, won } from '../../lib/format'
 import {
   EMPTY_FILTER,
   type Contract,
@@ -239,20 +239,28 @@ export default function ContractListPage() {
 
           {/* 요약 카드 */}
       <div className="grid grid-cols-4 gap-4 mb-4">
-        <SummaryCard label="전체 계약" value={sum.total} tint="#e0edff" fg="#2563eb" icon={FileText} />
+        <SummaryCard
+          label="계약총액"
+          value={won(sum.depositTotal)}
+          sub={`총 ${sum.active}건 (해지·폐기 제외)`}
+          tint="#e0edff"
+          fg="#2563eb"
+          icon={FileText}
+        />
+        <SummaryCard
+          label="이번달 계약총액"
+          value={won(sum.monthTotal)}
+          sub={`이번주 ${won(sum.weekTotal)}`}
+          tint="#fff1e0"
+          fg="#f59e0b"
+          icon={PlusCircle}
+        />
         <SummaryCard
           label="진행중"
           value={sum.active}
           tint="#e2f7ec"
           fg="#16a34a"
           icon={FileText}
-        />
-        <SummaryCard
-          label="이번달 신규"
-          value={sum.newThisMonth}
-          tint="#fff1e0"
-          fg="#f59e0b"
-          icon={PlusCircle}
         />
         <SummaryCard
           label="해지·폐기"
@@ -596,12 +604,14 @@ function Field({
 function SummaryCard({
   label,
   value,
+  sub,
   tint,
   fg,
   icon: Icon,
 }: {
   label: string
-  value: number
+  value: number | string
+  sub?: string
   tint: string
   fg: string
   icon: ComponentType<{ size?: number }>
@@ -609,16 +619,17 @@ function SummaryCard({
   return (
     <div className="rounded-[12px] border border-border bg-card p-4 flex items-center gap-3">
       <div
-        className="h-[38px] w-[38px] rounded-[11px] flex items-center justify-center"
+        className="h-[38px] w-[38px] shrink-0 rounded-[11px] flex items-center justify-center"
         style={{ background: tint, color: fg }}
       >
         <Icon size={18} />
       </div>
-      <div>
+      <div className="min-w-0">
         <div className="text-[13px] font-semibold text-[#64748b]">{label}</div>
-        <div className="text-[25px] font-extrabold text-text-strong leading-tight">
+        <div className="text-[22px] font-extrabold text-text-strong leading-tight tabular truncate">
           {value}
         </div>
+        {sub && <div className="text-[11.5px] text-[#64748b] mt-0.5 truncate">{sub}</div>}
       </div>
     </div>
   )

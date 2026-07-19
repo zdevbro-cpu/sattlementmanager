@@ -61,16 +61,44 @@ export function correctHistory(
 }
 
 /** 요약 카드용 집계 */
+/** 로컬 날짜 → 'YYYY-MM-DD' */
+function isoLocal(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export function summarize(list: Contract[]) {
   const total = list.length
-  const active = list.filter(
-    (c) => c.current.status !== '해지' && c.current.status !== '폐기',
+  const isEnded = (c: Contract) =>
+    c.current.status === '해지' || c.current.status === '폐기'
+  const activeList = list.filter((c) => !isEnded(c))
+  const active = activeList.length
+  const terminated = list.filter(isEnded).length
+
+  // 이번달·이번주(월요일 시작) 경계 — 로컬 날짜 기준
+  const now = new Date()
+  const monthPrefix = isoLocal(now).slice(0, 7) // 'YYYY-MM'
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7)) // 월요일로 이동
+  const weekStart = isoLocal(monday)
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  const weekEnd = isoLocal(sunday)
+
+  const newThisMonth = activeList.filter((c) =>
+    (c.current.contractDate ?? '').startsWith(monthPrefix),
   ).length
-  const newThisMonth = list.filter((c) =>
-    (c.current.contractDate ?? '').startsWith(new Date().toISOString().slice(0, 7)),
-  ).length
-  const terminated = list.filter(
-    (c) => c.current.status === '해지' || c.current.status === '폐기',
-  ).length
-  return { total, active, newThisMonth, terminated }
+
+  // 계약총액 = 보증금 합계 (해지·폐기 제외)
+  const depositTotal = activeList.reduce((a, c) => a + (c.current.deposit || 0), 0)
+  const monthTotal = activeList
+    .filter((c) => (c.current.contractDate ?? '').startsWith(monthPrefix))
+    .reduce((a, c) => a + (c.current.deposit || 0), 0)
+  const weekTotal = activeList
+    .filter((c) => {
+      const d = c.current.contractDate ?? ''
+      return d >= weekStart && d <= weekEnd
+    })
+    .reduce((a, c) => a + (c.current.deposit || 0), 0)
+
+  return { total, active, newThisMonth, terminated, depositTotal, monthTotal, weekTotal }
 }
