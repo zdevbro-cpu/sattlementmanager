@@ -92,16 +92,32 @@ async function listSales(filter = {}) {
     `SELECT * FROM sales ORDER BY created_at DESC`,
   )
   const result = []
-  for (const s of sales) {
-    const { rows: inst } = await pool.query(
-      `SELECT * FROM sales_installments WHERE sale_id = $1 ORDER BY seq`,
-      [s.id],
-    )
-    const { rows: docs } = await pool.query(
-      `SELECT * FROM sales_documents WHERE sale_id = $1 ORDER BY id`,
-      [s.id],
-    )
-    result.push(mapSale(s, inst, docs))
+  if (sales.length) {
+    const ids = sales.map((s) => s.id)
+    // 매출 건수만큼 개별 쿼리를 날리던 N+1 패턴 대신, 결제내역/문서를 각각 한 번에 배치 조회한다.
+    const [{ rows: allInst }, { rows: allDocs }] = await Promise.all([
+      pool.query(
+        `SELECT * FROM sales_installments WHERE sale_id = ANY($1) ORDER BY sale_id, seq`,
+        [ids],
+      ),
+      pool.query(
+        `SELECT * FROM sales_documents WHERE sale_id = ANY($1) ORDER BY sale_id, id`,
+        [ids],
+      ),
+    ])
+    const instBySale = new Map()
+    for (const i of allInst) {
+      if (!instBySale.has(i.sale_id)) instBySale.set(i.sale_id, [])
+      instBySale.get(i.sale_id).push(i)
+    }
+    const docsBySale = new Map()
+    for (const d of allDocs) {
+      if (!docsBySale.has(d.sale_id)) docsBySale.set(d.sale_id, [])
+      docsBySale.get(d.sale_id).push(d)
+    }
+    for (const s of sales) {
+      result.push(mapSale(s, instBySale.get(s.id) || [], docsBySale.get(s.id) || []))
+    }
   }
   const { startDate, endDate, category, businessUnit, buyer, inputterOrg, inputterName } = filter
   return result.filter((s) => {

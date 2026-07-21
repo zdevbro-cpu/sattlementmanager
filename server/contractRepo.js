@@ -99,9 +99,57 @@ async function listContracts(filter = {}) {
     `SELECT id, contractor_id FROM contracts ORDER BY created_at DESC`,
   )
   const result = []
-  for (const c of contracts) {
-    const full = await getContract(c.id)
-    if (full) result.push(full)
+  if (contracts.length) {
+    const ids = contracts.map((c) => c.id)
+    // 계약 건수만큼 개별 쿼리를 날리던 N+1 패턴 대신, 이력/문서/결제내역을 각각 한 번에 배치 조회한다.
+    const [{ rows: allHist }, { rows: allDocs }] = await Promise.all([
+      pool.query(
+        `SELECT * FROM contract_history WHERE contract_id = ANY($1) ORDER BY contract_id, id DESC`,
+        [ids],
+      ),
+      pool.query(
+        `SELECT * FROM contract_documents WHERE contract_id = ANY($1) ORDER BY contract_id, id`,
+        [ids],
+      ),
+    ])
+    const historyIds = allHist.map((h) => h.id)
+    const { rows: allInst } = historyIds.length
+      ? await pool.query(
+          `SELECT * FROM payment_installments WHERE history_id = ANY($1) ORDER BY history_id, seq`,
+          [historyIds],
+        )
+      : { rows: [] }
+
+    const histByContract = new Map()
+    for (const h of allHist) {
+      if (!histByContract.has(h.contract_id)) histByContract.set(h.contract_id, [])
+      histByContract.get(h.contract_id).push(h)
+    }
+    const docsByContract = new Map()
+    for (const d of allDocs) {
+      if (!docsByContract.has(d.contract_id)) docsByContract.set(d.contract_id, [])
+      docsByContract.get(d.contract_id).push(d)
+    }
+    const instByHistory = new Map()
+    for (const i of allInst) {
+      if (!instByHistory.has(i.history_id)) instByHistory.set(i.history_id, [])
+      instByHistory.get(i.history_id).push(i)
+    }
+
+    for (const c of contracts) {
+      const hist = histByContract.get(c.id) || []
+      if (!hist.length) continue
+      const docsForContract = docsByContract.get(c.id) || []
+      const latestHistoryId = hist[0]?.id
+      const history = hist.map((h) => {
+        const inst = instByHistory.get(h.id) || []
+        const docs = docsForContract.filter(
+          (d) => d.history_id === h.id || (d.history_id == null && h.id === latestHistoryId),
+        )
+        return mapSnapshot(h, inst, docs)
+      })
+      result.push({ id: c.id, contractorId: c.contractor_id || '', current: history[0], history })
+    }
   }
   // 필터
   const { startDate, endDate, status, org, keyword } = filter
