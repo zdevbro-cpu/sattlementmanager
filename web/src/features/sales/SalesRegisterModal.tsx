@@ -3,7 +3,7 @@ import type { PaymentInfo } from '../../types/contract'
 import type { Sale } from '../../types/sales'
 import { SALES_MANAGERS } from '../../data/mockSales'
 import { useCodes } from '../../lib/codeStore'
-import { createSale, updateSale } from './salesStore'
+import { createSale, LINKABLE_CATEGORIES, updateSale } from './salesStore'
 import { useSalesCategories } from './salesCategoryStore'
 import PaymentEditor, { emptyPayment } from '../contract/PaymentEditor'
 import DateTextInput from '../../components/ui/DateTextInput'
@@ -16,13 +16,18 @@ export default function SalesRegisterModal({
   sale,
   onClose,
   onCreated,
+  onConvertToContract,
 }: {
   /** 수정 대상 매출 — 지정 시 해당 매출 값으로 초기화되고 저장 시 수정(PATCH) 처리된다. */
   sale?: Sale
   onClose: () => void
   onCreated: () => void
+  /** 점주보증금/LAS-On 매출을 계약으로 전환·등록할 때 호출 (계약등록 모달을 이 매출로 미리 채워서 연다) */
+  onConvertToContract?: (sale: Sale) => void
 }) {
   const isEdit = !!sale
+  const canConvert =
+    isEdit && !!sale && !sale.contractId && LINKABLE_CATEGORIES.includes(sale.category)
   const categories = useSalesCategories()
   const { orgs, businessUnits } = useCodes()
   const [org, setOrg] = useState(sale?.org ?? orgs[0] ?? '')
@@ -167,13 +172,25 @@ export default function SalesRegisterModal({
           {err && <div className="text-[13px] text-danger">{err}</div>}
         </div>
 
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-border">
-          <button onClick={onClose} className="h-10 rounded-[10px] border border-border px-4 text-sm font-semibold text-[#c2cde0] hover:bg-hover">
-            취소
-          </button>
-          <button onClick={submit} disabled={saving} className="h-10 rounded-[10px] bg-primary px-5 text-sm font-bold text-white hover:brightness-110 disabled:opacity-60">
-            {saving ? '저장 중…' : isEdit ? '매출 수정' : '매출 등록'}
-          </button>
+        <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-border">
+          {canConvert ? (
+            <button
+              onClick={() => onConvertToContract?.(sale!)}
+              className="h-10 rounded-[10px] border border-success px-4 text-sm font-bold text-success hover:bg-hover"
+            >
+              계약으로 전환·등록
+            </button>
+          ) : (
+            <span />
+          )}
+          <div className="flex gap-2">
+            <button onClick={onClose} className="h-10 rounded-[10px] border border-border px-4 text-sm font-semibold text-[#c2cde0] hover:bg-hover">
+              취소
+            </button>
+            <button onClick={submit} disabled={saving} className="h-10 rounded-[10px] bg-primary px-5 text-sm font-bold text-white hover:brightness-110 disabled:opacity-60">
+              {saving ? '저장 중…' : isEdit ? '매출 수정' : '매출 등록'}
+            </button>
+          </div>
         </div>
       </div>
 

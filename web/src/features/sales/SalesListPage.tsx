@@ -17,6 +17,7 @@ import SalesRegisterModal from './SalesRegisterModal'
 import SalesDetailDrawer from './SalesDetailDrawer'
 import { downloadSalesListReport } from './dailyReportExcel'
 import TextbookAdminPage from '../textbook/TextbookAdminPage'
+import ContractRegisterModal from '../contract/ContractRegisterModal'
 
 type Tab = 'card' | 'textbook'
 
@@ -42,6 +43,7 @@ export default function SalesListPage() {
   const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'textbook' ? 'textbook' : 'card')
   const [filter, setFilter] = useState<SalesFilter>(DEFAULT_SALES_FILTER)
   const [editingSale, setEditingSale] = useState<Sale | 'new' | null>(null)
+  const [convertSale, setConvertSale] = useState<Sale | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [refresh, setRefresh] = useState(0)
   const endDateRef = useRef<HTMLInputElement>(null)
@@ -373,6 +375,20 @@ export default function SalesListPage() {
           onClose={() => setEditingSale(null)}
           onCreated={() => {
             setEditingSale(null)
+            setRefresh((n) => n + 1)
+          }}
+          onConvertToContract={(s) => {
+            setEditingSale(null)
+            setConvertSale(s)
+          }}
+        />
+      )}
+      {convertSale && (
+        <ContractRegisterModal
+          initialSale={convertSale}
+          onClose={() => setConvertSale(null)}
+          onCreated={() => {
+            setConvertSale(null)
             setRefresh((n) => n + 1)
           }}
         />

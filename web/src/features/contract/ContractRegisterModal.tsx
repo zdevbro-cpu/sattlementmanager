@@ -9,12 +9,16 @@ import { EMPTY_FILTER } from '../../types/contract'
 import { BRANCHES, MANAGERS, RECRUITERS } from '../../data/mockContracts'
 import { useCodes } from '../../lib/codeStore'
 import { createContract, listContracts } from './contractStore'
+import { linkSaleToContract, searchUnlinkedSales } from '../sales/salesStore'
+import type { Sale } from '../../types/sales'
+
+const LAS_ON_TYPES = ['LAS-On파트장', 'LAS-On파트너']
 import PaymentEditor, { emptyPayment } from './PaymentEditor'
 import { uploadToDrive } from '../../lib/api'
 import DropZone from '../../components/ui/DropZone'
 import DateTextInput from '../../components/ui/DateTextInput'
 import { CheckCircle2, Paperclip, X, XCircle } from 'lucide-react'
-import { phoneFmt, residentNoFmt } from '../../lib/format'
+import { comma, phoneFmt, residentNoFmt } from '../../lib/format'
 
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed'
@@ -53,26 +57,32 @@ interface FormState {
 export default function ContractRegisterModal({
   onClose,
   onCreated,
+  initialSale,
 }: {
   onClose: () => void
   onCreated: () => void
+  /** 매출관리에서 "계약으로 전환·등록"으로 넘어온 경우 — 구매자명/소속/사업부/담당/결제정보를 미리 채우고,
+   *  등록 완료 시 이 매출을 자동으로 계약에 연결한다. */
+  initialSale?: Sale
 }) {
   const codes = useCodes()
   const [f, setF] = useState<FormState>({
-    org: codes.orgs[0] ?? '',
-    businessUnit: codes.businessUnits[0] ?? '',
-    contractorName: '',
+    org: initialSale?.org || codes.orgs[0] || '',
+    businessUnit: initialSale?.businessUnit || codes.businessUnits[0] || '',
+    contractorName: initialSale?.buyer ?? '',
     contractNo: '',
-    contractType: codes.contractTypes[0] ?? '',
+    contractType: LAS_ON_TYPES.includes(initialSale?.category ?? '')
+      ? (initialSale!.category as string)
+      : codes.contractTypes[0] ?? '',
     parentContractId: '',
-    contractDate: '',
-    deposit: 0,
+    contractDate: initialSale?.date ?? '',
+    deposit: initialSale?.payment.totalAmount ?? 0,
     allowance: 0,
     allowancePayDay: 25,
     firstAllowancePayDate: '',
     contractEndDate: '',
     branch: BRANCHES[0],
-    manager: MANAGERS[0],
+    manager: initialSale?.manager || MANAGERS[0],
     recruiter: RECRUITERS[0],
     bankName: '',
     accountNo: '',
@@ -86,7 +96,7 @@ export default function ContractRegisterModal({
     recipientAccountOwner: '',
     recipientResidentNo: '',
   })
-  const [payment, setPayment] = useState<PaymentInfo>(emptyPayment())
+  const [payment, setPayment] = useState<PaymentInfo>(initialSale?.payment ?? emptyPayment())
   const [contractFile, setContractFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
@@ -107,6 +117,41 @@ export default function ContractRegisterModal({
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setF({ ...f, [k]: v })
+
+  // 미연동 매출 검색·연결 — 모바일 등록 카드/입금증 등을 이 계약의 결재정보로 그대로 가져온다
+  const [saleQuery, setSaleQuery] = useState('')
+  const [saleCandidates, setSaleCandidates] = useState<Sale[]>([])
+  const [selectedSale, setSelectedSale] = useState<Sale | null>(initialSale ?? null)
+  const [saleSearched, setSaleSearched] = useState(false)
+
+  useEffect(() => {
+    if (selectedSale || !saleQuery.trim()) {
+      setSaleSearched(false)
+      setSaleCandidates([])
+      return
+    }
+    const timer = setTimeout(() => {
+      searchUnlinkedSales(saleQuery.trim()).then((list) => {
+        setSaleCandidates(list)
+        setSaleSearched(true)
+      })
+    }, 350)
+    return () => clearTimeout(timer)
+  }, [saleQuery, selectedSale])
+
+  const selectSale = (s: Sale) => {
+    setSelectedSale(s)
+    setSaleCandidates([])
+    setPayment(s.payment)
+    setF((prev) => ({ ...prev, deposit: s.payment.totalAmount }))
+  }
+
+  const cancelSale = () => {
+    setSelectedSale(null)
+    setSaleQuery('')
+    setSaleCandidates([])
+    setSaleSearched(false)
+  }
 
   const payTotal = payment.totalAmount
   const depositMatched = payTotal === f.deposit
@@ -164,6 +209,14 @@ export default function ContractRegisterModal({
         createdAt: f.contractDate,
       }
       const created = await createContract(snapshot)
+
+      if (selectedSale) {
+        try {
+          await linkSaleToContract(selectedSale, created.id)
+        } catch {
+          /* 매출 연결 실패해도 계약 등록은 유지 */
+        }
+      }
 
       if (contractFile) {
         try {
@@ -360,6 +413,61 @@ export default function ContractRegisterModal({
                 <input value={f.memo} onChange={(e) => set('memo', e.target.value)} className={inputCls} placeholder="변경 사유/메모" disabled={partnerLocked} />
               </Field>
             </div>
+          </section>
+
+          {/* ── 미연동 매출 검색·연결 (모바일 카드/입금증 등록분과 매칭) ── */}
+          <section className={partnerLocked ? 'pointer-events-none opacity-40' : ''}>
+            <SectionTitle>미연동 매출 검색·연결 (선택)</SectionTitle>
+            {!selectedSale && (
+              <>
+                <div className="relative">
+                  <input
+                    value={saleQuery}
+                    onChange={(e) => setSaleQuery(e.target.value)}
+                    placeholder="구매자명으로 모바일/직접등록 매출 검색"
+                    className={inputCls}
+                  />
+                </div>
+                {saleCandidates.length > 0 && (
+                  <div className="mt-1.5 rounded-[8px] border border-border divide-y divide-border max-h-40 overflow-y-auto">
+                    {saleCandidates.map((s) => (
+                      <button
+                        type="button"
+                        key={s.id}
+                        onClick={() => selectSale(s)}
+                        className="w-full text-left px-3 py-2 text-[12.5px] hover:bg-hover flex items-center justify-between gap-2"
+                      >
+                        <span className="font-semibold text-text-strong">
+                          {s.buyer} <span className="font-normal text-[#94a3b8]">({s.category})</span>
+                        </span>
+                        <span className="text-[#94a3b8] whitespace-nowrap">
+                          {s.date} · {comma(s.payment.totalAmount)}원
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {saleSearched && saleCandidates.length === 0 && (
+                  <div className="mt-1.5 text-[12px] text-[#94a3b8]">검색된 미연동 매출이 없습니다.</div>
+                )}
+              </>
+            )}
+            {selectedSale && (
+              <div className="rounded-[8px] border border-primary/40 bg-primary/5 p-2.5 text-[12.5px] space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-text-strong">
+                    {selectedSale.buyer} · {comma(selectedSale.payment.totalAmount)}원
+                  </span>
+                  <button type="button" onClick={cancelSale} className="text-[11.5px] text-danger hover:underline">
+                    연결 취소
+                  </button>
+                </div>
+                <div className="text-[#94a3b8]">
+                  매출일: {selectedSale.date} · 종류: {selectedSale.category}
+                </div>
+                <div className="text-[#94a3b8]">결재정보를 이 계약에 그대로 가져왔습니다 — 아래에서 확인/수정하세요.</div>
+              </div>
+            )}
           </section>
 
           {/* ── 결재정보 ── */}

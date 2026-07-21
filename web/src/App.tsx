@@ -6,6 +6,7 @@ import AppointmentListPage from './features/appointment/AppointmentListPage'
 import PaymentListPage from './features/payment/PaymentListPage'
 import SystemAdminPage from './features/system/SystemAdminPage'
 import MobileSalesRegisterPage from './features/sales/MobileSalesRegisterPage'
+import MobileEvidenceUploadPage from './features/contract/MobileEvidenceUploadPage'
 import DashboardPage from './features/dashboard/DashboardPage'
 import { AuthProvider, useAuth } from './features/auth/AuthContext'
 import LoginPage from './features/auth/LoginPage'
@@ -36,6 +37,7 @@ function AuthedApp() {
     return (
       <Routes>
         <Route path="/mobile-sales" element={<MobileSalesRegisterPage />} />
+        <Route path="/mobile-evidence" element={<MobileEvidenceUploadPage />} />
         <Route path="/textbook-apply" element={<TextbookApplyMobilePage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="*" element={<MobileHomePage />} />

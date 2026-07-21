@@ -1,6 +1,6 @@
 // 매출 데이터 접근 계층 — Cloud SQL(PostgreSQL) 백엔드(server/salesRepo.js)를 통해 조회/저장한다.
 // 매출 직접등록분(DB) + 계약관리 보증금 결재(점주보증금, 계약 데이터에서 파생) 를 하나의 목록으로 통합 조회한다.
-import type { Sale, SalesFilter } from '../../types/sales'
+import { EMPTY_SALES_FILTER, type Sale, type SalesFilter } from '../../types/sales'
 import { listContracts } from '../contract/contractStore'
 import { EMPTY_FILTER, type Contract } from '../../types/contract'
 import { createSaleApi, deleteSaleApi, fetchSale, fetchSales, updateSaleApi } from '../../lib/api'
@@ -72,11 +72,29 @@ export async function listSales(filter: SalesFilter): Promise<Sale[]> {
     if (!matchRegDate(s, filter)) return false
     return true
   })
-  // 등록일 구간은 서버(직접등록 매출)에서 걸러지지 않으므로 클라이언트에서 함께 적용
-  const filteredDirect = direct.filter((s) => matchRegDate(s, filter))
+  // 등록일 구간은 서버(직접등록 매출)에서 걸러지지 않으므로 클라이언트에서 함께 적용.
+  // 계약과 연동된 매출(contractId 있음)은 그 계약의 파생행으로 이미 표시되므로 중복 노출을 막는다.
+  const filteredDirect = direct.filter((s) => matchRegDate(s, filter) && !s.contractId)
   return [...filteredDirect, ...filteredContractSales].sort((a, b) =>
     (b.date ?? '').localeCompare(a.date ?? ''),
   )
+}
+
+/** 계약으로 이어질 수 있는 매출 종류 — 그 외(매장결제/구독/현금 등 일반매출)는 계약 연결 대상이 아니다 */
+export const LINKABLE_CATEGORIES = ['점주보증금', 'LAS-On파트장', 'LAS-On파트너']
+
+/** 계약과 아직 연동되지 않은 직접등록 매출(모바일 카드/입금증 포함) 검색 — 계약 등록 시 매칭용 */
+export async function searchUnlinkedSales(keyword: string): Promise<Sale[]> {
+  const list = await fetchSales({ ...EMPTY_SALES_FILTER, buyer: keyword })
+  return list.filter(
+    (s) => s.source === 'sale' && !s.contractId && LINKABLE_CATEGORIES.includes(s.category),
+  )
+}
+
+/** 매출을 계약에 연결 — 이후 매출 목록에서는 계약 파생행으로만 표시된다 */
+export function linkSaleToContract(sale: Sale, contractId: string): Promise<Sale> {
+  const { id, ...rest } = sale
+  return updateSaleApi(id, { ...rest, contractId })
 }
 
 /** 매출 1건 조회 (계약연동분은 원본 계약에서 파생) */

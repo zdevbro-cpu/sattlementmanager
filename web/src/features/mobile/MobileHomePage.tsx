@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import type { ComponentType } from 'react'
-import { ChevronRight, LayoutDashboard, NotebookPen, Wallet } from 'lucide-react'
+import { ChevronRight, LayoutDashboard, NotebookPen, ScanLine, Wallet } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 
 /** 모바일 접속 시 첫 화면 — 결재/교재신청 중 사용할 기능을 선택한다. */
@@ -44,6 +44,14 @@ export default function MobileHomePage() {
           tint="#fff1e0"
           fg="#f59e0b"
           onClick={() => navigate('/mobile-sales')}
+        />
+        <MenuCard
+          icon={ScanLine}
+          title="증빙 등록"
+          sub="증빙 없는 기존 계약을 검색해서 전표/입금증 촬영본을 바로 첨부"
+          tint="#e0edff"
+          fg="#2563eb"
+          onClick={() => navigate('/mobile-evidence')}
         />
         <MenuCard
           icon={NotebookPen}
