@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import type { ComponentType } from 'react'
-import { ChevronRight, LayoutDashboard, NotebookPen, ScanLine, Wallet } from 'lucide-react'
+import { ChevronRight, LayoutDashboard, NotebookPen, ScanLine, Store, Wallet } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 
 /** 모바일 접속 시 첫 화면 — 결재/교재신청 중 사용할 기능을 선택한다. */
@@ -60,6 +60,14 @@ export default function MobileHomePage() {
           tint="#e2f7ec"
           fg="#16a34a"
           onClick={() => navigate('/textbook-apply')}
+        />
+        <MenuCard
+          icon={Store}
+          title="매장섭외관리"
+          sub="라스온 매장 섭외 현황 조회 (매장 목록 검색 → 상세 확인)"
+          tint="#f3e8ff"
+          fg="#a855f7"
+          onClick={() => navigate('/mobile-stores')}
         />
       </div>
     </div>

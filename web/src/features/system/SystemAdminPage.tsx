@@ -43,6 +43,7 @@ import {
   updateFeeRate,
   useSettlementSettings,
 } from './settlementSettingsStore'
+import StaffManagePage from '../store/StaffManagePage'
 
 const GROUPS: { kind: CodeKind; title: string; desc: string }[] = [
   { kind: 'orgs', title: '소속', desc: '계약 소속 구분 (예: A, B)' },
@@ -68,7 +69,7 @@ const GROUPS: { kind: CodeKind; title: string; desc: string }[] = [
   },
 ]
 
-type Tab = 'codes' | 'users'
+type Tab = 'codes' | 'users' | 'partners'
 
 export default function SystemAdminPage() {
   const [tab, setTab] = useState<Tab>('codes')
@@ -87,9 +88,12 @@ export default function SystemAdminPage() {
         <TabButton active={tab === 'users'} onClick={() => setTab('users')}>
           사용자관리
         </TabButton>
+        <TabButton active={tab === 'partners'} onClick={() => setTab('partners')}>
+          파트너 계정관리
+        </TabButton>
       </div>
 
-      {tab === 'codes' ? <CommonCodeAdmin /> : <UserAdmin />}
+      {tab === 'codes' ? <CommonCodeAdmin /> : tab === 'users' ? <UserAdmin /> : <StaffManagePage />}
     </AppLayout>
   )
 }

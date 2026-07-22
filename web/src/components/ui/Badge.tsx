@@ -130,6 +130,36 @@ export function branchTone(branch: string): Tone {
   return BRANCH_TONES[h % BRANCH_TONES.length]
 }
 
+/** 매장선정관리 섭외 상태 → 톤 */
+export function storeStatusTone(status: string): Tone {
+  switch (status) {
+    case '신규등록':
+      return 'slate'
+    case '접촉중':
+      return 'sky'
+    case '실무협의':
+      return 'blue'
+    case '실측예정':
+      return 'purple'
+    case '실측완료':
+      return 'amber'
+    case '모델링':
+      return 'teal'
+    case '계약완료':
+      return 'green'
+    case '공사':
+      return 'amber'
+    case '집기발주':
+      return 'sky'
+    case '도서불출':
+      return 'blue'
+    case '오픈':
+      return 'green'
+    default:
+      return 'slate'
+  }
+}
+
 /** 계약구분 → 톤. 시스템관리 공통코드로 새 구분이 추가돼도 지점명과 같은 해시 방식으로 대응한다. */
 export function contractTypeTone(type: string): Tone {
   switch (type) {

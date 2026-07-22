@@ -265,3 +265,98 @@ CREATE TABLE IF NOT EXISTS textbook_applications (
   created_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_textbook_app_date ON textbook_applications(apply_date);
+
+-- ══════════════════════════════════════════════════════════════
+-- LAS-ON 매장선정관리 (섭외 매장 마스터 + 접촉이력) — LAS-On_Store_Manager.md 요구사항서 Phase 1
+--   · 사진 원본 → Google Drive, 여기엔 링크만 저장
+-- ══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS store_master (
+  id                     TEXT PRIMARY KEY,
+  business_reg_no        TEXT,                   -- 사업자등록번호 (단계적 필수)
+  store_phone            TEXT,                   -- 매장 전화번호 (하이픈 제거 정규화)
+  road_address           TEXT,
+  detail_address         TEXT,
+  lat                    DOUBLE PRECISION,
+  lng                    DOUBLE PRECISION,
+  store_name             TEXT NOT NULL,
+  business_type          TEXT,                   -- 업종/업태
+  total_area             TEXT,
+  available_area         TEXT,
+  floor_location         TEXT,
+  business_hours         TEXT,
+  commercial_note        TEXT,
+  chain_brand            TEXT,                   -- 소속 체인/브랜드
+  contact_name           TEXT,
+  contact_position       TEXT,                   -- 점주/점장/본사담당
+  contact_mobile         TEXT,
+  decision_authority     TEXT,                   -- 의사결정권 여부
+  progress_status        TEXT,                   -- 실측 진행상태(원본 표기, 예: 실측완료/협의서전, 실측예정)
+  ceo_confirm            TEXT,                   -- CEO컨펌 여부(컨펌완료/컨펌전 등)
+  survey_date            TEXT,                   -- 실측(예정)일
+  status                 TEXT NOT NULL DEFAULT '신규등록', -- 신규등록/접촉중/협의중/계약진행/입점완료/보류/거절
+  claimed_part           TEXT,                   -- 선점 파트
+  claimed_staff          TEXT,                   -- 선점 담당자
+  claimed_at             DATE,
+  claim_expires_at       DATE,
+  reject_reason          TEXT,
+  recontact_available_at DATE,
+  memo                   TEXT,
+  created_by             TEXT,
+  updated_by             TEXT,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_store_master_phone ON store_master(store_phone);
+CREATE INDEX IF NOT EXISTS idx_store_master_bizno ON store_master(business_reg_no);
+CREATE INDEX IF NOT EXISTS idx_store_master_status ON store_master(status);
+
+-- 섭외 접촉이력 (매장 1 : 이력 N)
+CREATE TABLE IF NOT EXISTS store_recruitment_log (
+  id             BIGSERIAL PRIMARY KEY,
+  store_id       TEXT NOT NULL REFERENCES store_master(id) ON DELETE CASCADE,
+  part           TEXT,
+  staff          TEXT,
+  contact_date   DATE,
+  contact_method TEXT,                            -- 방문/전화/기타
+  result         TEXT,                            -- 관심/보류/거절
+  next_action    TEXT,
+  memo           TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_store_log_store ON store_recruitment_log(store_id);
+
+-- 매장 사진 (외관/내부, Google Drive 링크)
+CREATE TABLE IF NOT EXISTS store_photos (
+  id             BIGSERIAL PRIMARY KEY,
+  store_id       TEXT NOT NULL REFERENCES store_master(id) ON DELETE CASCADE,
+  drive_file_id  TEXT NOT NULL,
+  drive_view_url TEXT NOT NULL,
+  uploaded_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_store_photos_store ON store_photos(store_id);
+
+-- 파트너 계정(현장 파트장/파트너) — Firebase Auth 이메일/비밀번호 계정 + 역할·소속 정보
+-- 파트너 가입 요청 (본인 제출 → 관리자 승인/거절)
+CREATE TABLE IF NOT EXISTS staff_requests (
+  id          BIGSERIAL PRIMARY KEY,
+  name        TEXT NOT NULL,
+  phone       TEXT,
+  email       TEXT NOT NULL,
+  role        TEXT NOT NULL DEFAULT 'field_partner',
+  part        TEXT,
+  status      TEXT NOT NULL DEFAULT 'pending',       -- pending / approved / rejected
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  reviewed_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS staff_accounts (
+  id          TEXT PRIMARY KEY,          -- Firebase Auth UID
+  name        TEXT NOT NULL,
+  phone       TEXT,
+  email       TEXT NOT NULL,
+  role        TEXT NOT NULL DEFAULT 'field_partner', -- field_partner / part_leader
+  part        TEXT,                      -- 소속 파트(파트장명)
+  status      TEXT NOT NULL DEFAULT 'active',        -- active / inactive
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);

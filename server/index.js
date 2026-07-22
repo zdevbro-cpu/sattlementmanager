@@ -12,6 +12,8 @@ const fs = require('fs')
 const { pool } = require('./db')
 const repo = require('./contractRepo')
 const appointmentRepo = require('./appointmentRepo')
+const storeRepo = require('./storeRepo')
+const staffRepo = require('./staffRepo')
 const salesRepo = require('./salesRepo')
 const extraPayoutRepo = require('./extraPayoutRepo')
 const textbookRepo = require('./textbookRepo')
@@ -263,6 +265,190 @@ app.post('/api/appointments/:id/document', async (req, res) => {
       driveFileId: up.driveFileId,
       driveViewUrl: up.driveViewUrl,
     })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// ── LAS-ON 매장선정관리 (매장 마스터/섭외이력) ──
+app.get('/api/stores', async (req, res) => {
+  try {
+    const list = await storeRepo.listStores({
+      keyword: req.query.keyword || '',
+      status: req.query.status || '전체',
+      phone: req.query.phone || '',
+      bizNo: req.query.bizNo || '',
+    })
+    res.json({ ok: true, data: list })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// 중복 판정 후보 검색 — 등록 폼/간이조회에서 사용 (사업자번호 > 전화번호 > 매장명 순으로 비교)
+app.get('/api/stores/check', async (req, res) => {
+  try {
+    const list = await storeRepo.findDuplicateCandidates({
+      businessRegNo: req.query.bizNo || '',
+      storePhone: req.query.phone || '',
+      storeName: req.query.name || '',
+    })
+    res.json({ ok: true, data: list })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.get('/api/stores/:id', async (req, res) => {
+  try {
+    const s = await storeRepo.getStore(req.params.id)
+    if (!s) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: s })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.post('/api/stores', async (req, res) => {
+  try {
+    const s = await storeRepo.createStore(req.body)
+    res.status(201).json({ ok: true, data: s })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.patch('/api/stores/:id', async (req, res) => {
+  try {
+    const s = await storeRepo.updateStore(req.params.id, req.body)
+    if (!s) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: s })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.delete('/api/stores/:id', async (req, res) => {
+  try {
+    await storeRepo.deleteStore(req.params.id)
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.post('/api/stores/:id/log', async (req, res) => {
+  try {
+    const s = await storeRepo.addRecruitmentLog(req.params.id, req.body)
+    if (!s) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: s })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// 매장 사진 → Google Drive 업로드 + DB 기록 (JSON base64 방식)
+app.post('/api/stores/:id/photo', async (req, res) => {
+  try {
+    const { filename, data, mimeType } = req.body || {}
+    if (!data) return res.status(400).json({ ok: false, error: 'no data' })
+    const base64 = data.includes(',') ? data.split(',')[1] : data
+    const buffer = Buffer.from(base64, 'base64')
+    const up = await drive.uploadFile({
+      filename: `${req.params.id}_${filename}`,
+      buffer,
+      mimeType,
+      year: new Date().getFullYear(),
+    })
+    const s = await storeRepo.addStorePhoto(req.params.id, {
+      driveFileId: up.driveFileId,
+      driveViewUrl: up.driveViewUrl,
+    })
+    res.json({ ok: true, data: s })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// ── 파트너 계정 관리 (현장 파트장/파트너) — 본인 가입요청 → 관리자 승인 ──
+app.get('/api/staff', async (req, res) => {
+  try {
+    const list = await staffRepo.listStaff()
+    res.json({ ok: true, data: list })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// 본인 가입 요청 제출 — 로그인 없이 접근 가능(프론트 /staff-request 공개 페이지)
+app.post('/api/staff-requests', async (req, res) => {
+  try {
+    const r = await staffRepo.createRequest(req.body)
+    res.status(201).json({ ok: true, data: r })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.get('/api/staff-requests', async (req, res) => {
+  try {
+    const list = await staffRepo.listRequests(req.query.all === 'true')
+    res.json({ ok: true, data: list })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// 가입 승인 — 계정 생성 + 비밀번호 설정 이메일 발송
+app.post('/api/staff-requests/:id/approve', async (req, res) => {
+  try {
+    const result = await staffRepo.approveRequest(req.params.id)
+    if (!result) return res.status(404).json({ ok: false, error: 'not found' })
+    const mailer = getMailer()
+    if (mailer) {
+      try {
+        await mailer.sendMail({
+          from: mailFrom(),
+          to: result.staff.email,
+          subject: 'Settlement Manager 계정 승인 안내',
+          html: `<p>${result.staff.name}님, 가입 요청이 승인되었습니다.</p>
+                 <p>아래 링크에서 비밀번호를 설정한 뒤 로그인해 주세요.</p>
+                 <p><a href="${result.resetLink}">비밀번호 설정하기</a></p>`,
+        })
+      } catch (mailErr) {
+        console.error('[staff] 승인 메일 발송 실패', mailErr.message)
+      }
+    }
+    res.json({ ok: true, data: result.staff })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.post('/api/staff-requests/:id/reject', async (req, res) => {
+  try {
+    const r = await staffRepo.rejectRequest(req.params.id)
+    if (!r) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: r })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.patch('/api/staff/:id/status', async (req, res) => {
+  try {
+    const s = await staffRepo.setStaffStatus(req.params.id, req.body.status)
+    if (!s) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: s })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.delete('/api/staff/:id', async (req, res) => {
+  try {
+    await staffRepo.deleteStaff(req.params.id)
+    res.json({ ok: true })
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message })
   }

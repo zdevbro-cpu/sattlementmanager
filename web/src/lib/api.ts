@@ -6,6 +6,8 @@ import type { Appointment, AppointmentFilter } from '../types/appointment'
 import type { Sale, SalesFilter } from '../types/sales'
 import type { ExtraPayee } from '../types/payout'
 import type { TextbookApplication, TextbookApplicationFilter } from '../types/textbook'
+import type { RecruitmentLog, Store, StoreFilter } from '../types/store'
+import type { Staff, StaffRequest } from '../types/staff'
 
 /** 카드전표 OCR 결과 (type='sales') */
 export interface CardOcrResult {
@@ -276,6 +278,78 @@ export function correctContractHistoryApi(
     'PATCH',
     snapshot,
   )
+}
+
+// ── LAS-ON 매장선정관리 ────────────────────────────────────
+export function fetchStores(filter: StoreFilter): Promise<Store[]> {
+  return getData(`/api/stores${qs({ keyword: filter.keyword, status: filter.status })}`)
+}
+export function fetchStore(id: string): Promise<Store> {
+  return getData(`/api/stores/${encodeURIComponent(id)}`)
+}
+export function checkDuplicateStores(params: {
+  bizNo?: string
+  phone?: string
+  name?: string
+}): Promise<Store[]> {
+  return getData(`/api/stores/check${qs(params)}`)
+}
+export function createStoreApi(data: Partial<Store>): Promise<Store> {
+  return sendJson('/api/stores', 'POST', data)
+}
+export function updateStoreApi(id: string, data: Partial<Store>): Promise<Store> {
+  return sendJson(`/api/stores/${encodeURIComponent(id)}`, 'PATCH', data)
+}
+export function deleteStoreApi(id: string): Promise<void> {
+  return sendJson(`/api/stores/${encodeURIComponent(id)}`, 'DELETE')
+}
+export function addRecruitmentLogApi(
+  storeId: string,
+  log: Omit<RecruitmentLog, 'id' | 'createdAt'>,
+): Promise<Store> {
+  return sendJson(`/api/stores/${encodeURIComponent(storeId)}/log`, 'POST', log)
+}
+export async function uploadStorePhoto(storeId: string, file: File): Promise<Store> {
+  const data = await fileToBase64(file)
+  const res = await fetch(`/api/stores/${encodeURIComponent(storeId)}/photo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename: file.name, data, mimeType: file.type || 'image/jpeg' }),
+  })
+  if (!res.ok) throw new Error(`Drive 업로드 실패 (${res.status})`)
+  const json = await res.json()
+  if (!json.ok) throw new Error(json.error || '업로드 실패')
+  return json.data
+}
+
+// ── 파트너 계정 관리 (가입요청 → 승인) ───────────────────────
+export function fetchStaff(): Promise<Staff[]> {
+  return getData('/api/staff')
+}
+export function setStaffStatusApi(id: string, status: string): Promise<Staff> {
+  return sendJson(`/api/staff/${encodeURIComponent(id)}/status`, 'PATCH', { status })
+}
+export function deleteStaffApi(id: string): Promise<void> {
+  return sendJson(`/api/staff/${encodeURIComponent(id)}`, 'DELETE')
+}
+/** 본인 가입 요청 제출 — 로그인 없이 호출 가능 */
+export function submitStaffRequestApi(data: {
+  name: string
+  phone: string
+  email: string
+  role: string
+  part: string
+}): Promise<StaffRequest> {
+  return sendJson('/api/staff-requests', 'POST', data)
+}
+export function fetchStaffRequests(all = false): Promise<StaffRequest[]> {
+  return getData(`/api/staff-requests${qs({ all: all ? 'true' : '' })}`)
+}
+export function approveStaffRequestApi(id: string): Promise<Staff> {
+  return sendJson(`/api/staff-requests/${encodeURIComponent(id)}/approve`, 'POST')
+}
+export function rejectStaffRequestApi(id: string): Promise<StaffRequest> {
+  return sendJson(`/api/staff-requests/${encodeURIComponent(id)}/reject`, 'POST')
 }
 
 // ── 조직관리(임용계약) ─────────────────────────────────────
