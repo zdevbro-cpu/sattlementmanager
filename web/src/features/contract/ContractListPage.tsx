@@ -305,7 +305,7 @@ export default function ContractListPage() {
             <input
               value={filter.keyword}
               onChange={(e) => setFilter({ ...filter, keyword: e.target.value })}
-              placeholder="계약자명 검색"
+              placeholder="계약자명 또는 계약ID(예: C180) 검색"
               className={inputCls}
             />
           </Field>

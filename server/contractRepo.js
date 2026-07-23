@@ -158,7 +158,12 @@ async function listContracts(filter = {}) {
       const cur = c.current
       if (status && status !== '전체' && cur.status !== status) return false
       if (org && org !== '전체' && cur.org !== org) return false
-      if (keyword && !cur.contractorName.includes(keyword)) return false
+      if (
+        keyword &&
+        !cur.contractorName.includes(keyword) &&
+        !c.id.toLowerCase().includes(keyword.toLowerCase())
+      )
+        return false
       if (startDate && cur.contractDate && cur.contractDate < startDate)
         return false
       if (endDate && cur.contractDate && cur.contractDate > endDate)
