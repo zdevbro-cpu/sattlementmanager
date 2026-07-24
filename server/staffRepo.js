@@ -18,6 +18,7 @@ function mapStaff(s) {
     role: s.role,
     part: s.part || '',
     status: s.status,
+    canRegisterStore: !!s.can_register_store,
     createdAt: isoDate(s.created_at),
   }
 }
@@ -98,11 +99,11 @@ async function rejectRequest(id) {
   return mapRequest(rows[0])
 }
 
-/** 등록정보 수정 — 이름/전화번호/역할/소속 파트 */
-async function updateStaff(id, { name, phone, role, part }) {
+/** 등록정보 수정 — 이름/전화번호/역할/소속 파트/매장 등록 권한 */
+async function updateStaff(id, { name, phone, role, part, canRegisterStore }) {
   const { rows } = await pool.query(
-    `UPDATE staff_accounts SET name = $2, phone = $3, role = $4, part = $5 WHERE id = $1 RETURNING *`,
-    [id, name, phone || '', role, part || ''],
+    `UPDATE staff_accounts SET name = $2, phone = $3, role = $4, part = $5, can_register_store = $6 WHERE id = $1 RETURNING *`,
+    [id, name, phone || '', role, part || '', !!canRegisterStore],
   )
   if (!rows.length) return null
   if (name) await auth.updateUser(id, { displayName: name }).catch(() => {})

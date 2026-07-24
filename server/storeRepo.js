@@ -28,9 +28,23 @@ function addDaysIso(dateIso, days) {
   return dt.toISOString().slice(0, 10)
 }
 
+// web/src/types/store.ts의 STORE_STATUSES와 동일한 순서 — 이 순서로 "계약완료 이후" 단계를 판정한다
+const STORE_STATUS_ORDER = [
+  '신규등록', '접촉중', '실무협의', '실측예정', '실측완료', '모델링',
+  '계약완료', '공사', '집기발주', '도서불출', '오픈',
+]
+const CONTRACT_COMPLETE_INDEX = STORE_STATUS_ORDER.indexOf('계약완료')
+
+/** 계약완료 이후 단계(계약완료/공사/집기발주/도서불출/오픈)인지 — 이 단계부터는 선점 만료(D-day) 로직을 적용하지 않는다 */
+function isPastContractComplete(status) {
+  const idx = STORE_STATUS_ORDER.indexOf(status)
+  return idx >= CONTRACT_COMPLETE_INDEX
+}
+
 /**
  * 선점 만료(선점 만료일이 지나도록 상태 변경이 없었던 매장)를 미선점 상태로 되돌린다.
  * 다른 파트가 다시 선점할 수 있도록 claimed_part/claimed_staff/claimed_at/claim_expires_at을 비운다.
+ * 계약완료 이후 단계는 더 이상 선점 다툼의 대상이 아니므로 대상에서 제외한다.
  */
 async function releaseExpiredClaims() {
   await pool.query(
@@ -38,7 +52,8 @@ async function releaseExpiredClaims() {
        SET claimed_part = '', claimed_staff = '', claimed_at = NULL, claim_expires_at = NULL
      WHERE claim_expires_at IS NOT NULL
        AND claim_expires_at < CURRENT_DATE
-       AND (claimed_part <> '' OR claimed_staff <> '')`,
+       AND (claimed_part <> '' OR claimed_staff <> '')
+       AND status NOT IN ('계약완료', '공사', '집기발주', '도서불출', '오픈')`,
   )
 }
 
@@ -217,8 +232,8 @@ async function createStore(data) {
       data.status || '신규등록',
       data.claimedPart || '',
       data.claimedStaff || '',
-      today,
-      addDaysIso(today, 7),
+      isPastContractComplete(data.status) ? null : today,
+      isPastContractComplete(data.status) ? null : addDaysIso(today, 7),
       data.memo || '',
       data.createdBy || '',
       data.createdBy || '',
@@ -234,8 +249,13 @@ async function updateStore(id, data) {
   const nextStatus = data.status || '신규등록'
   const statusChanged = nextStatus !== cur[0].status
   const today = todayIso()
-  const claimedAt = statusChanged ? today : nn(data.claimedAt)
-  const claimExpiresAt = statusChanged ? addDaysIso(today, 7) : nn(data.claimExpiresAt)
+  // 계약완료 이후 단계는 더 이상 선점 만료(D-day) 대상이 아니므로 만료일을 비운다
+  const claimedAt = isPastContractComplete(nextStatus) ? null : statusChanged ? today : nn(data.claimedAt)
+  const claimExpiresAt = isPastContractComplete(nextStatus)
+    ? null
+    : statusChanged
+      ? addDaysIso(today, 7)
+      : nn(data.claimExpiresAt)
 
   const { rowCount } = await pool.query(
     `UPDATE store_master SET

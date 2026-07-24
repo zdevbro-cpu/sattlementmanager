@@ -25,6 +25,7 @@ export default function StaffDetailDrawer({
   const [phone, setPhone] = useState(staff.phone)
   const [role, setRole] = useState(staff.role)
   const [part, setPart] = useState(staff.part)
+  const [canRegisterStore, setCanRegisterStore] = useState(staff.canRegisterStore)
   const [partLeaders, setPartLeaders] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
@@ -49,7 +50,7 @@ export default function StaffDetailDrawer({
     setSaving(true)
     setErr('')
     try {
-      await updateStaff(staff.id, { name, phone, role, part })
+      await updateStaff(staff.id, { name, phone, role, part, canRegisterStore })
       onSaved()
     } catch (e) {
       setErr((e as Error).message)
@@ -99,6 +100,15 @@ export default function StaffDetailDrawer({
               ))}
             </select>
           </Field>
+          <label className="flex items-center gap-2 text-[13px] text-[#c2cde0]">
+            <input
+              type="checkbox"
+              checked={canRegisterStore}
+              onChange={(e) => setCanRegisterStore(e.target.checked)}
+              className="h-4 w-4 accent-primary"
+            />
+            매장섭외관리 신규 매장 등록 권한 (본부 담당자로 지정)
+          </label>
           <Field label="등록일">
             <input value={dateText(staff.createdAt)} disabled className={`${inputCls} opacity-60`} />
           </Field>

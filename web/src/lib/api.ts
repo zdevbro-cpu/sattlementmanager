@@ -334,7 +334,7 @@ export function deleteStaffApi(id: string): Promise<void> {
 }
 export function updateStaffApi(
   id: string,
-  data: { name: string; phone: string; role: string; part: string },
+  data: { name: string; phone: string; role: string; part: string; canRegisterStore: boolean },
 ): Promise<Staff> {
   return sendJson(`/api/staff/${encodeURIComponent(id)}`, 'PATCH', data)
 }

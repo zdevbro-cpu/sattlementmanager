@@ -10,6 +10,8 @@ import StoreRegisterModal from './StoreRegisterModal'
 import StoreDetailDrawer from './StoreDetailDrawer'
 import { EMPTY_FILTER } from '../../types/contract'
 import { listContracts } from '../contract/contractStore'
+import { listStaff } from './staffStore'
+import { useAuth } from '../auth/AuthContext'
 
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
@@ -43,6 +45,22 @@ export default function StoreListPage() {
   const [perPage, setPerPage] = useState(20)
   const [page, setPage] = useState(1)
   const [partLeaders, setPartLeaders] = useState<string[]>([])
+  const { user } = useAuth()
+  // 파트너 계정(staff_accounts)으로 로그인한 경우만 매장 등록 권한 여부를 확인한다 — 못 찾으면(=관리자 계정) 제한 없이 허용
+  const [canRegister, setCanRegister] = useState(true)
+
+  useEffect(() => {
+    let alive = true
+    if (!user?.email) return
+    listStaff().then((list) => {
+      if (!alive) return
+      const me = list.find((s) => s.email === user.email)
+      setCanRegister(!me || me.canRegisterStore)
+    })
+    return () => {
+      alive = false
+    }
+  }, [user?.email])
 
   useEffect(() => {
     let alive = true
@@ -120,12 +138,14 @@ export default function StoreListPage() {
           >
             <RefreshCw size={14} /> 새로고침
           </button>
-          <button
-            onClick={() => setRegisterOpen(true)}
-            className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110"
-          >
-            <Plus size={15} /> 매장 등록
-          </button>
+          {canRegister && (
+            <button
+              onClick={() => setRegisterOpen(true)}
+              className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110"
+            >
+              <Plus size={15} /> 매장 등록
+            </button>
+          )}
         </div>
       </div>
 

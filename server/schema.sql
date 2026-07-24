@@ -358,5 +358,6 @@ CREATE TABLE IF NOT EXISTS staff_accounts (
   role        TEXT NOT NULL DEFAULT 'field_partner', -- field_partner / part_leader
   part        TEXT,                      -- 소속 파트(파트장명)
   status      TEXT NOT NULL DEFAULT 'active',        -- active / inactive
+  can_register_store BOOLEAN NOT NULL DEFAULT FALSE,  -- 매장섭외관리 신규 매장 등록 권한(본부 담당자 지정용)
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );

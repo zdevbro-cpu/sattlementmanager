@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Eye, Plus, Trash2 } from 'lucide-react'
+import { Eye, Plus, Trash2 } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import DateTextInput from '../../components/ui/DateTextInput'
+import Pagination from '../../components/ui/Pagination'
 import { comma, dateText, todayIso } from '../../lib/format'
 import {
   EMPTY_APPOINTMENT_FILTER,
@@ -21,7 +22,6 @@ import { usePositionSalaries } from './positionSalaryStore'
 import { useBranches } from './branchStore'
 import Badge, { branchTone, positionTone } from '../../components/ui/Badge'
 
-const PAGE_SIZES = [20, 50, 100]
 // 상태 드롭다운 전용 sentinel — 실제 status 값이 아니라 "전체 + 해지 포함"을 뜻하는 선택지
 const INCLUDE_TERMINATED_VALUE = '__include_terminated__'
 
@@ -318,32 +318,16 @@ export default function AppointmentListPage() {
           </table>
         </div>
         {visibleRows.length > 0 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-            <div className="flex gap-1">
-              <button onClick={() => setPage(Math.max(1, safePage - 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronLeft size={16} /></button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setPage(n)}
-                  className={`h-8 min-w-8 px-2 rounded-md border text-[13px] font-semibold ${n === safePage ? 'border-primary text-primary' : 'border-border text-[#94a3b8] hover:bg-hover'}`}
-                >
-                  {n}
-                </button>
-              ))}
-              <button onClick={() => setPage(Math.min(totalPages, safePage + 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronRight size={16} /></button>
-            </div>
-            <div className="flex gap-1">
-              {PAGE_SIZES.map((n) => (
-                <button
-                  key={n}
-                  onClick={() => { setPerPage(n); setPage(1) }}
-                  className={`h-8 px-3 rounded-md border text-[13px] font-semibold ${n === perPage ? 'border-primary text-primary' : 'border-border text-[#94a3b8] hover:bg-hover'}`}
-                >
-                  {n}개
-                </button>
-              ))}
-            </div>
-          </div>
+          <Pagination
+            page={safePage}
+            totalPages={totalPages}
+            perPage={perPage}
+            onPageChange={setPage}
+            onPerPageChange={(n) => {
+              setPerPage(n)
+              setPage(1)
+            }}
+          />
         )}
       </div>
 

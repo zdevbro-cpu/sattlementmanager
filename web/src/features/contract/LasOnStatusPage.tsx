@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Download, Eye, FileText, PlusCircle, Trash2, XCircle } from 'lucide-react'
+import { Download, Eye, FileText, PlusCircle, Trash2, XCircle } from 'lucide-react'
 import type { ComponentType } from 'react'
 import { comma, dateText, todayIso, won } from '../../lib/format'
 import { useCodes } from '../../lib/codeStore'
 import StatusBadge from '../../components/ui/StatusBadge'
 import Badge from '../../components/ui/Badge'
 import DateTextInput from '../../components/ui/DateTextInput'
+import Pagination from '../../components/ui/Pagination'
 import { useBranches } from '../appointment/branchStore'
 import { EMPTY_FILTER, type Contract, type ContractFilter } from '../../types/contract'
 import { addHistory, listContracts, summarize } from './contractStore'
@@ -26,7 +27,6 @@ const DEFAULT_FILTER: ContractFilter = {
 }
 // 상태 드롭다운 전용 sentinel — 실제 status 값이 아니라 "전체 + 폐기 포함"을 뜻하는 선택지 (계약조회와 동일)
 const INCLUDE_DISCARDED_VALUE = '__include_discarded__'
-const PAGE_SIZES = [20, 50, 100]
 
 function sumAmount(list: { amount: number }[]): number {
   return list.reduce((a, x) => a + (x.amount || 0), 0)
@@ -439,32 +439,7 @@ export default function LasOnStatusPage() {
           </table>
         </div>
         {rows.length > 0 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-            <div className="flex gap-1">
-              <button onClick={() => setPage(Math.max(1, safePage - 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronLeft size={16} /></button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setPage(n)}
-                  className={`h-8 min-w-8 px-2 rounded-md border text-[13px] font-semibold ${n === safePage ? 'border-primary text-primary' : 'border-border text-[#94a3b8] hover:bg-hover'}`}
-                >
-                  {n}
-                </button>
-              ))}
-              <button onClick={() => setPage(Math.min(totalPages, safePage + 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronRight size={16} /></button>
-            </div>
-            <div className="flex gap-1">
-              {PAGE_SIZES.map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setPerPage(n)}
-                  className={`h-8 px-3 rounded-md border text-[13px] font-semibold ${n === perPage ? 'border-primary text-primary' : 'border-border text-[#94a3b8] hover:bg-hover'}`}
-                >
-                  {n}개
-                </button>
-              ))}
-            </div>
-          </div>
+          <Pagination page={safePage} totalPages={totalPages} perPage={perPage} onPageChange={setPage} onPerPageChange={setPerPage} />
         )}
       </div>
 

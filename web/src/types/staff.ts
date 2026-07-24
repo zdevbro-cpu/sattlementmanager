@@ -15,6 +15,8 @@ export interface Staff {
   role: StaffRole
   part: string
   status: 'active' | 'inactive'
+  /** 매장섭외관리 신규 매장 등록 권한 — 본부 담당자로 지정된 계정만 true */
+  canRegisterStore: boolean
   createdAt: string
 }
 
