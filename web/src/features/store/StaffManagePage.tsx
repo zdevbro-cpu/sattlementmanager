@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Trash2, UserCheck, UserX, X } from 'lucide-react'
+import { Check, Eye, Trash2, UserCheck, UserX, X } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
 import { dateText } from '../../lib/format'
 import { STAFF_ROLE_LABEL, type Staff, type StaffRequest } from '../../types/staff'
@@ -11,6 +11,7 @@ import {
   rejectStaffRequest,
   setStaffStatus,
 } from './staffStore'
+import StaffDetailDrawer from './StaffDetailDrawer'
 
 /**
  * 파트너 계정 관리 — LAS-On_Store_Manager.md 7.3.4 대응.
@@ -23,6 +24,7 @@ export default function StaffManagePage() {
   const [loading, setLoading] = useState(true)
   const [refresh, setRefresh] = useState(0)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [detailStaff, setDetailStaff] = useState<Staff | null>(null)
 
   useEffect(() => {
     let alive = true
@@ -175,6 +177,13 @@ export default function StaffManagePage() {
                     <td className="px-3 py-1.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">
                         <button
+                          onClick={() => setDetailStaff(s)}
+                          title="상세 보기 / 수정"
+                          className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover hover:text-white"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button
                           onClick={() => toggleStatus(s)}
                           title={s.status === 'active' ? '비활성화' : '활성화'}
                           className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover hover:text-white"
@@ -204,6 +213,17 @@ export default function StaffManagePage() {
           </div>
         </div>
       </section>
+
+      {detailStaff && (
+        <StaffDetailDrawer
+          staff={detailStaff}
+          onClose={() => setDetailStaff(null)}
+          onSaved={() => {
+            setDetailStaff(null)
+            setRefresh((n) => n + 1)
+          }}
+        />
+      )}
     </div>
   )
 }

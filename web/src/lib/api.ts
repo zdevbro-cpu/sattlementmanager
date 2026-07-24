@@ -332,6 +332,12 @@ export function setStaffStatusApi(id: string, status: string): Promise<Staff> {
 export function deleteStaffApi(id: string): Promise<void> {
   return sendJson(`/api/staff/${encodeURIComponent(id)}`, 'DELETE')
 }
+export function updateStaffApi(
+  id: string,
+  data: { name: string; phone: string; role: string; part: string },
+): Promise<Staff> {
+  return sendJson(`/api/staff/${encodeURIComponent(id)}`, 'PATCH', data)
+}
 /** 본인 가입 요청 제출 — 로그인 없이 호출 가능 */
 export function submitStaffRequestApi(data: {
   name: string

@@ -7,6 +7,7 @@ import {
   rejectStaffRequestApi,
   setStaffStatusApi,
   submitStaffRequestApi,
+  updateStaffApi,
 } from '../../lib/api'
 
 export function listStaff(): Promise<Staff[]> {
@@ -19,6 +20,13 @@ export function setStaffStatus(id: string, status: 'active' | 'inactive'): Promi
 
 export function deleteStaff(id: string): Promise<void> {
   return deleteStaffApi(id)
+}
+
+export function updateStaff(
+  id: string,
+  data: { name: string; phone: string; role: string; part: string },
+): Promise<Staff> {
+  return updateStaffApi(id, data)
 }
 
 /** 본인 가입 요청 제출 (로그인 불필요) */

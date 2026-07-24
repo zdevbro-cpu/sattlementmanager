@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Building2, CheckCircle2, Layers, Plus, RefreshCw, Timer, Trash2, Eye } from 'lucide-react'
+import { Building2, CheckCircle2, ChevronLeft, ChevronRight, Layers, Plus, RefreshCw, Timer, Trash2, Eye } from 'lucide-react'
 import type { ComponentType } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import Badge, { storeStatusTone } from '../../components/ui/Badge'
@@ -10,6 +10,8 @@ import StoreDetailDrawer from './StoreDetailDrawer'
 
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
+
+const PAGE_SIZES = [20, 50, 100]
 
 /** 선점 만료 D-day (음수=이미 만료) — 없으면 null */
 function dDay(dateStr: string): number | null {
@@ -24,6 +26,8 @@ export default function StoreListPage() {
   const [refresh, setRefresh] = useState(0)
   const [registerOpen, setRegisterOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
+  const [perPage, setPerPage] = useState(20)
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
     let alive = true
@@ -39,7 +43,14 @@ export default function StoreListPage() {
     }
   }, [filter, refresh])
 
+  useEffect(() => {
+    setPage(1)
+  }, [filter, perPage])
+
   const sum = summarizeStores(rows)
+  const totalPages = Math.max(1, Math.ceil(rows.length / perPage))
+  const safePage = Math.min(page, totalPages)
+  const pagedRows = rows.slice((safePage - 1) * perPage, safePage * perPage)
 
   const onDelete = async (s: Store) => {
     if (!confirm(`${s.storeName} 매장을 삭제할까요? (섭외이력·사진도 함께 삭제되며 되돌릴 수 없습니다)`)) return
@@ -150,11 +161,11 @@ export default function StoreListPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((s, i) => {
+              {pagedRows.map((s, i) => {
                 const d = dDay(s.claimExpiresAt)
                 return (
                   <tr key={s.id} className="border-b border-border hover:bg-hover">
-                    <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#c2cde0]">{rows.length - i}</td>
+                    <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#c2cde0]">{rows.length - ((safePage - 1) * perPage + i)}</td>
                     <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{s.storeName}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">
                       <Badge tone={storeStatusTone(s.status)}>{s.status}</Badge>
@@ -199,6 +210,34 @@ export default function StoreListPage() {
             </tbody>
           </table>
         </div>
+        {rows.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+            <div className="flex gap-1">
+              <button onClick={() => setPage(Math.max(1, safePage - 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronLeft size={16} /></button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setPage(n)}
+                  className={`h-8 min-w-8 px-2 rounded-md border text-[13px] font-semibold ${n === safePage ? 'border-primary text-primary' : 'border-border text-[#94a3b8] hover:bg-hover'}`}
+                >
+                  {n}
+                </button>
+              ))}
+              <button onClick={() => setPage(Math.min(totalPages, safePage + 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronRight size={16} /></button>
+            </div>
+            <div className="flex gap-1">
+              {PAGE_SIZES.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setPerPage(n)}
+                  className={`h-8 px-3 rounded-md border text-[13px] font-semibold ${n === perPage ? 'border-primary text-primary' : 'border-border text-[#94a3b8] hover:bg-hover'}`}
+                >
+                  {n}개
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {registerOpen && (

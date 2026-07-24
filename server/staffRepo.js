@@ -98,6 +98,17 @@ async function rejectRequest(id) {
   return mapRequest(rows[0])
 }
 
+/** 등록정보 수정 — 이름/전화번호/역할/소속 파트 */
+async function updateStaff(id, { name, phone, role, part }) {
+  const { rows } = await pool.query(
+    `UPDATE staff_accounts SET name = $2, phone = $3, role = $4, part = $5 WHERE id = $1 RETURNING *`,
+    [id, name, phone || '', role, part || ''],
+  )
+  if (!rows.length) return null
+  if (name) await auth.updateUser(id, { displayName: name }).catch(() => {})
+  return mapStaff(rows[0])
+}
+
 /** 활성/비활성 전환 — 비활성화 시 Firebase Auth 로그인 자체를 즉시 차단한다 */
 async function setStaffStatus(id, status) {
   await auth.updateUser(id, { disabled: status === 'inactive' })
@@ -122,5 +133,6 @@ module.exports = {
   approveRequest,
   rejectRequest,
   setStaffStatus,
+  updateStaff,
   deleteStaff,
 }

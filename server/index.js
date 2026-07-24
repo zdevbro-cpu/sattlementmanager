@@ -445,6 +445,16 @@ app.patch('/api/staff/:id/status', async (req, res) => {
   }
 })
 
+app.patch('/api/staff/:id', async (req, res) => {
+  try {
+    const s = await staffRepo.updateStaff(req.params.id, req.body)
+    if (!s) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: s })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 app.delete('/api/staff/:id', async (req, res) => {
   try {
     await staffRepo.deleteStaff(req.params.id)

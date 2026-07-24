@@ -833,6 +833,8 @@ function LasOnBonusView() {
   const setF = (patch: Partial<typeof filter>) => setFilter((f) => ({ ...f, ...patch }))
   const reset = () =>
     setFilter({ regStart: '', regEnd: '', contractStart: '', contractEnd: '', partner: '', keyword: '' })
+  const [perPage, setPerPage] = useState(20)
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
     listContracts(EMPTY_FILTER).then(setContracts)
@@ -866,6 +868,10 @@ function LasOnBonusView() {
   const bonusTotal = summaryRows.reduce((a, r) => a + r.netAmount, 0)
   const depositSum = summaryRows.reduce((a, r) => a + r.depositTotal, 0)
   const targetCount = new Set(visibleRows.map((r) => r.no)).size
+
+  const totalPages = Math.max(1, Math.ceil(visibleRows.length / perPage))
+  const safePage = Math.min(page, totalPages)
+  const pagedRows = visibleRows.slice((safePage - 1) * perPage, safePage * perPage)
 
   const [excelBusy, setExcelBusy] = useState(false)
   const onExcelDownload = async () => {
@@ -967,7 +973,7 @@ function LasOnBonusView() {
               </tr>
             </thead>
             <tbody>
-              {visibleRows.map((r, i) => (
+              {pagedRows.map((r, i) => (
                 <tr key={i} className={`border-b border-border hover:bg-hover ${r.bold ? 'font-bold text-[#f59e0b]' : ''}`}>
                   <td className="px-3 py-1.5 text-center whitespace-nowrap tabular">{r.no}</td>
                   <td className="px-3 py-1.5 text-center whitespace-nowrap tabular">{dateText(r.depositDate)}</td>
@@ -1001,6 +1007,34 @@ function LasOnBonusView() {
             </tbody>
           </table>
         </div>
+        {visibleRows.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+            <div className="flex gap-1">
+              <button onClick={() => setPage(Math.max(1, safePage - 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronLeft size={16} /></button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setPage(n)}
+                  className={`h-8 min-w-8 px-2 rounded-md border text-[13px] font-semibold ${n === safePage ? 'border-primary text-primary' : 'border-border text-[#94a3b8] hover:bg-hover'}`}
+                >
+                  {n}
+                </button>
+              ))}
+              <button onClick={() => setPage(Math.min(totalPages, safePage + 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronRight size={16} /></button>
+            </div>
+            <div className="flex gap-1">
+              {PAGE_SIZES.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => { setPerPage(n); setPage(1) }}
+                  className={`h-8 px-3 rounded-md border text-[13px] font-semibold ${n === perPage ? 'border-primary text-primary' : 'border-border text-[#94a3b8] hover:bg-hover'}`}
+                >
+                  {n}개
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
