@@ -1,0 +1,155 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">
+<head>
+<meta charset="UTF-8">
+<title>LAS-On 매장 조사표</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
+<style>
+@page { size: 21cm 29.7cm; margin: 1.4cm 1.5cm 1.4cm 1.5cm; }
+body { font-family: "맑은 고딕", "Malgun Gothic", sans-serif; font-size: 10pt; color: #000; }
+h1 { font-size: 17pt; text-align: center; margin: 0 0 2pt 0; letter-spacing: 2pt; }
+.sub { text-align: center; font-size: 8.5pt; color: #555; margin: 0 0 10pt 0; }
+table { border-collapse: collapse; width: 100%; margin-bottom: 9pt; }
+td, th { border: 0.75pt solid #000; padding: 4pt 5pt; vertical-align: middle; font-size: 10pt; }
+th { background: #e8e8e8; font-weight: bold; text-align: center; }
+.lab { background: #f2f2f2; font-weight: bold; width: 18%; }
+.sec { background: #404040; color: #fff; font-weight: bold; font-size: 10.5pt; padding: 3pt 6pt; text-align: left; letter-spacing: 1pt; }
+.h28 td { height: 28pt; }
+.h44 td { height: 44pt; }
+.h60 td { height: 60pt; }
+.req { color: #c00; font-weight: bold; }
+.chk { font-size: 10.5pt; letter-spacing: 0.5pt; }
+.note { font-size: 8pt; color: #666; }
+.foot { font-size: 8pt; color: #666; margin-top: 4pt; }
+</style>
+</head>
+<body>
+
+<h1>LAS-On 매장 조사표</h1>
+<p class="sub">※ <span class="req">*</span> 표시는 필수 항목 — 매장등록 시 반드시 필요합니다</p>
+
+<table>
+<tr>
+  <td class="lab">조사일</td><td style="width:20%"></td>
+  <td class="lab">조사 파트</td><td style="width:20%"></td>
+  <td class="lab">조사자</td><td></td>
+</tr>
+</table>
+
+<table>
+<tr><td class="sec" colspan="4">1. 매장 기본정보</td></tr>
+<tr class="h28"><td class="lab">매장명 <span class="req">*</span></td><td colspan="3"></td></tr>
+<tr class="h28"><td class="lab">도로명주소 <span class="req">*</span></td><td colspan="3"></td></tr>
+<tr class="h28"><td class="lab">상세주소</td><td colspan="3"></td></tr>
+<tr class="h28">
+  <td class="lab">매장 전화번호 <span class="req">*</span></td><td style="width:32%"></td>
+  <td class="lab">사업자등록번호</td><td></td>
+</tr>
+<tr class="h28">
+  <td class="lab">업종 / 업태</td><td></td>
+  <td class="lab">소속 체인 / 브랜드</td><td></td>
+</tr>
+</table>
+<p class="note" style="margin:-6pt 0 9pt 0">※ 사업자등록번호는 <b>실무협의 단계부터 필수</b>입니다. 중복 등록 방지를 위해 <b>사업자등록번호·전화번호</b>를 우선 확보하세요.</p>
+
+<table>
+<tr><td class="sec" colspan="4">2. 공간 · 상권</td></tr>
+<tr class="h28">
+  <td class="lab">층 / 위치</td><td style="width:32%"></td>
+  <td class="lab">영업시간</td><td></td>
+</tr>
+<tr class="h28">
+  <td class="lab">전체 면적</td><td></td>
+  <td class="lab">입점 가능 면적</td><td></td>
+</tr>
+<tr class="h60"><td class="lab">상권 특성 메모</td><td colspan="3" style="vertical-align:top">유동인구 / 주변 상권 / 주차 / 접근성 등</td></tr>
+</table>
+
+<table>
+<tr><td class="sec" colspan="4">3. 담당자 (의사결정 라인)</td></tr>
+<tr class="h28">
+  <td class="lab">담당자명</td><td style="width:32%"></td>
+  <td class="lab">직위</td><td></td>
+</tr>
+<tr class="h28">
+  <td class="lab">휴대폰</td><td></td>
+  <td class="lab">의사결정권</td>
+  <td class="chk">□ 점주 직접&nbsp;&nbsp; □ 체인 본사 승인 필요</td>
+</tr>
+</table>
+
+<table>
+<tr><td class="sec" colspan="4">4. 접촉 기록</td></tr>
+<tr>
+  <th style="width:18%">접촉일</th>
+  <th style="width:26%">접촉방법</th>
+  <th style="width:26%">결과</th>
+  <th>다음 액션</th>
+</tr>
+<tr class="h28">
+  <td></td>
+  <td class="chk">□ 방문 □ 전화 □ 기타</td>
+  <td class="chk">□ 관심 □ 보류 □ 거절</td>
+  <td></td>
+</tr>
+<tr class="h28">
+  <td></td>
+  <td class="chk">□ 방문 □ 전화 □ 기타</td>
+  <td class="chk">□ 관심 □ 보류 □ 거절</td>
+  <td></td>
+</tr>
+<tr class="h28">
+  <td></td>
+  <td class="chk">□ 방문 □ 전화 □ 기타</td>
+  <td class="chk">□ 관심 □ 보류 □ 거절</td>
+  <td></td>
+</tr>
+</table>
+
+<table>
+<tr><td class="sec" colspan="4">5. 실측 · 컨펌</td></tr>
+<tr class="h28">
+  <td class="lab">실측(예정)일</td><td style="width:32%"></td>
+  <td class="lab">CEO 컨펌</td><td class="chk">□ 완료&nbsp;&nbsp; □ 대기</td>
+</tr>
+<tr class="h28"><td class="lab">진행상태(실측)</td><td colspan="3">예: 실측 완료 / 협의서 전</td></tr>
+</table>
+
+<table>
+<tr><td class="sec" colspan="4">6. 선점 관리</td></tr>
+<tr class="h28">
+  <td class="lab">선점 파트</td><td style="width:32%"></td>
+  <td class="lab">선점 담당자</td><td></td>
+</tr>
+<tr class="h28">
+  <td class="lab">선점 만료일</td><td></td>
+  <td class="lab">재접촉 가능일</td><td></td>
+</tr>
+<tr class="h28"><td class="lab">거절 사유</td><td colspan="3"></td></tr>
+</table>
+
+<table>
+<tr><td class="sec" colspan="2">7. 진행 상태 (해당 항목 체크)</td></tr>
+<tr class="h28">
+  <td class="chk" colspan="2">
+    □ 신규등록&nbsp;&nbsp; □ 접촉중&nbsp;&nbsp; □ 실무협의&nbsp;&nbsp; □ 실측예정&nbsp;&nbsp; □ 실측완료&nbsp;&nbsp; □ 모델링<br>
+    □ 계약완료&nbsp;&nbsp; □ 공사&nbsp;&nbsp; □ 집기발주&nbsp;&nbsp; □ 도서불출&nbsp;&nbsp; □ 오픈
+  </td>
+</tr>
+</table>
+
+<table>
+<tr><td class="sec" colspan="2">8. 사진 촬영 (촬영 후 체크)</td></tr>
+<tr class="h28">
+  <td class="chk" colspan="2">□ 매장 외관&nbsp;&nbsp;&nbsp; □ 입점 예정 위치&nbsp;&nbsp;&nbsp; □ 주변 상권&nbsp;&nbsp;&nbsp; □ 층 진입 동선</td>
+</tr>
+</table>
+
+<table>
+<tr><td class="sec" colspan="2">9. 비고</td></tr>
+<tr class="h60"><td colspan="2"></td></tr>
+</table>
+
+<p class="foot">LAS-On 매장섭외관리 · 작성 후 시스템(매장섭외관리 &gt; 매장등록)에 입력하십시오.</p>
+
+</body>
+</html>
