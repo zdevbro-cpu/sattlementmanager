@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 import { STORE_STATUSES, type Store } from '../../types/store'
 import { createStore, findDuplicates } from './storeStore'
+import { listStaff } from './staffStore'
 import { phoneFmt } from '../../lib/format'
 import { EMPTY_FILTER } from '../../types/contract'
 import { listContracts } from '../contract/contractStore'
@@ -29,6 +30,7 @@ interface FormState {
   contactMobile: string
   decisionAuthority: string
   claimedPart: string
+  claimedStaff: string
   memo: string
 }
 
@@ -51,6 +53,7 @@ const EMPTY_FORM: FormState = {
   contactMobile: '',
   decisionAuthority: '',
   claimedPart: '',
+  claimedStaff: '',
   memo: '',
 }
 
@@ -73,8 +76,6 @@ export default function StoreRegisterModal({
   const [checking, setChecking] = useState(false)
   const [partLeaders, setPartLeaders] = useState<string[]>([])
   const { user } = useAuth()
-  // 선점 담당자는 자유입력이 아니라 로그인한 사용자 정보로 자동 연계한다
-  const staffLabel = user?.displayName || user?.email || ''
 
   useEffect(() => {
     let alive = true
@@ -91,6 +92,26 @@ export default function StoreRegisterModal({
       alive = false
     }
   }, [])
+
+  // 선점 담당자·선점 파트는 로그인한 사용자의 파트너 계정 기본정보로 자동 채우되, 수동으로도 변경할 수 있다
+  useEffect(() => {
+    let alive = true
+    if (!user?.email) return
+    listStaff().then((list) => {
+      if (!alive) return
+      const me = list.find((s) => s.email === user.email)
+      // 매칭되는 파트너 계정이 없으면(관리자 로그인 등) 이메일로 채우지 않고 공란으로 두어 직접 입력하게 한다
+      setF((prev) => ({
+        ...prev,
+        claimedStaff: prev.claimedStaff || me?.name || '',
+        claimedPart: prev.claimedPart || me?.part || '',
+      }))
+    })
+    return () => {
+      alive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.email])
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF({ ...f, [k]: v })
 
@@ -117,7 +138,7 @@ export default function StoreRegisterModal({
         contactMobile: f.contactMobile,
         decisionAuthority: f.decisionAuthority,
         claimedPart: f.claimedPart,
-        claimedStaff: staffLabel,
+        claimedStaff: f.claimedStaff,
         memo: f.memo,
       })
       onCreated()
@@ -132,6 +153,8 @@ export default function StoreRegisterModal({
     if (!f.storeName.trim()) return setErr('매장명을 입력하세요.')
     if (!f.roadAddress.trim()) return setErr('주소를 입력하세요.')
     if (!f.storePhone.trim()) return setErr('매장 전화번호를 입력하세요.')
+    if (!f.claimedStaff.trim()) return setErr('선점 담당자를 입력하세요.')
+    if (!f.claimedPart.trim()) return setErr('선점 파트를 선택하세요.')
     setErr('')
     setChecking(true)
     try {
@@ -222,6 +245,12 @@ export default function StoreRegisterModal({
               <Field label="영업시간">
                 <input value={f.businessHours} onChange={(e) => set('businessHours', e.target.value)} className={inputCls} />
               </Field>
+              <Field label="직위">
+                <input value={f.contactPosition} onChange={(e) => set('contactPosition', e.target.value)} className={inputCls} placeholder="점주/점장/본사담당" />
+              </Field>
+              <Field label="의사결정권">
+                <input value={f.decisionAuthority} onChange={(e) => set('decisionAuthority', e.target.value)} className={inputCls} placeholder="점주 직접 / 체인 본사 승인 필요" />
+              </Field>
             </div>
             <div className="mt-3">
               <Field label="상권 특성 메모">
@@ -231,15 +260,9 @@ export default function StoreRegisterModal({
           </section>
 
           <section>
-            <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">담당자 상세 · 선점 정보</h3>
+            <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">선점 정보</h3>
             <div className="grid grid-cols-3 gap-3">
-              <Field label="직위">
-                <input value={f.contactPosition} onChange={(e) => set('contactPosition', e.target.value)} className={inputCls} placeholder="점주/점장/본사담당" />
-              </Field>
-              <Field label="의사결정권">
-                <input value={f.decisionAuthority} onChange={(e) => set('decisionAuthority', e.target.value)} className={inputCls} placeholder="점주 직접 / 체인 본사 승인 필요" />
-              </Field>
-              <Field label="선점 파트">
+              <Field label="선점 파트 *">
                 <select value={f.claimedPart} onChange={(e) => set('claimedPart', e.target.value)} className={inputCls}>
                   <option value="">선택 안 함</option>
                   {partLeaders.map((name) => (
@@ -249,8 +272,13 @@ export default function StoreRegisterModal({
                   ))}
                 </select>
               </Field>
-              <Field label="선점 담당자">
-                <input value={staffLabel} disabled className={inputCls} placeholder="로그인 계정으로 자동 지정" />
+              <Field label="선점 담당자 *">
+                <input
+                  value={f.claimedStaff}
+                  onChange={(e) => set('claimedStaff', e.target.value)}
+                  className={inputCls}
+                  placeholder="로그인 계정 기준 자동 입력 (수정 가능)"
+                />
               </Field>
             </div>
             <div className="mt-3">

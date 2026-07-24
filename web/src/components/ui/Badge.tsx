@@ -6,6 +6,7 @@ export type Tone =
   | 'blue'
   | 'sky'
   | 'amber'
+  | 'yellow'
   | 'red'
   | 'purple'
   | 'teal'
@@ -17,6 +18,7 @@ export const TONES: Record<Tone, { fg: string; bg: string }> = {
   blue: { fg: '#60a5fa', bg: 'rgba(96, 165, 250, 0.15)' },
   sky: { fg: '#38bdf8', bg: 'rgba(56, 189, 248, 0.15)' },
   amber: { fg: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' },
+  yellow: { fg: '#eab308', bg: 'rgba(234, 179, 8, 0.15)' },
   red: { fg: '#f87171', bg: 'rgba(248, 113, 113, 0.15)' },
   purple: { fg: '#a78bfa', bg: 'rgba(167, 139, 250, 0.15)' },
   teal: { fg: '#2dd4bf', bg: 'rgba(45, 212, 191, 0.15)' },
@@ -158,6 +160,17 @@ export function storeStatusTone(status: string): Tone {
     default:
       return 'slate'
   }
+}
+
+/**
+ * 매장섭외관리 선점 만료 D-day → 톤. 남은 일수가 적을수록 위험도가 높은 색으로 표시한다.
+ * D-7~D-4: 파랑, D-3~D-2: 노랑, D-1~D-day: 주황, 만료(음수): 빨강.
+ */
+export function dDayTone(d: number): Tone {
+  if (d < 0) return 'red'
+  if (d <= 1) return 'amber'
+  if (d <= 3) return 'yellow'
+  return 'blue'
 }
 
 /** 계약구분 → 톤. 시스템관리 공통코드로 새 구분이 추가돼도 지점명과 같은 해시 방식으로 대응한다. */

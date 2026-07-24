@@ -338,6 +338,9 @@ export function updateStaffApi(
 ): Promise<Staff> {
   return sendJson(`/api/staff/${encodeURIComponent(id)}`, 'PATCH', data)
 }
+export function resetStaffPasswordApi(id: string): Promise<Staff> {
+  return sendJson(`/api/staff/${encodeURIComponent(id)}/reset-password`, 'POST')
+}
 /** 본인 가입 요청 제출 — 로그인 없이 호출 가능 */
 export function submitStaffRequestApi(data: {
   name: string

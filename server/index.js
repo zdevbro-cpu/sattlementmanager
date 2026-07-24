@@ -445,6 +445,31 @@ app.patch('/api/staff/:id/status', async (req, res) => {
   }
 })
 
+app.post('/api/staff/:id/reset-password', async (req, res) => {
+  try {
+    const result = await staffRepo.resetStaffPassword(req.params.id)
+    if (!result) return res.status(404).json({ ok: false, error: 'not found' })
+    const mailer = getMailer()
+    if (mailer) {
+      try {
+        await mailer.sendMail({
+          from: mailFrom(),
+          to: result.staff.email,
+          subject: 'Settlement Manager 비밀번호 재설정 안내',
+          html: `<p>${result.staff.name}님, 비밀번호 재설정이 요청되었습니다.</p>
+                 <p>아래 링크에서 새 비밀번호를 설정해 주세요.</p>
+                 <p><a href="${result.resetLink}">비밀번호 재설정하기</a></p>`,
+        })
+      } catch (mailErr) {
+        console.error('[staff] 비밀번호 재설정 메일 발송 실패', mailErr.message)
+      }
+    }
+    res.json({ ok: true, data: result.staff })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 app.patch('/api/staff/:id', async (req, res) => {
   try {
     const s = await staffRepo.updateStaff(req.params.id, req.body)

@@ -1,22 +1,36 @@
 import { useEffect, useState } from 'react'
-import { Building2, CheckCircle2, ChevronLeft, ChevronRight, Layers, Plus, RefreshCw, Timer, Trash2, Eye } from 'lucide-react'
+import { Building2, CheckCircle2, Layers, Plus, RefreshCw, Timer, Trash2, Eye } from 'lucide-react'
 import type { ComponentType } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
-import Badge, { storeStatusTone } from '../../components/ui/Badge'
-import { EMPTY_STORE_FILTER, STORE_STATUSES, type Store, type StoreFilter } from '../../types/store'
+import Badge, { dDayTone, storeStatusTone } from '../../components/ui/Badge'
+import Pagination from '../../components/ui/Pagination'
+import { EMPTY_STORE_FILTER, RELEASED_FILTER_VALUE, STORE_STATUSES, type Store, type StoreFilter } from '../../types/store'
 import { deleteStore, listStores, summarizeStores } from './storeStore'
 import StoreRegisterModal from './StoreRegisterModal'
 import StoreDetailDrawer from './StoreDetailDrawer'
+import { EMPTY_FILTER } from '../../types/contract'
+import { listContracts } from '../contract/contractStore'
 
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
 
-const PAGE_SIZES = [20, 50, 100]
+/** 오늘 날짜(KST, YYYY-MM-DD) — 서버의 상태변경일 계산과 동일한 기준(KST 달력일)을 쓴다 */
+function todayIsoKst(): string {
+  return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
+}
 
-/** 선점 만료 D-day (음수=이미 만료) — 없으면 null */
+/**
+ * 선점 만료일까지 남은 일수 (음수=이미 지남) — 없으면 null.
+ * 시각(시/분)은 무시하고 순수 날짜 차이로만 계산해야 등록 당일에 정확히 D-7이 된다 —
+ * 타임스탬프째로 빼면 시간대·시각에 따라 D-6/D-8처럼 어긋난다.
+ */
 function dDay(dateStr: string): number | null {
   if (!dateStr) return null
-  return Math.ceil((new Date(dateStr).getTime() - Date.now()) / (24 * 3600 * 1000))
+  const [y1, m1, d1] = todayIsoKst().split('-').map(Number)
+  const [y2, m2, d2] = dateStr.split('-').map(Number)
+  const today = Date.UTC(y1, m1 - 1, d1)
+  const target = Date.UTC(y2, m2 - 1, d2)
+  return Math.round((target - today) / (24 * 3600 * 1000))
 }
 
 export default function StoreListPage() {
@@ -28,11 +42,30 @@ export default function StoreListPage() {
   const [detailId, setDetailId] = useState<string | null>(null)
   const [perPage, setPerPage] = useState(20)
   const [page, setPage] = useState(1)
+  const [partLeaders, setPartLeaders] = useState<string[]>([])
+
+  useEffect(() => {
+    let alive = true
+    listContracts(EMPTY_FILTER).then((list) => {
+      if (alive) {
+        setPartLeaders(
+          list
+            .filter((c) => c.current.contractType === 'LAS-On파트장' && c.current.status !== '폐기')
+            .map((c) => c.current.contractorName),
+        )
+      }
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
 
   useEffect(() => {
     let alive = true
     setLoading(true)
-    listStores(filter).then((list) => {
+    // 선점해지는 실제 STORE_STATUSES 값이 아니라 클라이언트에서 걸러내는 특수 조건이라, 서버에는 상태 필터 없이 요청한다
+    const serverFilter = filter.status === RELEASED_FILTER_VALUE ? { ...filter, status: '전체' } : filter
+    listStores(serverFilter).then((list) => {
       if (alive) {
         setRows(list)
         setLoading(false)
@@ -47,10 +80,18 @@ export default function StoreListPage() {
     setPage(1)
   }, [filter, perPage])
 
-  const sum = summarizeStores(rows)
-  const totalPages = Math.max(1, Math.ceil(rows.length / perPage))
+  // 선점파트/선점담당자/선점해지는 서버가 모르는 조건이라 클라이언트에서 추가로 걸러낸다
+  const visibleRows = rows.filter((s) => {
+    if (filter.status === RELEASED_FILTER_VALUE && (s.claimedPart || s.claimedStaff)) return false
+    if (filter.claimedPart && s.claimedPart !== filter.claimedPart) return false
+    if (filter.claimedStaff && !s.claimedStaff.includes(filter.claimedStaff)) return false
+    return true
+  })
+
+  const sum = summarizeStores(visibleRows)
+  const totalPages = Math.max(1, Math.ceil(visibleRows.length / perPage))
   const safePage = Math.min(page, totalPages)
-  const pagedRows = rows.slice((safePage - 1) * perPage, safePage * perPage)
+  const pagedRows = visibleRows.slice((safePage - 1) * perPage, safePage * perPage)
 
   const onDelete = async (s: Store) => {
     if (!confirm(`${s.storeName} 매장을 삭제할까요? (섭외이력·사진도 함께 삭제되며 되돌릴 수 없습니다)`)) return
@@ -117,9 +158,31 @@ export default function StoreListPage() {
                   {s}
                 </option>
               ))}
+              <option value={RELEASED_FILTER_VALUE}>{RELEASED_FILTER_VALUE}</option>
             </select>
           </Field>
-          <div className="col-span-2" />
+          <Field label="선점 파트">
+            <select
+              value={filter.claimedPart}
+              onChange={(e) => setFilter({ ...filter, claimedPart: e.target.value })}
+              className={inputCls}
+            >
+              <option value="">전체</option>
+              {partLeaders.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="선점 담당자">
+            <input
+              value={filter.claimedStaff}
+              onChange={(e) => setFilter({ ...filter, claimedStaff: e.target.value })}
+              placeholder="선점 담당자명 검색"
+              className={inputCls}
+            />
+          </Field>
           <button
             onClick={() => setFilter(EMPTY_STORE_FILTER)}
             className="h-[38px] rounded-[8px] border border-border px-4 text-sm font-semibold text-[#c2cde0] hover:bg-hover whitespace-nowrap"
@@ -132,7 +195,7 @@ export default function StoreListPage() {
       <div className="rounded-[14px] border border-border bg-card overflow-hidden">
         <div className="px-4 py-3">
           <span className="text-[15px] font-extrabold text-text-strong">
-            총 <span className="text-primary">{rows.length}</span>건
+            총 <span className="text-primary">{visibleRows.length}</span>건
           </span>
         </div>
         <div className="overflow-x-auto">
@@ -165,10 +228,14 @@ export default function StoreListPage() {
                 const d = dDay(s.claimExpiresAt)
                 return (
                   <tr key={s.id} className="border-b border-border hover:bg-hover">
-                    <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#c2cde0]">{rows.length - ((safePage - 1) * perPage + i)}</td>
+                    <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#c2cde0]">{visibleRows.length - ((safePage - 1) * perPage + i)}</td>
                     <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{s.storeName}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">
-                      <Badge tone={storeStatusTone(s.status)}>{s.status}</Badge>
+                      {!s.claimedPart && !s.claimedStaff ? (
+                        <Badge tone="red">선점해지</Badge>
+                      ) : (
+                        <Badge tone={storeStatusTone(s.status)}>{s.status}</Badge>
+                      )}
                     </td>
                     <td className="px-3 py-1.5 whitespace-nowrap max-w-[220px] truncate">{s.roadAddress || '-'}</td>
                     <td className="px-3 py-1.5 tabular whitespace-nowrap">{s.storePhone || '-'}</td>
@@ -177,7 +244,7 @@ export default function StoreListPage() {
                     <td className="px-3 py-1.5 whitespace-nowrap">{s.claimedPart || '-'}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{s.claimedStaff || '-'}</td>
                     <td className="px-3 py-1.5 tabular whitespace-nowrap">
-                      {d === null ? '-' : d <= 7 ? <span className="font-bold text-danger">D{d >= 0 ? `-${d}` : `+${-d}`}</span> : `D-${d}`}
+                      {d === null ? '-' : <Badge tone={dDayTone(d)}>{d >= 0 ? `D-${d}` : `만료 D+${-d}`}</Badge>}
                     </td>
                     <td className="px-3 py-1.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">
@@ -200,7 +267,7 @@ export default function StoreListPage() {
                   </tr>
                 )
               })}
-              {rows.length === 0 && (
+              {visibleRows.length === 0 && (
                 <tr>
                   <td colSpan={11} className="px-3 py-10 text-center text-[#64748b]">
                     {loading ? '불러오는 중…' : '조건에 맞는 매장이 없습니다.'}
@@ -210,33 +277,8 @@ export default function StoreListPage() {
             </tbody>
           </table>
         </div>
-        {rows.length > 0 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-            <div className="flex gap-1">
-              <button onClick={() => setPage(Math.max(1, safePage - 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronLeft size={16} /></button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setPage(n)}
-                  className={`h-8 min-w-8 px-2 rounded-md border text-[13px] font-semibold ${n === safePage ? 'border-primary text-primary' : 'border-border text-[#94a3b8] hover:bg-hover'}`}
-                >
-                  {n}
-                </button>
-              ))}
-              <button onClick={() => setPage(Math.min(totalPages, safePage + 1))} className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border text-[#94a3b8] hover:bg-hover"><ChevronRight size={16} /></button>
-            </div>
-            <div className="flex gap-1">
-              {PAGE_SIZES.map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setPerPage(n)}
-                  className={`h-8 px-3 rounded-md border text-[13px] font-semibold ${n === perPage ? 'border-primary text-primary' : 'border-border text-[#94a3b8] hover:bg-hover'}`}
-                >
-                  {n}개
-                </button>
-              ))}
-            </div>
-          </div>
+        {visibleRows.length > 0 && (
+          <Pagination page={safePage} totalPages={totalPages} perPage={perPage} onPageChange={setPage} onPerPageChange={setPerPage} />
         )}
       </div>
 

@@ -109,6 +109,18 @@ async function updateStaff(id, { name, phone, role, part }) {
   return mapStaff(rows[0])
 }
 
+/**
+ * 비밀번호 초기화 — 관리자는 새 비밀번호를 모르고, 본인 이메일로 재설정 링크만 발송한다.
+ * 실제 이메일 발송은 index.js에서 mailer로 처리한다(레포지토리는 링크 생성만 담당).
+ */
+async function resetStaffPassword(id) {
+  const { rows } = await pool.query(`SELECT * FROM staff_accounts WHERE id = $1`, [id])
+  if (!rows.length) return null
+  const staff = mapStaff(rows[0])
+  const resetLink = await auth.generatePasswordResetLink(staff.email)
+  return { staff, resetLink }
+}
+
 /** 활성/비활성 전환 — 비활성화 시 Firebase Auth 로그인 자체를 즉시 차단한다 */
 async function setStaffStatus(id, status) {
   await auth.updateUser(id, { disabled: status === 'inactive' })
@@ -134,5 +146,6 @@ module.exports = {
   rejectRequest,
   setStaffStatus,
   updateStaff,
+  resetStaffPassword,
   deleteStaff,
 }

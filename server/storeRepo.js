@@ -13,6 +13,35 @@ function nn(v) {
   return v === '' || v === undefined ? null : v
 }
 
+function todayIso() {
+  return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
+}
+
+/**
+ * 상태변경일(YYYY-MM-DD) + n일 — 선점 만료일(D-day) 계산에 사용.
+ * 서버 프로세스의 로컬 타임존(Cloud Run은 UTC)에 영향받지 않도록 UTC 기준 순수 날짜 연산만 한다.
+ */
+function addDaysIso(dateIso, days) {
+  const [y, m, d] = dateIso.split('-').map(Number)
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  dt.setUTCDate(dt.getUTCDate() + days)
+  return dt.toISOString().slice(0, 10)
+}
+
+/**
+ * 선점 만료(선점 만료일이 지나도록 상태 변경이 없었던 매장)를 미선점 상태로 되돌린다.
+ * 다른 파트가 다시 선점할 수 있도록 claimed_part/claimed_staff/claimed_at/claim_expires_at을 비운다.
+ */
+async function releaseExpiredClaims() {
+  await pool.query(
+    `UPDATE store_master
+       SET claimed_part = '', claimed_staff = '', claimed_at = NULL, claim_expires_at = NULL
+     WHERE claim_expires_at IS NOT NULL
+       AND claim_expires_at < CURRENT_DATE
+       AND (claimed_part <> '' OR claimed_staff <> '')`,
+  )
+}
+
 /** 전화번호 정규화 — 하이픈/공백 제거 후 비교용 */
 function normalizePhone(v) {
   return (v || '').replace(/[^0-9]/g, '')
@@ -76,6 +105,7 @@ function mapStore(s, log, photos) {
 
 /** 매장 목록 (검색 필터: 매장명/전화번호/사업자번호/상태) */
 async function listStores(filter = {}) {
+  await releaseExpiredClaims()
   const { rows: stores } = await pool.query(`SELECT * FROM store_master ORDER BY created_at DESC`)
   const result = []
   if (stores.length) {
@@ -113,6 +143,7 @@ async function listStores(filter = {}) {
 
 /** 단일 매장 (접촉이력·사진 포함) */
 async function getStore(id) {
+  await releaseExpiredClaims()
   const { rows: sr } = await pool.query(`SELECT * FROM store_master WHERE id = $1`, [id])
   if (!sr.length) return null
   const { rows: log } = await pool.query(
@@ -151,14 +182,15 @@ async function createStore(data) {
        FROM store_master WHERE id ~ '^ST[0-9]+$'`,
   )
   const id = `ST${String(n[0].maxnum + 1).padStart(3, '0')}`
+  const today = todayIso()
   await pool.query(
     `INSERT INTO store_master
        (id, business_reg_no, store_phone, road_address, detail_address, lat, lng, store_name,
         business_type, total_area, available_area, floor_location, business_hours, commercial_note,
         chain_brand, contact_name, contact_position, contact_mobile, decision_authority,
         progress_status, ceo_confirm, survey_date,
-        status, memo, created_by, updated_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)`,
+        status, claimed_part, claimed_staff, claimed_at, claim_expires_at, memo, created_by, updated_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)`,
     [
       id,
       data.businessRegNo || '',
@@ -183,6 +215,10 @@ async function createStore(data) {
       data.ceoConfirm || '',
       data.surveyDate || '',
       data.status || '신규등록',
+      data.claimedPart || '',
+      data.claimedStaff || '',
+      today,
+      addDaysIso(today, 7),
       data.memo || '',
       data.createdBy || '',
       data.createdBy || '',
@@ -191,8 +227,16 @@ async function createStore(data) {
   return getStore(id)
 }
 
-/** 매장 정보 수정 */
+/** 매장 정보 수정 — 상태가 실제로 바뀐 경우, 선점 만료일(D-day)을 상태변경일+7일로 자동 재계산한다 */
 async function updateStore(id, data) {
+  const { rows: cur } = await pool.query(`SELECT status FROM store_master WHERE id = $1`, [id])
+  if (!cur.length) return null
+  const nextStatus = data.status || '신규등록'
+  const statusChanged = nextStatus !== cur[0].status
+  const today = todayIso()
+  const claimedAt = statusChanged ? today : nn(data.claimedAt)
+  const claimExpiresAt = statusChanged ? addDaysIso(today, 7) : nn(data.claimExpiresAt)
+
   const { rowCount } = await pool.query(
     `UPDATE store_master SET
        business_reg_no=$2, store_phone=$3, road_address=$4, detail_address=$5, lat=$6, lng=$7,
@@ -222,11 +266,11 @@ async function updateStore(id, data) {
       data.contactPosition || '',
       data.contactMobile || '',
       data.decisionAuthority || '',
-      data.status || '신규등록',
+      nextStatus,
       data.claimedPart || '',
       data.claimedStaff || '',
-      nn(data.claimedAt),
-      nn(data.claimExpiresAt),
+      claimedAt,
+      claimExpiresAt,
       data.rejectReason || '',
       nn(data.recontactAvailableAt),
       data.memo || '',

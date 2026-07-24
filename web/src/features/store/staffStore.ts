@@ -5,6 +5,7 @@ import {
   fetchStaff,
   fetchStaffRequests,
   rejectStaffRequestApi,
+  resetStaffPasswordApi,
   setStaffStatusApi,
   submitStaffRequestApi,
   updateStaffApi,
@@ -27,6 +28,11 @@ export function updateStaff(
   data: { name: string; phone: string; role: string; part: string },
 ): Promise<Staff> {
   return updateStaffApi(id, data)
+}
+
+/** 비밀번호 초기화 — 관리자는 새 비밀번호를 모르고, 본인 이메일로 재설정 링크만 발송된다 */
+export function resetStaffPassword(id: string): Promise<Staff> {
+  return resetStaffPasswordApi(id)
 }
 
 /** 본인 가입 요청 제출 (로그인 불필요) */

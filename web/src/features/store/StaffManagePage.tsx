@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Eye, Trash2, UserCheck, UserX, X } from 'lucide-react'
+import { Check, Eye, KeyRound, Trash2, UserCheck, UserX, X } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
 import { dateText } from '../../lib/format'
 import { STAFF_ROLE_LABEL, type Staff, type StaffRequest } from '../../types/staff'
@@ -9,6 +9,7 @@ import {
   listStaff,
   listStaffRequests,
   rejectStaffRequest,
+  resetStaffPassword,
   setStaffStatus,
 } from './staffStore'
 import StaffDetailDrawer from './StaffDetailDrawer'
@@ -73,6 +74,19 @@ export default function StaffManagePage() {
     if (!confirm(`${s.name} 계정을 완전히 삭제할까요? 되돌릴 수 없습니다.`)) return
     await deleteStaff(s.id)
     setRefresh((n) => n + 1)
+  }
+
+  const onResetPassword = async (s: Staff) => {
+    if (!confirm(`${s.name}(${s.email})님의 비밀번호를 초기화할까요? 본인 이메일로 재설정 링크가 발송됩니다.`)) return
+    setBusyId(s.id)
+    try {
+      await resetStaffPassword(s.id)
+      alert(`${s.name}님에게 비밀번호 재설정 메일을 발송했습니다.`)
+    } catch (e) {
+      alert((e as Error).message)
+    } finally {
+      setBusyId(null)
+    }
   }
 
   return (
@@ -182,6 +196,14 @@ export default function StaffManagePage() {
                           className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover hover:text-white"
                         >
                           <Eye size={16} />
+                        </button>
+                        <button
+                          onClick={() => onResetPassword(s)}
+                          disabled={busyId === s.id}
+                          title="비밀번호 초기화"
+                          className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover hover:text-white disabled:opacity-60"
+                        >
+                          <KeyRound size={16} />
                         </button>
                         <button
                           onClick={() => toggleStatus(s)}

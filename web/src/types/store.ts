@@ -75,9 +75,16 @@ export interface Store {
 export interface StoreFilter {
   keyword: string
   status: string
+  claimedPart: string
+  claimedStaff: string
 }
+
+/** 상태 필터 전용 특수값 — 실제 STORE_STATUSES 값이 아니라 "선점파트/선점담당이 비어있음(선점해지)"을 뜻한다 */
+export const RELEASED_FILTER_VALUE = '선점해지'
 
 export const EMPTY_STORE_FILTER: StoreFilter = {
   keyword: '',
   status: '전체',
+  claimedPart: '',
+  claimedStaff: '',
 }
