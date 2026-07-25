@@ -20,10 +20,19 @@ const textbookRepo = require('./textbookRepo')
 const drive = require('./services/driveService')
 const ocr = require('./services/ocrService')
 const pdfService = require('./services/pdfService')
+const { authenticate, authorize } = require('./middleware/auth')
 
 const app = express()
 app.use(cors())
 app.use(express.json({ limit: '25mb' }))
+
+// 인증 — 모든 /api/* 는 Firebase ID 토큰이 필요하다.
+// 예외: /api/health, POST /api/staff-requests(공개 가입요청), /api/cron/*·/api/admin/migrate(CRON_SECRET).
+// AUTH_ENFORCE=true 전까지는 관찰 모드로 동작해 기존 클라이언트를 끊지 않는다(middleware/auth.js 참조).
+app.use(authenticate)
+// 인가 — 경로별 필요 역할은 middleware/auth.js 의 POLICY 한 곳에서 관리한다.
+// 정책에 없는 신규 경로는 기본이 관리자 전용이다(누락 시 닫히는 방향).
+app.use(authorize)
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -40,6 +49,28 @@ app.get('/api/health', async (_req, res) => {
     db = 'down'
   }
   res.json({ ok: true, db, time: new Date().toISOString() })
+})
+
+// ── 로그인 사용자 본인 정보 (역할·소속) ─────────────────────────────
+// 프론트 라우팅은 이 응답의 roles 로 분기한다. 예전처럼 전체 계정 목록(/api/staff)을
+// 받아서 판정하지 않는다 — 일반 사용자에게 타인 이메일이 노출되지 않아야 한다.
+app.get('/api/me', async (req, res) => {
+  try {
+    if (!req.user) {
+      // 관찰 모드(AUTH_ENFORCE=false)에서 토큰이 없는 경우 — 기존 동작(관리자)을 유지한다
+      return res.json({
+        ok: true,
+        data: { email: '', roles: ['admin'], isStaff: false, part: '', branch: '', canRegisterStore: false },
+      })
+    }
+    const { email, roles, isStaff, part, branch, lasCode, canRegisterStore } = req.user
+    res.json({
+      ok: true,
+      data: { email, roles, isStaff, part: part || '', branch: branch || '', lasCode: lasCode || '', canRegisterStore: !!canRegisterStore },
+    })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
 })
 
 // ── 계약 목록 ─────────────────────────────

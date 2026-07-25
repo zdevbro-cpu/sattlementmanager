@@ -16,7 +16,11 @@ function mapStaff(s) {
     phone: s.phone || '',
     email: s.email,
     role: s.role,
+    // 다중 역할 — 이관 전 행은 roles 가 비어 있을 수 있어 단일 role 로 대체한다
+    roles: Array.isArray(s.roles) && s.roles.length ? s.roles : [s.role],
     part: s.part || '',
+    branch: s.branch || '',
+    lasCode: s.las_code || '',
     status: s.status,
     canRegisterStore: !!s.can_register_store,
     createdAt: isoDate(s.created_at),
@@ -74,8 +78,8 @@ async function approveRequest(id) {
   const userRecord = await auth.createUser({ email: req.email, displayName: req.name })
   try {
     await pool.query(
-      `INSERT INTO staff_accounts (id, name, phone, email, role, part) VALUES ($1,$2,$3,$4,$5,$6)`,
-      [userRecord.uid, req.name, req.phone, req.email, req.role, req.part],
+      `INSERT INTO staff_accounts (id, name, phone, email, role, roles, part) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [userRecord.uid, req.name, req.phone, req.email, req.role, [req.role], req.part],
     )
   } catch (e) {
     await auth.deleteUser(userRecord.uid).catch(() => {})
@@ -99,11 +103,22 @@ async function rejectRequest(id) {
   return mapRequest(rows[0])
 }
 
-/** 등록정보 수정 — 이름/전화번호/역할/소속 파트/매장 등록 권한 */
+/** 섭외 조직축 역할 — 이 축 안에서는 배타(파트장이면서 파트너일 수 없다) */
+const FIELD_AXIS_ROLES = ['part_leader', 'field_partner']
+
+/** 등록정보 수정 — 이름/전화번호/역할/소속 파트/매장 등록 권한
+ *  role 변경 시 roles 의 '섭외축'만 교체하고 다른 축(store_owner 등)은 보존한다. */
 async function updateStaff(id, { name, phone, role, part, canRegisterStore }) {
+  const { rows: cur } = await pool.query(`SELECT roles, role FROM staff_accounts WHERE id = $1`, [id])
+  if (!cur.length) return null
+  const prev = Array.isArray(cur[0].roles) && cur[0].roles.length ? cur[0].roles : [cur[0].role]
+  // 섭외축 역할만 제거한 뒤 새 role 을 넣는다 → 매장 운영축·관리축 역할은 그대로 유지
+  const nextRoles = [...new Set([...prev.filter((r) => !FIELD_AXIS_ROLES.includes(r)), role])]
+
   const { rows } = await pool.query(
-    `UPDATE staff_accounts SET name = $2, phone = $3, role = $4, part = $5, can_register_store = $6 WHERE id = $1 RETURNING *`,
-    [id, name, phone || '', role, part || '', !!canRegisterStore],
+    `UPDATE staff_accounts SET name = $2, phone = $3, role = $4, roles = $5, part = $6, can_register_store = $7
+       WHERE id = $1 RETURNING *`,
+    [id, name, phone || '', role, nextRoles, part || '', !!canRegisterStore],
   )
   if (!rows.length) return null
   if (name) await auth.updateUser(id, { displayName: name }).catch(() => {})

@@ -8,6 +8,38 @@ import type { ExtraPayee } from '../types/payout'
 import type { TextbookApplication, TextbookApplicationFilter } from '../types/textbook'
 import type { RecruitmentLog, Store, StoreFilter } from '../types/store'
 import type { Staff, StaffRequest } from '../types/staff'
+import { auth } from './firebase'
+
+/**
+ * 인증 토큰을 붙여 요청한다 — 이 파일의 모든 /api 호출은 이 함수를 거친다.
+ * 서버는 Authorization: Bearer <Firebase ID 토큰> 을 검증한다(server/middleware/auth.js).
+ * 토큰을 얻지 못해도 요청은 그대로 보낸다 — 인증 판정은 서버가 한다(공개 엔드포인트 존재).
+ */
+async function authFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers)
+  try {
+    const token = await auth.currentUser?.getIdToken()
+    if (token) headers.set('Authorization', `Bearer ${token}`)
+  } catch {
+    /* 토큰 갱신 실패 — 서버가 401 로 응답하면 재로그인 유도 */
+  }
+  return fetch(input, { ...init, headers })
+}
+
+/** 로그인 사용자 본인 정보(역할·소속) — 프론트 라우팅 분기의 기준 */
+export interface MeInfo {
+  email: string
+  roles: string[]
+  isStaff: boolean
+  part: string
+  branch: string
+  lasCode?: string
+  canRegisterStore: boolean
+}
+
+export function fetchMe(): Promise<MeInfo> {
+  return getData('/api/me')
+}
 
 /** 카드전표 OCR 결과 (type='sales') */
 export interface CardOcrResult {
@@ -68,7 +100,7 @@ export async function ocrImage(
   const form = new FormData()
   form.append('photo', file)
   form.append('type', type)
-  const res = await fetch('/api/ocr', { method: 'POST', body: form })
+  const res = await authFetch('/api/ocr', { method: 'POST', body: form })
   if (!res.ok) throw new Error(`OCR 실패 (${res.status})`)
   const json = await res.json()
   return json.data ?? {}
@@ -79,7 +111,7 @@ export async function uploadReceiptImage(
   file: File,
 ): Promise<{ driveFileId: string; driveViewUrl: string }> {
   const data = await fileToBase64(file)
-  const res = await fetch('/api/drive/upload', {
+  const res = await authFetch('/api/drive/upload', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -104,7 +136,7 @@ export async function sendDailyReport(payload: {
   xlsxBase64: string
   summaryHtml?: string
 }): Promise<{ ok: boolean; error?: string }> {
-  const res = await fetch('/api/report/send', {
+  const res = await authFetch('/api/report/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -119,7 +151,7 @@ export async function uploadAppointmentDoc(
   docType: string,
 ): Promise<{ driveFileId: string; driveViewUrl: string }> {
   const data = await fileToBase64(file)
-  const res = await fetch(
+  const res = await authFetch(
     `/api/appointments/${encodeURIComponent(appointmentRef)}/document`,
     {
       method: 'POST',
@@ -147,7 +179,7 @@ export async function uploadSaleDoc(
   kind: string,
 ): Promise<{ driveFileId: string; driveViewUrl: string }> {
   const data = await fileToBase64(file)
-  const res = await fetch(`/api/sales/${encodeURIComponent(saleId)}/document`, {
+  const res = await authFetch(`/api/sales/${encodeURIComponent(saleId)}/document`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -173,7 +205,7 @@ export async function uploadToDrive(
   historyId?: string,
 ): Promise<{ driveFileId: string; driveViewUrl: string }> {
   const data = await fileToBase64(file)
-  const res = await fetch(`/api/contracts/${contractId}/pdf`, {
+  const res = await authFetch(`/api/contracts/${contractId}/pdf`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -204,7 +236,7 @@ function qs(params: Record<string, string | undefined>): string {
 }
 
 async function getData<T>(url: string): Promise<T> {
-  const res = await fetch(url)
+  const res = await authFetch(url)
   if (!res.ok) throw new Error(`요청 실패 (${res.status})`)
   const json = await res.json()
   if (!json.ok) throw new Error(json.error || '요청 실패')
@@ -216,7 +248,7 @@ async function sendJson<T>(
   method: 'POST' | 'PATCH' | 'DELETE',
   body?: unknown,
 ): Promise<T> {
-  const res = await fetch(url, {
+  const res = await authFetch(url, {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined,
@@ -311,7 +343,7 @@ export function addRecruitmentLogApi(
 }
 export async function uploadStorePhoto(storeId: string, file: File): Promise<Store> {
   const data = await fileToBase64(file)
-  const res = await fetch(`/api/stores/${encodeURIComponent(storeId)}/photo`, {
+  const res = await authFetch(`/api/stores/${encodeURIComponent(storeId)}/photo`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ filename: file.name, data, mimeType: file.type || 'image/jpeg' }),
@@ -482,7 +514,7 @@ export async function uploadTextbookPhoto(
   file: File,
 ): Promise<{ driveFileId: string; driveViewUrl: string }> {
   const data = await fileToBase64(file)
-  const res = await fetch(`/api/textbook-applications/${encodeURIComponent(id)}/photo`, {
+  const res = await authFetch(`/api/textbook-applications/${encodeURIComponent(id)}/photo`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ filename: file.name, data, mimeType: file.type || 'image/jpeg' }),
@@ -495,7 +527,7 @@ export async function uploadTextbookPhoto(
 export async function generateTextbookPdf(
   id: string,
 ): Promise<{ driveFileId: string; driveViewUrl: string }> {
-  const res = await fetch(`/api/textbook-applications/${encodeURIComponent(id)}/generate-pdf`, {
+  const res = await authFetch(`/api/textbook-applications/${encodeURIComponent(id)}/generate-pdf`, {
     method: 'POST',
   })
   if (!res.ok) throw new Error(`PDF 생성 실패 (${res.status})`)
