@@ -5,11 +5,9 @@ import { dateText } from '../../lib/format'
 import { phoneFmt } from '../../lib/format'
 import { STORE_STATUSES, type Store } from '../../types/store'
 import { addRecruitmentLog, getStore, updateStore, uploadPhoto } from './storeStore'
-import { listStaff } from './staffStore'
+import { fetchMe, fetchPartLeaders } from '../../lib/api'
 import DateTextInput from '../../components/ui/DateTextInput'
 import DropZone from '../../components/ui/DropZone'
-import { EMPTY_FILTER } from '../../types/contract'
-import { listContracts } from '../contract/contractStore'
 import { useAuth } from '../auth/AuthContext'
 
 const inputCls =
@@ -45,10 +43,9 @@ export default function StoreDetailDrawer({
   useEffect(() => {
     let alive = true
     if (!user?.email) return
-    listStaff().then((list) => {
+    fetchMe().then((me) => {
       if (!alive) return
-      const me = list.find((s) => s.email === user.email)
-      setMyName(me ? me.name : null)
+      setMyName(me.isStaff ? me.name : null)
     })
     return () => {
       alive = false
@@ -386,15 +383,9 @@ function EditForm({
 
   useEffect(() => {
     let alive = true
-    listContracts(EMPTY_FILTER).then((list) => {
-      if (alive) {
-        setPartLeaders(
-          list
-            .filter((c) => c.current.contractType === 'LAS-On파트장' && c.current.status !== '폐기')
-            .map((c) => c.current.contractorName),
-        )
-      }
-    })
+    fetchPartLeaders().then((names) => {
+      if (alive) setPartLeaders(names)
+      })
     return () => {
       alive = false
     }

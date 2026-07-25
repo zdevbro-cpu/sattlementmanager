@@ -5,9 +5,8 @@ import Badge, { dDayTone, storeStatusTone } from '../../components/ui/Badge'
 import { dateText } from '../../lib/format'
 import { useAuth } from '../auth/AuthContext'
 import { EMPTY_STORE_FILTER, RELEASED_FILTER_VALUE, STORE_STATUSES, type Store } from '../../types/store'
+import { fetchPartLeaders } from '../../lib/api'
 import { getStore, listStores } from './storeStore'
-import { EMPTY_FILTER } from '../../types/contract'
-import { listContracts } from '../contract/contractStore'
 
 const inputCls =
   'h-11 w-full rounded-[8px] bg-input border border-border pl-9 pr-3 text-[14px] text-input-text outline-none focus:border-primary'
@@ -51,13 +50,7 @@ export default function MobileStoreListPage() {
   }, [])
 
   useEffect(() => {
-    listContracts(EMPTY_FILTER).then((list) => {
-      setPartLeaders(
-        list
-          .filter((c) => c.current.contractType === 'LAS-On파트장' && c.current.status !== '폐기')
-          .map((c) => c.current.contractorName),
-      )
-    })
+    fetchPartLeaders().then(setPartLeaders)
   }, [])
 
   const openDetail = (id: string) => {

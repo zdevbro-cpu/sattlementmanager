@@ -53,7 +53,8 @@ function AuthedApp() {
       })
       .catch(() => {
         // 조회 실패 시 권한을 넓히지 않는다 — 가장 좁은 범위로 취급
-        if (alive) setMe({ email: user.email ?? '', roles: [], isStaff: true, part: '', branch: '', canRegisterStore: false })
+        if (alive)
+          setMe({ email: user.email ?? '', name: '', roles: [], isStaff: true, part: '', branch: '', canRegisterStore: false })
       })
     return () => {
       alive = false

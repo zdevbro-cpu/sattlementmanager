@@ -60,13 +60,22 @@ app.get('/api/me', async (req, res) => {
       // 관찰 모드(AUTH_ENFORCE=false)에서 토큰이 없는 경우 — 기존 동작(관리자)을 유지한다
       return res.json({
         ok: true,
-        data: { email: '', roles: ['admin'], isStaff: false, part: '', branch: '', canRegisterStore: false },
+        data: { email: '', name: '', roles: ['admin'], isStaff: false, part: '', branch: '', canRegisterStore: false },
       })
     }
-    const { email, roles, isStaff, part, branch, lasCode, canRegisterStore } = req.user
+    const { email, name, roles, isStaff, part, branch, lasCode, canRegisterStore } = req.user
     res.json({
       ok: true,
-      data: { email, roles, isStaff, part: part || '', branch: branch || '', lasCode: lasCode || '', canRegisterStore: !!canRegisterStore },
+      data: {
+        email,
+        name: name || '',
+        roles,
+        isStaff,
+        part: part || '',
+        branch: branch || '',
+        lasCode: lasCode || '',
+        canRegisterStore: !!canRegisterStore,
+      },
     })
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message })
@@ -302,6 +311,28 @@ app.post('/api/appointments/:id/document', async (req, res) => {
 })
 
 // ── LAS-ON 매장선정관리 (매장 마스터/섭외이력) ──
+
+// 선점 파트 선택용 파트장 이름 목록.
+// 예전에는 화면에서 계약 원장 전체(/api/contracts)를 받아 이름만 추려 썼는데,
+// 그러면 섭외 담당자에게 보증금·결제정보까지 통째로 내려간다. 이름만 반환한다.
+app.get('/api/part-leaders', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT DISTINCT h.contractor_name AS name
+         FROM contract_history h
+         JOIN (SELECT contract_id, MAX(id) AS id FROM contract_history GROUP BY contract_id) latest
+           ON latest.id = h.id
+        WHERE h.contract_type = 'LAS-On파트장'
+          AND h.status <> '폐기'
+          AND COALESCE(h.contractor_name, '') <> ''
+        ORDER BY 1`,
+    )
+    res.json({ ok: true, data: rows.map((r) => r.name) })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 app.get('/api/stores', async (req, res) => {
   try {
     const list = await storeRepo.listStores({

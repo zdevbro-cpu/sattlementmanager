@@ -29,6 +29,7 @@ async function authFetch(input: RequestInfo | URL, init: RequestInit = {}): Prom
 /** 로그인 사용자 본인 정보(역할·소속) — 프론트 라우팅 분기의 기준 */
 export interface MeInfo {
   email: string
+  name: string
   roles: string[]
   isStaff: boolean
   part: string
@@ -39,6 +40,11 @@ export interface MeInfo {
 
 export function fetchMe(): Promise<MeInfo> {
   return getData('/api/me')
+}
+
+/** 선점 파트 선택용 파트장 이름 목록 — 계약 원장 전체를 받지 않고 이름만 조회한다 */
+export function fetchPartLeaders(): Promise<string[]> {
+  return getData('/api/part-leaders')
 }
 
 /** 카드전표 OCR 결과 (type='sales') */

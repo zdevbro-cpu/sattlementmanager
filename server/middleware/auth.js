@@ -35,12 +35,12 @@ function isPublic(req) {
  */
 async function resolveRoles(email) {
   const { rows } = await pool.query(
-    `SELECT roles, role, status, part, branch, las_code, can_register_store
+    `SELECT name, roles, role, status, part, branch, las_code, can_register_store
        FROM staff_accounts WHERE email = $1`,
     [email],
   )
   if (!rows.length) {
-    return { roles: ['admin'], status: 'active', isStaff: false }
+    return { roles: ['admin'], status: 'active', isStaff: false, name: '' }
   }
   const s = rows[0]
   // roles 이관 전 행 대비 — 비어 있으면 단일 role 로 대체
@@ -49,6 +49,7 @@ async function resolveRoles(email) {
     roles,
     status: s.status,
     isStaff: true,
+    name: s.name || '',
     part: s.part || '',
     branch: s.branch || '',
     lasCode: s.las_code || '',
@@ -135,6 +136,8 @@ const POLICY = [
   { prefix: '/api/local-files', roles: ANY },
   // 매장섭외관리 — 관리자 + 섭외 조직(점주는 제외)
   { prefix: '/api/stores', roles: FIELD },
+  // 선점 파트 선택용 파트장 이름 목록(계약 원장이 아니라 이름만 반환)
+  { prefix: '/api/part-leaders', roles: FIELD },
   // 나머지(계약·매출·임용·지급·시스템설정·계정관리)는 아래 기본값(관리자 전용)
 ]
 
