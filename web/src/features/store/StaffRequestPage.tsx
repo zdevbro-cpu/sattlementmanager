@@ -1,10 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { CheckCircle2 } from 'lucide-react'
 import { phoneFmt } from '../../lib/format'
 import type { StaffRole } from '../../types/staff'
 import { submitStaffRequest } from './staffStore'
-import { EMPTY_FILTER } from '../../types/contract'
-import { listContracts } from '../contract/contractStore'
 
 const inputCls =
   'h-11 w-full rounded-[8px] bg-input border border-border px-3 text-[14px] text-input-text outline-none focus:border-primary'
@@ -19,28 +17,9 @@ export default function StaffRequestPage() {
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<StaffRole>('field_partner')
   const [part, setPart] = useState('')
-  const [partLeaders, setPartLeaders] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
   const [done, setDone] = useState(false)
-
-  useEffect(() => {
-    let alive = true
-    listContracts(EMPTY_FILTER)
-      .then((list) => {
-        if (alive) {
-          setPartLeaders(
-            list
-              .filter((c) => c.current.contractType === 'LAS-On파트장' && c.current.status !== '폐기')
-              .map((c) => c.current.contractorName),
-          )
-        }
-      })
-      .catch(() => {})
-    return () => {
-      alive = false
-    }
-  }, [])
 
   const submit = async () => {
     if (!name.trim()) return setErr('이름을 입력하세요.')
@@ -99,15 +78,15 @@ export default function StaffRequestPage() {
               <option value="part_leader">파트장</option>
             </select>
           </Field>
-          <Field label="소속 파트">
-            <select value={part} onChange={(e) => setPart(e.target.value)} className={inputCls}>
-              <option value="">선택 안 함</option>
-              {partLeaders.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
+          <Field label="소속 파트 (파트장명)">
+            {/* 로그인 없이 열리는 공개 페이지라 파트장 목록을 내려주지 않는다.
+                직접 입력받고, 최종 소속은 승인 시 관리자가 확정한다. */}
+            <input
+              value={part}
+              onChange={(e) => setPart(e.target.value)}
+              className={inputCls}
+              placeholder="소속 파트장 이름 (모르면 비워두세요)"
+            />
           </Field>
         </div>
 
