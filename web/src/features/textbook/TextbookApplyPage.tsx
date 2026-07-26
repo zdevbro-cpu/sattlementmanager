@@ -153,7 +153,7 @@ export default function TextbookApplyPage() {
           </p>
         </div>
         <button
-          onClick={() => navigate('/sales?tab=textbook')}
+          onClick={() => navigate('/textbook')}
           className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-[10px] border border-border px-4 text-sm font-bold text-[#c2cde0] hover:bg-hover"
         >
           <ArrowLeft size={15} /> 목록으로 가기
@@ -161,8 +161,9 @@ export default function TextbookApplyPage() {
       </div>
 
       <div className="grid grid-cols-[340px_1fr] gap-4">
-        {/* 좌측: 수기 신청서 촬영/업로드 + 접수/초기화 (우측 컬럼과 하단 정렬) */}
-        <section className="flex h-full flex-col rounded-[14px] border border-border bg-card p-4">
+        {/* 좌측: 수기 신청서 촬영/업로드 (접수·초기화 버튼은 폼 전체 하단으로 뺐다 —
+            사진 섹션 안에 있으면 촬영 전용 버튼으로 오해된다) */}
+        <section className="rounded-[14px] border border-border bg-card p-4">
           <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">수기 신청서</h3>
           {!preview ? (
             <DropZone onFile={onPhoto} accept="image/*">
@@ -193,27 +194,7 @@ export default function TextbookApplyPage() {
             <div className="mt-1.5 flex items-center gap-1 text-[11px] text-warning"><AlertTriangle size={11} /> 이미지 Drive 저장 실패 (정보입력은 정상): {driveErr}</div>
           )}
 
-          {err && <div className="mt-3 text-[13px] text-danger">{err}</div>}
-          {doneMsg && <div className="mt-3 flex items-center gap-1 text-[13px] font-bold text-success"><CheckCircle2 size={14} /> {doneMsg}</div>}
 
-          {/* 우측 컬럼 하단과 정렬되도록 버튼을 카드 맨 아래로 고정 */}
-          <div className="flex-1" />
-
-          <div className="mt-3 flex gap-2">
-            <button
-              onClick={reset}
-              className="h-10 flex-1 rounded-[8px] border border-border text-[13px] font-semibold text-[#c2cde0] hover:bg-hover"
-            >
-              초기화
-            </button>
-            <button
-              onClick={submit}
-              disabled={saving}
-              className="h-10 flex-1 rounded-[10px] bg-primary text-[13.5px] font-bold text-white hover:brightness-110 disabled:opacity-60"
-            >
-              {saving ? '접수 중…' : '접수하기'}
-            </button>
-          </div>
         </section>
 
         {/* 우측: 신청 정보 입력 */}
@@ -282,6 +263,30 @@ export default function TextbookApplyPage() {
             <PaymentEditor value={payment} onChange={setPayment} variant="desktop" />
           </section>
         </div>
+      </div>
+
+      {/* 접수·초기화 — 폼 전체에 대한 동작이라 사진 섹션이 아니라 화면 하단에 둔다.
+          오류·완료 메시지도 버튼 옆에서 바로 보이게 함께 배치한다. */}
+      <div className="mt-4 flex items-center justify-end gap-3 rounded-[14px] border border-border bg-card px-4 py-3">
+        {err && <span className="mr-auto text-[13px] text-danger">{err}</span>}
+        {doneMsg && (
+          <span className="mr-auto flex items-center gap-1 text-[13px] font-bold text-success">
+            <CheckCircle2 size={14} /> {doneMsg}
+          </span>
+        )}
+        <button
+          onClick={reset}
+          className="h-10 w-[120px] rounded-[8px] border border-border text-[13px] font-semibold text-[#c2cde0] hover:bg-hover"
+        >
+          초기화
+        </button>
+        <button
+          onClick={submit}
+          disabled={saving}
+          className="h-10 w-[160px] rounded-[10px] bg-primary text-[13.5px] font-bold text-white hover:brightness-110 disabled:opacity-60"
+        >
+          {saving ? '접수 중…' : '접수하기'}
+        </button>
       </div>
     </AppLayout>
   )

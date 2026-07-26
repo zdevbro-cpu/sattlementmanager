@@ -70,8 +70,14 @@ export function summarize(list: Contract[]) {
   const total = list.length
   const isEnded = (c: Contract) =>
     c.current.status === '해지' || c.current.status === '폐기'
-  const activeList = list.filter((c) => !isEnded(c))
+  // 임시저장은 계약등록 확정 전이라 '보증금 = 결재합계' 검증을 거치지 않는다.
+  // 금액을 함께 더하면 실제 결제된 매출과 크게 벌어지므로 확정 계약과 따로 센다.
+  const isDraft = (c: Contract) => !!c.current.isDraft
+  const activeList = list.filter((c) => !isEnded(c) && !isDraft(c))
+  const draftList = list.filter((c) => !isEnded(c) && isDraft(c))
   const active = activeList.length
+  const draftCount = draftList.length
+  const draftTotal = draftList.reduce((a, c) => a + (c.current.deposit || 0), 0)
   const terminated = list.filter(isEnded).length
 
   // 이번달·이번주(월요일 시작) 경계 — 로컬 날짜 기준
@@ -88,7 +94,7 @@ export function summarize(list: Contract[]) {
     (c.current.contractDate ?? '').startsWith(monthPrefix),
   ).length
 
-  // 계약총액 = 보증금 합계 (해지·폐기 제외)
+  // 계약총액 = 보증금 합계 (해지·폐기·임시저장 제외)
   const depositTotal = activeList.reduce((a, c) => a + (c.current.deposit || 0), 0)
   const monthTotal = activeList
     .filter((c) => (c.current.contractDate ?? '').startsWith(monthPrefix))
@@ -100,5 +106,5 @@ export function summarize(list: Contract[]) {
     })
     .reduce((a, c) => a + (c.current.deposit || 0), 0)
 
-  return { total, active, newThisMonth, terminated, depositTotal, monthTotal, weekTotal }
+  return { total, active, newThisMonth, terminated, depositTotal, monthTotal, weekTotal, draftCount, draftTotal }
 }

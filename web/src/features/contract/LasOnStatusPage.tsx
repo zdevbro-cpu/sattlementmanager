@@ -198,7 +198,7 @@ export default function LasOnStatusPage() {
 
       {/* 요약 카드 — 계약조회와 동일한 항목 */}
       <div className="grid grid-cols-4 gap-4 mb-4">
-        <SummaryCard label="계약총액" value={won(sum.depositTotal)} sub={`총 ${sum.active}건 (해지·폐기 제외)`} tint="#e0edff" fg="#2563eb" icon={FileText} />
+        <SummaryCard label="계약총액" value={won(sum.depositTotal)} sub={`총 ${sum.active}건 (해지·폐기·임시저장 제외)`} tint="#e0edff" fg="#2563eb" icon={FileText} />
         <SummaryCard label="이번달 계약총액" value={won(sum.monthTotal)} sub={`이번주 ${won(sum.weekTotal)}`} tint="#fff1e0" fg="#f59e0b" icon={PlusCircle} />
         <SummaryCard label="진행중" value={sum.active} tint="#e2f7ec" fg="#16a34a" icon={FileText} />
         <SummaryCard label="해지·폐기" value={sum.terminated} tint="#fee2e2" fg="#ef4444" icon={XCircle} />

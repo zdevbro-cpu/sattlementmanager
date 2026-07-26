@@ -270,13 +270,28 @@ export default function TextbookApplyMobilePage() {
         {err && <div className="text-[13px] text-danger">{err}</div>}
         {doneMsg && <div className="flex items-center gap-1 text-[13px] font-bold text-success"><CheckCircle2 size={14} /> {doneMsg}</div>}
 
-        <button
-          onClick={submit}
-          disabled={saving}
-          className="h-12 w-full rounded-[10px] bg-primary text-[15px] font-bold text-white hover:brightness-110 disabled:opacity-60"
-        >
-          {saving ? '접수 중…' : '접수하기'}
-        </button>
+        {/* 초기화·접수하기 — 초기화는 입력을 전부 지우므로 손가락이 스치는 실수를 막게 한 번 확인한다 */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              if (!confirm('입력한 내용을 모두 지울까요?')) return
+              setErr('')
+              setDoneMsg('')
+              reset()
+            }}
+            disabled={saving}
+            className="h-12 w-[110px] shrink-0 rounded-[10px] border border-border text-[14px] font-bold text-[#c2cde0] disabled:opacity-60"
+          >
+            초기화
+          </button>
+          <button
+            onClick={submit}
+            disabled={saving}
+            className="h-12 flex-1 rounded-[10px] bg-primary text-[15px] font-bold text-white hover:brightness-110 disabled:opacity-60"
+          >
+            {saving ? '접수 중…' : '접수하기'}
+          </button>
+        </div>
       </div>
     </div>
   )

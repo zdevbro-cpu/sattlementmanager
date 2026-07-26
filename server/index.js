@@ -711,6 +711,7 @@ app.get('/api/shipments', async (req, res) => {
       endDate: req.query.endDate || '',
       status: req.query.status || '',
       keyword: req.query.keyword || '',
+      book: req.query.book || '',
       batchId: req.query.batchId || '',
     })
     res.json({ ok: true, data: list })
@@ -737,6 +738,15 @@ app.get('/api/shipments/summary', async (_req, res) => {
   }
 })
 
+// 검색필터 드롭다운용 교재명 목록 — ':id' 보다 먼저 등록해야 경로가 가로채이지 않는다
+app.get('/api/shipments/books', async (_req, res) => {
+  try {
+    res.json({ ok: true, data: await shipmentRepo.listBookNames() })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 app.get('/api/shipments/:id', async (req, res) => {
   try {
     const s = await shipmentRepo.getShipment(req.params.id)
@@ -754,6 +764,17 @@ app.patch('/api/shipments/:id', async (req, res) => {
     res.json({ ok: true, data: s })
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// 삭제 — 발송 전(접수·추후배송·취소) 건만 허용한다. 나간 건은 이력이 남아야 한다.
+app.delete('/api/shipments/:id', async (req, res) => {
+  try {
+    const r = await shipmentRepo.deleteShipment(req.params.id)
+    if (!r) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: r })
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message })
   }
 })
 

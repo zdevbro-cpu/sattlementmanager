@@ -641,6 +641,7 @@ export function fetchShipments(filter: ShipmentFilter): Promise<Shipment[]> {
       startDate: filter.startDate,
       endDate: filter.endDate,
       status: filter.status === '전체' ? '' : filter.status,
+      book: filter.book,
       keyword: filter.keyword,
     })}`,
   )
@@ -666,6 +667,16 @@ export function fetchShipment(id: string): Promise<Shipment> {
 
 export function updateShipmentApi(id: string, patch: Partial<Shipment>): Promise<Shipment> {
   return sendJson(`/api/shipments/${encodeURIComponent(id)}`, 'PATCH', patch)
+}
+
+/** 검색필터 드롭다운용 교재명 목록 — 실제 배송건에 들어 있는 이름만 내려온다 */
+export function fetchShipmentBooks(): Promise<string[]> {
+  return getData('/api/shipments/books')
+}
+
+/** 삭제 — 발송 전(접수·추후배송·취소) 건만 가능하다. 나간 건은 서버가 거부한다 */
+export function deleteShipmentApi(id: string): Promise<{ id: string; status: string }> {
+  return sendJson(`/api/shipments/${encodeURIComponent(id)}`, 'DELETE')
 }
 
 /** 상태 전이 — 규칙에 없는 전이·배송지 미확정 확정은 서버가 사유와 함께 거부한다 */

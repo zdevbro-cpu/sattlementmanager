@@ -111,7 +111,7 @@ async function nextId(client) {
 
 /** 목록 — 기간(접수일)·상태·수령인·배치 필터 */
 async function listShipments(filter = {}) {
-  const { startDate, endDate, status, keyword, batchId } = filter
+  const { startDate, endDate, status, keyword, book, batchId } = filter
   const where = []
   const params = []
   const add = (sql, v) => {
@@ -122,6 +122,13 @@ async function listShipments(filter = {}) {
   if (endDate) add(`created_at < (?::date + 1)`, endDate)
   if (status && status !== '전체') add(`status = ?`, status)
   if (batchId) add(`batch_id = ?`, batchId)
+  // 교재 — 목록에서 고른 정확한 이름이 오므로 정확일치로 본다.
+  // 교재1/교재2 어느 칸에 적혔든 걸리게 한다(신청서마다 기입 위치가 다르다).
+  if (book) {
+    params.push(book)
+    const i = params.length
+    where.push(`(book1_name = $${i} OR book2_name = $${i})`)
+  }
   if (keyword) {
     params.push(`%${keyword}%`)
     const i = params.length
@@ -134,6 +141,24 @@ async function listShipments(filter = {}) {
     params,
   )
   return rows.map(mapShipment)
+}
+
+/**
+ * 검색필터용 교재명 목록.
+ * 교재는 공통코드로 관리하지 않으므로 실제 배송건에 들어 있는 이름을 그대로 모은다
+ * (코드표를 따로 두면 신청서에 적힌 이름과 어긋나 검색이 안 되는 쪽이 더 위험하다).
+ */
+async function listBookNames() {
+  const { rows } = await pool.query(
+    `SELECT DISTINCT name FROM (
+        SELECT book1_name AS name FROM shipments
+        UNION ALL
+        SELECT book2_name AS name FROM shipments
+      ) t
+      WHERE name IS NOT NULL AND btrim(name) <> ''
+      ORDER BY name`,
+  )
+  return rows.map((r) => r.name)
 }
 
 /** 단건 (+ 상태 전이 이력) */
@@ -414,6 +439,26 @@ async function recordTracking(id, { provider, statusText, raw }) {
   )
 }
 
+/**
+ * 배송건 삭제.
+ * 운영 원칙은 "물리 삭제 대신 취소 상태"지만, 잘못 등록한 건까지 대장에 남으면
+ * 오히려 현황이 흐려진다. 그래서 아직 발송 전(접수·추후배송·취소)인 건만 지울 수 있게 한다.
+ * 물류로 나갔거나 배송이 시작된 건은 이력이 남아야 하므로 거부한다.
+ */
+const DELETABLE = [STATUS.RECEIVED, STATUS.DEFERRED, STATUS.CANCELED]
+
+async function deleteShipment(id) {
+  const { rows } = await pool.query(`SELECT status FROM shipments WHERE id = $1`, [id])
+  if (!rows.length) return null
+  const st = rows[0].status
+  if (!DELETABLE.includes(st)) {
+    throw new Error(`'${st}' 상태는 삭제할 수 없습니다. 취소 처리 후 삭제하세요.`)
+  }
+  // shipment_log 는 ON DELETE CASCADE 로 함께 지워진다
+  await pool.query(`DELETE FROM shipments WHERE id = $1`, [id])
+  return { id, status: st }
+}
+
 /** 요약 카드용 집계 */
 async function summarize() {
   const { rows } = await pool.query(`SELECT status, COUNT(*)::int AS c FROM shipments GROUP BY status`)
@@ -431,10 +476,12 @@ async function summarize() {
 
 module.exports = {
   STATUS,
+  deleteShipment,
   listTrackingTargets,
   recordTracking,
   TRANSITIONS,
   listShipments,
+  listBookNames,
   getShipment,
   createFromApplication,
   createShipment,
