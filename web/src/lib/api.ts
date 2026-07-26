@@ -18,6 +18,12 @@ import { auth } from './firebase'
 async function authFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers)
   try {
+    // 세션 복원이 끝날 때까지 기다린 뒤 토큰을 읽는다.
+    // 일부 스토어(branchStore/positionSalaryStore/reportStore)는 모듈이 로드되는 즉시 API를 부르는데,
+    // 그 시점엔 Firebase 가 아직 세션을 복원하지 않아 currentUser 가 null 이다.
+    // 기다리지 않으면 그 요청들만 토큰 없이 나가 401 이 된다(관찰 모드 로그로 실제 확인됨).
+    // 최초 1회만 대기하고, 이후에는 즉시 resolve 된다.
+    await auth.authStateReady()
     const token = await auth.currentUser?.getIdToken()
     if (token) headers.set('Authorization', `Bearer ${token}`)
   } catch {
