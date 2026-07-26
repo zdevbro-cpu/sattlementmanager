@@ -463,3 +463,14 @@ UPDATE textbook_applications
    SET created_by_email = seller_name
  WHERE created_by_email IS NULL
    AND seller_name LIKE '%@%';
+
+-- ══════════════════════════════════════════════════════════════
+-- 배송추적 (스마트택배 조회 API 연동)
+--   · 접수·송장발급은 수동이고, 송장번호가 등록된 뒤의 "조회"만 자동화한다.
+--   · 추적 수단은 서비스 계층에서 교체 가능하게 두고, 여기엔 결과만 남긴다.
+-- ══════════════════════════════════════════════════════════════
+ALTER TABLE shipments ADD COLUMN IF NOT EXISTS tracking_provider    TEXT;        -- manual / sweettracker
+ALTER TABLE shipments ADD COLUMN IF NOT EXISTS tracking_status_text TEXT;        -- 택배사 원문 상태(예: 배달완료)
+ALTER TABLE shipments ADD COLUMN IF NOT EXISTS last_tracked_at      TIMESTAMPTZ; -- 마지막 조회 시각
+ALTER TABLE shipments ADD COLUMN IF NOT EXISTS tracking_raw         JSONB;       -- 원본 응답(문제 추적용)
+CREATE INDEX IF NOT EXISTS idx_shipments_tracking ON shipments(status, last_tracked_at);
