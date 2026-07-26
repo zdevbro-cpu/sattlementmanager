@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, ChevronsUpDown, Download, Eye, FileText, Plus, PlusCircle, Trash2, XCircle } from 'lucide-react'
+import { ChevronDown, ChevronUp, ChevronsUpDown, Clock, Download, Eye, FileText, Plus, PlusCircle, Trash2, XCircle } from 'lucide-react'
 import type { ComponentType } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import StatusBadge from '../../components/ui/StatusBadge'
@@ -238,11 +238,11 @@ export default function ContractListPage() {
           </div>
 
           {/* 요약 카드 */}
-      <div className="grid grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-5 gap-4 mb-4">
         <SummaryCard
           label="계약총액"
           value={won(sum.depositTotal)}
-          sub={`총 ${sum.active}건 (해지·폐기 제외)`}
+          sub={`총 ${sum.active}건 (해지·폐기·임시저장 제외)`}
           tint="#e0edff"
           fg="#2563eb"
           icon={FileText}
@@ -268,6 +268,15 @@ export default function ContractListPage() {
           tint="#fee2e2"
           fg="#ef4444"
           icon={XCircle}
+        />
+        {/* 임시저장은 결재합계 검증 전이라 계약총액과 섞으면 매출과 맞지 않는다 — 미확정 물량으로 따로 본다 */}
+        <SummaryCard
+          label="임시저장"
+          value={won(sum.draftTotal)}
+          sub={`${sum.draftCount}건 (계약등록 확정 전)`}
+          tint="#f1f5f9"
+          fg="#64748b"
+          icon={Clock}
         />
       </div>
 
