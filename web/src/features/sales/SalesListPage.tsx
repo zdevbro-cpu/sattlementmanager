@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
 import { AlertTriangle, Banknote, ChevronDown, ChevronUp, ChevronsUpDown, CreditCard, Download, Eye, Layers, Plus, RefreshCw, Trash2, Wallet } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import Badge, { categoryTone } from '../../components/ui/Badge'
@@ -17,10 +16,8 @@ import { useSalesCategories } from './salesCategoryStore'
 import SalesRegisterModal from './SalesRegisterModal'
 import SalesDetailDrawer from './SalesDetailDrawer'
 import { downloadSalesListReport } from './dailyReportExcel'
-import TextbookAdminPage from '../textbook/TextbookAdminPage'
 import ContractRegisterModal from '../contract/ContractRegisterModal'
 
-type Tab = 'card' | 'textbook'
 
 /** 오늘 날짜(YYYY-MM-DD) — 목록 화면 오픈 시 필터 기본값으로 사용 */
 function todayIso(): string {
@@ -39,8 +36,6 @@ type SortKey = 'createdAt' | 'date'
 
 export default function SalesListPage() {
   const categories = useSalesCategories()
-  const [searchParams] = useSearchParams()
-  const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'textbook' ? 'textbook' : 'card')
   const [filter, setFilter] = useState<SalesFilter>(DEFAULT_SALES_FILTER)
   const [editingSale, setEditingSale] = useState<Sale | 'new' | null>(null)
   const [convertSale, setConvertSale] = useState<Sale | null>(null)
@@ -140,20 +135,8 @@ export default function SalesListPage() {
         </h1>
       </div>
 
-      {/* 상단 탭 */}
-      <div className="flex gap-1 mb-5 border-b border-border">
-        <TabButton active={tab === 'card'} onClick={() => setTab('card')}>
-          결재관리
-        </TabButton>
-        <TabButton active={tab === 'textbook'} onClick={() => setTab('textbook')}>
-          교재신청관리
-        </TabButton>
-      </div>
-
-      {tab === 'textbook' ? (
-        <TextbookAdminPage />
-      ) : (
-        <>
+      {/* 교재구매관리는 사이드바 독립 메뉴(/textbook)로 분리했다 */}
+      <>
           {/* 섹션 소제목 + 액션 버튼 */}
           <div className="flex items-start justify-between mb-4">
             <div>
@@ -341,8 +324,7 @@ export default function SalesListPage() {
               <Pagination page={safePage} totalPages={totalPages} perPage={perPage} onPageChange={setPage} onPerPageChange={setPerPage} />
             )}
           </div>
-        </>
-      )}
+      </>
 
       {editingSale && (
         <SalesRegisterModal
@@ -385,29 +367,6 @@ export default function SalesListPage() {
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
 
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={[
-        'px-4 py-2 text-[14px] font-bold border-b-2 -mb-px transition-colors',
-        active
-          ? 'border-primary text-text-strong'
-          : 'border-transparent text-[#94a3b8] hover:text-[#e2e8f0]',
-      ].join(' ')}
-    >
-      {children}
-    </button>
-  )
-}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

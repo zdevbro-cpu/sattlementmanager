@@ -3,6 +3,7 @@ import type { ComponentType } from 'react'
 import type { ReactNode } from 'react'
 import {
   BarChart3,
+  BookOpen,
   Building2,
   Calculator,
   FileText,
@@ -43,8 +44,9 @@ const NAV_GROUPS: NavGroup[] = [
       { to: '/contracts', label: '계약관리', icon: FileText, enabled: true },
       { to: '/sales', label: '매출관리', icon: Receipt, enabled: true },
       { to: '/base', label: '임용관리', icon: Users, enabled: true },
-      { to: '/stores', label: '매장섭외관리', icon: Building2, enabled: true },
+      { to: '/textbook', label: '교재구매관리', icon: BookOpen, enabled: true },
       { to: '/delivery', label: '배송관리', icon: Truck, enabled: true },
+      { to: '/stores', label: '매장섭외관리', icon: Building2, enabled: true },
     ],
   },
   {
@@ -69,6 +71,7 @@ const BREADCRUMB: Record<string, string> = {
   '/base': '운영',
   '/stores': '운영',
   '/delivery': '운영',
+  '/textbook': '운영',
   '/contracts': '계약관리',
   '/sales': '매출관리',
   '/settlement': '정산센터',

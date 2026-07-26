@@ -10,12 +10,14 @@ import { useAuth } from '../auth/AuthContext'
 import PaymentEditor, { emptyPayment } from '../contract/PaymentEditor'
 import type { PaymentInfo } from '../../types/contract'
 import { AlertTriangle, ArrowLeft, Camera, CheckCircle2 } from 'lucide-react'
+import { useCodes } from '../../lib/codeStore'
 
 const inputCls =
   'h-10 w-full rounded-[8px] bg-input border border-border px-3 text-[13.5px] text-input-text outline-none focus:border-primary'
 
 /** 교재구매·회원가입 신청 — PC 화면 (모바일 신청자모드와 동일 로직, 데스크톱용 2열 레이아웃) */
 export default function TextbookApplyPage() {
+  const codes = useCodes()
   const navigate = useNavigate()
   const { user } = useAuth()
 
@@ -251,11 +253,22 @@ export default function TextbookApplyPage() {
               <Field label="교재구입 2">
                 <input value={book2Name} onChange={(e) => setBook2Name(e.target.value)} placeholder="교재명 2" className={inputCls} />
               </Field>
+              {/* 자유 입력이면 "어떤 값이 정기발송 대상인지" 코드가 판단할 수 없다 — 공통코드에서 고른다 */}
               <Field label="구독회원 구분">
-                <input value={subscriptionType} onChange={(e) => setSubscriptionType(e.target.value)} placeholder="상품구분" className={inputCls} />
+                <select value={subscriptionType} onChange={(e) => setSubscriptionType(e.target.value)} className={inputCls}>
+                  <option value="">해당 없음</option>
+                  {codes.subscriptionProducts.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
               </Field>
               <Field label="관리회원 구분">
-                <input value={managementType} onChange={(e) => setManagementType(e.target.value)} placeholder="상품구분" className={inputCls} />
+                <select value={managementType} onChange={(e) => setManagementType(e.target.value)} className={inputCls}>
+                  <option value="">해당 없음</option>
+                  {codes.subscriptionProducts.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
               </Field>
             </div>
           </section>

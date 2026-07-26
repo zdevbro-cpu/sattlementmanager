@@ -26,6 +26,14 @@ export interface TextbookApplication {
   /** 연결된 배송건 (목록 조회에서만 채워진다) */
   shipmentId?: string
   shipmentStatus?: string
+  /** 구독 정기발송 — shipProduct 가 있으면 정기발송이 걸린 신청이다 */
+  shipProduct?: string
+  shipIntervalDays?: number
+  shipTotal?: number
+  shipSeq?: number
+  shipNextDate?: string
+  shipPaused?: boolean
+  shipCanceledAt?: string
 }
 
 export interface TextbookApplicationFilter {

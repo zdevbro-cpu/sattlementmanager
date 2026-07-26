@@ -7,6 +7,7 @@ import type { ComponentType } from 'react'
 import { dateText, won } from '../../lib/format'
 import Badge from '../../components/ui/Badge'
 import { shipmentStatusTone } from '../delivery/statusTone'
+import SubscriptionSection from './SubscriptionSection'
 import { generateTextbookPdf } from '../../lib/api'
 import {
   EMPTY_TEXTBOOK_FILTER,
@@ -115,8 +116,8 @@ export default function TextbookAdminPage() {
           <table className="w-full min-w-[1000px] text-[13px]">
             <thead>
               <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
-                {['접수번호', '구매자명', '연락처', '배송지 주소', '자녀명', '신청교재 1/2', '접수일자', '결제', '배송', '관리'].map((h) => (
-                  <th key={h} className={`px-3 py-1.5 font-semibold whitespace-nowrap ${h === '관리' || h === '결제' || h === '배송' ? 'text-center' : ''}`}>
+                {['접수번호', '구매자명', '연락처', '배송지 주소', '자녀명', '신청교재 1/2', '접수일자', '결제', '배송', '구독', '관리'].map((h) => (
+                  <th key={h} className={`px-3 py-1.5 font-semibold whitespace-nowrap ${h === '관리' || h === '결제' || h === '배송' || h === '구독' ? 'text-center' : ''}`}>
                     {h}
                   </th>
                 ))}
@@ -128,7 +129,7 @@ export default function TextbookAdminPage() {
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-3 py-10 text-center text-[#64748b]">
+                  <td colSpan={11} className="px-3 py-10 text-center text-[#64748b]">
                     {loading ? '불러오는 중…' : loadErr ? `불러오기 실패: ${loadErr}` : '조건에 맞는 신청서가 없습니다.'}
                   </td>
                 </tr>
@@ -180,6 +181,18 @@ function Row({
       <td className="px-3 py-1.5 text-center whitespace-nowrap">
         {a.shipmentStatus ? (
           <Badge tone={shipmentStatusTone(a.shipmentStatus)}>{a.shipmentStatus}</Badge>
+        ) : (
+          <span className="text-[#64748b]">-</span>
+        )}
+      </td>
+      {/* 구독 — 정기발송이 걸린 신청만 회차를 보여준다 */}
+      <td className="px-3 py-1.5 text-center whitespace-nowrap">
+        {a.shipProduct ? (
+          <span title={a.shipNextDate ? `다음 예정 ${a.shipNextDate}` : ''}>
+            <Badge tone={a.shipCanceledAt ? 'red' : a.shipPaused ? 'amber' : 'sky'}>
+              {a.shipProduct} {a.shipSeq}/{a.shipTotal || 26}
+            </Badge>
+          </span>
         ) : (
           <span className="text-[#64748b]">-</span>
         )}
@@ -310,6 +323,8 @@ function TextbookDetailDrawer({
               ))}
             </div>
           </section>
+
+          <SubscriptionSection a={a} onChanged={() => { load(); onChanged() }} />
 
           <section>
             <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">첨부 원본 (Google Drive)</h3>

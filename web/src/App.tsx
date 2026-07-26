@@ -19,6 +19,7 @@ import DeliveryAdminPage from './features/delivery/DeliveryAdminPage'
 import { AuthProvider, useAuth } from './features/auth/AuthContext'
 import LoginPage from './features/auth/LoginPage'
 import TextbookApplyPage from './features/textbook/TextbookApplyPage'
+import TextbookPage from './features/textbook/TextbookPage'
 import TextbookApplyMobilePage from './features/textbook/TextbookApplyMobilePage'
 import MobileMyApplicationsPage from './features/textbook/MobileMyApplicationsPage'
 import MobileHomePage from './features/mobile/MobileHomePage'
@@ -142,6 +143,7 @@ function AuthedApp() {
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/base" element={<AppointmentListPage />} />
       <Route path="/stores" element={<StoreListPage />} />
+      <Route path="/textbook" element={<TextbookPage />} />
       <Route path="/delivery" element={<DeliveryAdminPage />} />
       <Route path="/sales" element={<SalesListPage />} />
       <Route path="/settlement" element={<Placeholder title="정산 계산" />} />

@@ -33,6 +33,14 @@ function mapApplication(a) {
     drivePdfViewUrl: a.drive_pdf_view_url || '',
     createdByEmail: a.created_by_email || '',
     createdByBranch: a.created_by_branch || '',
+    // 구독 정기발송 — 걸려 있지 않으면 shipProduct 가 빈 값이다
+    shipProduct: a.ship_product || '',
+    shipIntervalDays: a.ship_interval_days || 0,
+    shipTotal: a.ship_total || 0,
+    shipSeq: a.ship_seq || 0,
+    shipNextDate: isoDate(a.ship_next_date),
+    shipPaused: !!a.ship_paused,
+    shipCanceledAt: isoDate(a.ship_canceled_at),
     createdAt: isoDate(a.created_at),
   }
 }
