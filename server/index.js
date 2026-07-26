@@ -716,6 +716,16 @@ app.get('/api/shipments', async (req, res) => {
   }
 })
 
+// 신규 배송 수동 등록 — 교재신청과 무관한 배송건(전화·방문 접수 등)을 단독 생성한다.
+app.post('/api/shipments', async (req, res) => {
+  try {
+    const s = await shipmentRepo.createShipment({ ...req.body, actor: req.user?.email || '' })
+    res.status(201).json({ ok: true, data: s })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 app.get('/api/shipments/summary', async (_req, res) => {
   try {
     res.json({ ok: true, data: await shipmentRepo.summarize() })
@@ -784,7 +794,24 @@ app.get('/api/textbook-applications/:id', async (req, res) => {
 
 app.post('/api/textbook-applications', async (req, res) => {
   try {
-    const a = await textbookRepo.createApplication(req.body)
+    const { payment, ...applicationData } = req.body || {}
+    const a = await textbookRepo.createApplication(applicationData)
+    // 신청 접수는 항상 성공 처리 — 매출 연결 실패는 로그만 남기고 신청 결과에 영향을 주지 않는다.
+    if (payment && (payment.totalAmount || 0) > 0) {
+      try {
+        await salesRepo.createSale({
+          date: a.applyDate,
+          category: '교재구매',
+          buyer: a.buyerName,
+          inputterName: a.sellerName,
+          source: 'textbook',
+          textbookApplicationId: a.id,
+          payment,
+        })
+      } catch (e) {
+        console.error('[textbook-applications] 매출 연결 실패', a.id, e.message)
+      }
+    }
     res.status(201).json({ ok: true, data: a })
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message })

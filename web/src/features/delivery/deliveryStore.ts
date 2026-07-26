@@ -1,6 +1,7 @@
 // 배송관리 데이터 접근 계층 — Cloud SQL(server/shipmentRepo.js)을 통해 조회/저장한다.
 import type { Shipment, ShipmentFilter, ShipmentSummary } from '../../types/delivery'
 import {
+  createShipmentApi,
   fetchShipment,
   fetchShipmentSummary,
   fetchShipments,
@@ -10,6 +11,16 @@ import {
 
 export function listShipments(filter: ShipmentFilter): Promise<Shipment[]> {
   return fetchShipments(filter)
+}
+
+/** 신규 배송 수동 등록 — 교재신청과 무관한 배송건(전화·방문 접수 등)을 단독 생성한다 */
+export function createShipment(
+  data: Pick<
+    Shipment,
+    'recipientName' | 'phone' | 'address' | 'deliveryMemo' | 'book1Name' | 'book2Name' | 'carrier' | 'trackingNo' | 'memo'
+  >,
+): Promise<Shipment> {
+  return createShipmentApi(data)
 }
 
 /** 상세 — 상태 전이 이력(log)이 함께 온다 */

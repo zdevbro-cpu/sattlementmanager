@@ -169,7 +169,7 @@ CREATE TABLE IF NOT EXISTS sales (
   payment_total    BIGINT DEFAULT 0,
   verified         BOOLEAN NOT NULL DEFAULT false, -- 전표 검증 여부
   memo             TEXT,
-  source           TEXT NOT NULL DEFAULT 'sale',   -- sale(직접등록) / contract(계약 보증금 연동)
+  source           TEXT NOT NULL DEFAULT 'sale',   -- sale(직접등록) / contract(계약 보증금 연동) / textbook(교재신청 연동)
   contract_id      TEXT REFERENCES contracts(id) ON DELETE SET NULL,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -265,6 +265,11 @@ CREATE TABLE IF NOT EXISTS textbook_applications (
   created_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_textbook_app_date ON textbook_applications(apply_date);
+
+-- 매출 원천에 textbook 추가: 신청 접수 시 결제정보가 있으면 sales에 source='textbook'로 자동 연결
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS textbook_application_id TEXT
+  REFERENCES textbook_applications(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_sales_textbook_app ON sales(textbook_application_id);
 
 -- ══════════════════════════════════════════════════════════════
 -- LAS-ON 매장선정관리 (섭외 매장 마스터 + 접촉이력) — LAS-On_Store_Manager.md 요구사항서 Phase 1

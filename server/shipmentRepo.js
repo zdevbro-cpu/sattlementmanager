@@ -196,6 +196,55 @@ async function createFromApplication(app) {
   }
 }
 
+/**
+ * 신규 배송 수동 등록 — 교재신청과 무관하게 배송건만 단독 생성한다(전화·방문 접수 등).
+ * textbook_application_id 는 null 로 저장된다. 생성 규칙은 createFromApplication 과 동일.
+ */
+async function createShipment(s) {
+  const recipient = s.recipientName || ''
+  const phone = s.phone || ''
+  const address = s.address || ''
+  const ready = !!(recipient.trim() && phone.trim() && address.trim())
+  const status = ready ? STATUS.RECEIVED : STATUS.DEFERRED
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const id = await nextId(client)
+    const { rows } = await client.query(
+      `INSERT INTO shipments
+         (id, textbook_application_id, recipient_name, phone, address, delivery_memo,
+          book1_name, book2_name, carrier, tracking_no, memo, status)
+       VALUES ($1,NULL,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [
+        id,
+        recipient,
+        phone,
+        address,
+        s.deliveryMemo || '',
+        s.book1Name || '',
+        s.book2Name || '',
+        s.carrier || '',
+        s.trackingNo || '',
+        s.memo || '',
+        status,
+      ],
+    )
+    await client.query(
+      `INSERT INTO shipment_log (shipment_id, from_status, to_status, actor, memo)
+       VALUES ($1, NULL, $2, $3, $4)`,
+      [id, status, s.actor || '', ready ? '수동 등록' : '배송지 미확정 — 추후배송으로 수동 등록'],
+    )
+    await client.query('COMMIT')
+    return mapShipment(rows[0])
+  } catch (e) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
 /** 배송지·택배사·송장·메모 수정 (상태는 setStatus 로만 바꾼다) */
 async function updateShipment(id, patch) {
   const allowed = {
@@ -341,6 +390,7 @@ module.exports = {
   listShipments,
   getShipment,
   createFromApplication,
+  createShipment,
   updateShipment,
   setStatus,
   markSent,

@@ -7,6 +7,8 @@ import { ocrImage, uploadReceiptImage, type TextbookOcrResult } from '../../lib/
 import { phoneFmt } from '../../lib/format'
 import { createApplication } from './textbookStore'
 import { useAuth } from '../auth/AuthContext'
+import PaymentEditor, { emptyPayment } from '../contract/PaymentEditor'
+import type { PaymentInfo } from '../../types/contract'
 import { AlertTriangle, ArrowLeft, Camera, CheckCircle2 } from 'lucide-react'
 
 const inputCls =
@@ -28,6 +30,7 @@ export default function TextbookApplyPage() {
   const [book2Name, setBook2Name] = useState('')
   const [subscriptionType, setSubscriptionType] = useState('')
   const [managementType, setManagementType] = useState('')
+  const [payment, setPayment] = useState<PaymentInfo>(emptyPayment())
 
   const [preview, setPreview] = useState('')
   const [driveFileId, setDriveFileId] = useState('')
@@ -88,6 +91,7 @@ export default function TextbookApplyPage() {
     setBook2Name('')
     setSubscriptionType('')
     setManagementType('')
+    setPayment(emptyPayment())
     setPreview((prev) => {
       if (prev) URL.revokeObjectURL(prev)
       return ''
@@ -120,6 +124,7 @@ export default function TextbookApplyPage() {
         drivePhotoViewUrl: driveViewUrl,
         drivePdfFileId: '',
         drivePdfViewUrl: '',
+        payment: payment.totalAmount > 0 ? payment : undefined,
       })
       setDoneMsg(`${buyerName.trim()} 신청 접수 완료`)
       reset()
@@ -253,6 +258,11 @@ export default function TextbookApplyPage() {
                 <input value={managementType} onChange={(e) => setManagementType(e.target.value)} placeholder="상품구분" className={inputCls} />
               </Field>
             </div>
+          </section>
+
+          <section className="rounded-[14px] border border-border bg-card p-4">
+            <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">03. 결제 정보 (선택)</h3>
+            <PaymentEditor value={payment} onChange={setPayment} variant="desktop" />
           </section>
         </div>
       </div>

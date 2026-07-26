@@ -69,6 +69,7 @@ function mapSale(s, installments, documents) {
     createdAt: isoDate(s.created_at),
     source: s.source || 'sale',
     contractId: s.contract_id || undefined,
+    textbookApplicationId: s.textbook_application_id || undefined,
   }
 }
 
@@ -151,16 +152,26 @@ async function createSale(s) {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
+    const p = s.payment || {}
+    const cards = p.cardInstallments || []
+    const cash = p.cashInstallments || []
+    if (cards.length > 6 || cash.length > 6) {
+      throw new Error('결재 회차는 최대 6회까지 등록 가능합니다.')
+    }
+    const installmentSum =
+      cards.reduce((a, c) => a + (c.amount || 0), 0) + cash.reduce((a, c) => a + (c.amount || 0), 0)
+    if ((p.totalAmount || 0) !== installmentSum) {
+      throw new Error(`결재 금액(${p.totalAmount || 0})과 회차별 합계(${installmentSum})가 일치하지 않습니다.`)
+    }
     const { rows: n } = await client.query(
       `SELECT COALESCE(MAX(CAST(SUBSTRING(id FROM 2) AS INT)), 0)::int AS maxnum FROM sales WHERE id ~ '^S[0-9]+$'`,
     )
     const id = `S${String(n[0].maxnum + 1).padStart(4, '0')}`
-    const p = s.payment || {}
     await client.query(
       `INSERT INTO sales
          (id, date, category, org, business_unit, buyer, manager, inputter_org, inputter_name,
-          payment_method, payment_total, verified, memo, source, contract_id, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+          payment_method, payment_total, verified, memo, source, contract_id, textbook_application_id, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
       [
         id,
         nn(s.date),
@@ -177,11 +188,10 @@ async function createSale(s) {
         s.memo || '',
         s.source || 'sale',
         s.contractId || null,
+        s.textbookApplicationId || null,
         nn(s.createdAt) || new Date(),
       ],
     )
-    const cards = p.cardInstallments || []
-    const cash = p.cashInstallments || []
     for (const c of cards) {
       await client.query(
         `INSERT INTO sales_installments

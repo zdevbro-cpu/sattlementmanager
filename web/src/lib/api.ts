@@ -6,6 +6,7 @@ import type { Appointment, AppointmentFilter } from '../types/appointment'
 import type { Sale, SalesFilter } from '../types/sales'
 import type { ExtraPayee } from '../types/payout'
 import type { TextbookApplication, TextbookApplicationFilter } from '../types/textbook'
+import type { PaymentInfo } from '../types/contract'
 import type { RecruitmentLog, Store, StoreFilter } from '../types/store'
 import type { Staff, StaffRequest } from '../types/staff'
 import type { Shipment, ShipmentFilter, ShipmentSummary } from '../types/delivery'
@@ -563,7 +564,7 @@ export function fetchTextbookApplication(id: string): Promise<TextbookApplicatio
   return getData(`/api/textbook-applications/${encodeURIComponent(id)}`)
 }
 export function createTextbookApplicationApi(
-  a: Omit<TextbookApplication, 'id' | 'createdAt'>,
+  a: Omit<TextbookApplication, 'id' | 'createdAt'> & { payment?: PaymentInfo },
 ): Promise<TextbookApplication> {
   return sendJson('/api/textbook-applications', 'POST', a)
 }
@@ -635,6 +636,16 @@ export function fetchShipments(filter: ShipmentFilter): Promise<Shipment[]> {
 
 export function fetchShipmentSummary(): Promise<ShipmentSummary> {
   return getData('/api/shipments/summary')
+}
+
+/** 신규 배송 수동 등록 — 교재신청과 무관한 배송건(전화·방문 접수 등)을 단독 생성한다 */
+export function createShipmentApi(
+  data: Pick<
+    Shipment,
+    'recipientName' | 'phone' | 'address' | 'deliveryMemo' | 'book1Name' | 'book2Name' | 'carrier' | 'trackingNo' | 'memo'
+  >,
+): Promise<Shipment> {
+  return sendJson('/api/shipments', 'POST', data)
 }
 
 export function fetchShipment(id: string): Promise<Shipment> {

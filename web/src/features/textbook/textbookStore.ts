@@ -1,5 +1,6 @@
 // 교재구매 신청 관리 데이터 접근 계층 — Cloud SQL(server/textbookRepo.js)을 통해 조회/저장한다.
 import type { TextbookApplication, TextbookApplicationFilter } from '../../types/textbook'
+import type { PaymentInfo } from '../../types/contract'
 import {
   createTextbookApplicationApi,
   deleteTextbookApplicationApi,
@@ -16,7 +17,7 @@ export function getApplication(id: string): Promise<TextbookApplication> {
 }
 
 export function createApplication(
-  a: Omit<TextbookApplication, 'id' | 'createdAt'>,
+  a: Omit<TextbookApplication, 'id' | 'createdAt'> & { payment?: PaymentInfo },
 ): Promise<TextbookApplication> {
   return createTextbookApplicationApi(a)
 }

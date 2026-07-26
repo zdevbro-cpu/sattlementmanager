@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { ComponentType } from 'react'
-import { CheckCircle2, Clock, Eye, PackageCheck, RefreshCw, Truck } from 'lucide-react'
+import { CheckCircle2, Clock, Download, Eye, PackageCheck, Plus, Printer, RefreshCw, Truck } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import Badge from '../../components/ui/Badge'
 import Pagination from '../../components/ui/Pagination'
 import DateTextInput from '../../components/ui/DateTextInput'
 import { dateText } from '../../lib/format'
+import { downloadListAsExcel } from '../../lib/excelExport'
 import {
   EMPTY_SHIPMENT_FILTER,
   SHIPMENT_STATUSES,
@@ -15,6 +16,8 @@ import {
 } from '../../types/delivery'
 import { listShipments, summarizeShipments } from './deliveryStore'
 import DeliveryDetailDrawer from './DeliveryDetailDrawer'
+import DeliveryCreateModal from './DeliveryCreateModal'
+import { printShipments } from './shipmentPrint'
 import { shipmentStatusTone } from './statusTone'
 
 const inputCls =
@@ -35,6 +38,8 @@ export default function DeliveryAdminPage() {
   const [detailId, setDetailId] = useState<string | null>(null)
   const [perPage, setPerPage] = useState(20)
   const [page, setPage] = useState(1)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [createOpen, setCreateOpen] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -59,11 +64,56 @@ export default function DeliveryAdminPage() {
 
   useEffect(() => {
     setPage(1)
+    setSelected(new Set())
   }, [filter, perPage])
 
   const totalPages = Math.max(1, Math.ceil(rows.length / perPage))
   const safePage = Math.min(page, totalPages)
   const pagedRows = rows.slice((safePage - 1) * perPage, safePage * perPage)
+
+  const toggleOne = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const pageAllChecked = pagedRows.length > 0 && pagedRows.every((r) => selected.has(r.id))
+  const togglePageAll = () => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (pageAllChecked) pagedRows.forEach((r) => next.delete(r.id))
+      else pagedRows.forEach((r) => next.add(r.id))
+      return next
+    })
+  }
+
+  /** 선택 건이 있으면 선택 건만, 없으면 현재 필터링된 전체 목록 대상 */
+  const targetRows = selected.size > 0 ? rows.filter((r) => selected.has(r.id)) : rows
+
+  const exportExcel = () => {
+    const headers = ['배송번호', '접수일', '수령인', '연락처', '주소', '배송메모', '교재', '택배사', '송장번호', '상태']
+    const data = targetRows.map((s) => [
+      s.id,
+      dateText(s.createdAt),
+      s.recipientName,
+      s.phone,
+      s.address,
+      s.deliveryMemo,
+      [s.book1Name, s.book2Name].filter(Boolean).join(', '),
+      s.carrier,
+      s.trackingNo,
+      s.status,
+    ])
+    downloadListAsExcel(`배송목록_${new Date().toISOString().slice(0, 10)}.xlsx`, headers, data)
+  }
+
+  const printSelected = () => {
+    if (targetRows.length === 0) return
+    printShipments(targetRows)
+  }
 
   return (
     <AppLayout title="배송관리">
@@ -74,13 +124,36 @@ export default function DeliveryAdminPage() {
         </p>
       </div>
 
-      <div className="mb-4 flex justify-end">
-        <button
-          onClick={() => setRefresh((n) => n + 1)}
-          className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-border px-4 text-sm font-bold text-[#c2cde0] hover:bg-hover"
-        >
-          <RefreshCw size={14} /> 새로고침
-        </button>
+      <div className="mb-4 flex items-center justify-between">
+        <div className="text-[12.5px] text-[#94a3b8]">
+          {selected.size > 0 ? `${selected.size}건 선택됨 (엑셀·인쇄는 선택 건 대상)` : '선택 없음 — 엑셀·인쇄는 현재 목록 전체 대상'}
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={printSelected}
+            className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-border px-4 text-sm font-bold text-[#c2cde0] hover:bg-hover"
+          >
+            <Printer size={14} /> 인쇄
+          </button>
+          <button
+            onClick={exportExcel}
+            className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-border px-4 text-sm font-bold text-[#c2cde0] hover:bg-hover"
+          >
+            <Download size={14} /> 엑셀 다운로드
+          </button>
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110"
+          >
+            <Plus size={14} /> 신규 배송 등록
+          </button>
+          <button
+            onClick={() => setRefresh((n) => n + 1)}
+            className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-border px-4 text-sm font-bold text-[#c2cde0] hover:bg-hover"
+          >
+            <RefreshCw size={14} /> 새로고침
+          </button>
+        </div>
       </div>
 
       {loadErr && (
@@ -134,6 +207,9 @@ export default function DeliveryAdminPage() {
           <table className="w-full min-w-[1000px] text-[13px]">
             <thead>
               <tr className="text-left text-[12.5px] text-[#94a3b8] border-b border-border">
+                <th className="px-3 py-2 font-semibold w-8">
+                  <input type="checkbox" checked={pageAllChecked} onChange={togglePageAll} />
+                </th>
                 <th className="px-3 py-2 font-semibold">배송번호</th>
                 <th className="px-3 py-2 font-semibold text-center">접수일</th>
                 <th className="px-3 py-2 font-semibold">수령인</th>
@@ -148,6 +224,9 @@ export default function DeliveryAdminPage() {
             <tbody>
               {pagedRows.map((s) => (
                 <tr key={s.id} className="border-b border-border hover:bg-hover">
+                  <td className="px-3 py-1.5">
+                    <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggleOne(s.id)} />
+                  </td>
                   <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#c2cde0]">{s.id}</td>
                   <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(s.createdAt)}</td>
                   <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">
@@ -179,7 +258,7 @@ export default function DeliveryAdminPage() {
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-[#64748b]">
+                  <td colSpan={10} className="px-4 py-10 text-center text-[#64748b]">
                     {loading ? '불러오는 중…' : '조건에 맞는 배송건이 없습니다.'}
                   </td>
                 </tr>
@@ -203,6 +282,10 @@ export default function DeliveryAdminPage() {
           onClose={() => setDetailId(null)}
           onChanged={() => setRefresh((n) => n + 1)}
         />
+      )}
+
+      {createOpen && (
+        <DeliveryCreateModal onClose={() => setCreateOpen(false)} onCreated={() => setRefresh((n) => n + 1)} />
       )}
     </AppLayout>
   )
