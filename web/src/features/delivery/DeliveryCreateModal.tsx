@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 import { phoneFmt } from '../../lib/format'
 import { createShipment } from './deliveryStore'
+import { useCodes } from '../../lib/codeStore'
 
 const inputCls =
   'h-9 w-full rounded-[8px] bg-input border border-border px-2.5 text-[13px] text-input-text outline-none focus:border-primary'
@@ -14,6 +15,7 @@ export default function DeliveryCreateModal({
   onClose: () => void
   onCreated: () => void
 }) {
+  const codes = useCodes()
   const [f, setF] = useState({
     recipientName: '',
     phone: '',
@@ -82,7 +84,15 @@ export default function DeliveryCreateModal({
               <input value={f.book2Name} onChange={(e) => set('book2Name', e.target.value)} className={inputCls} />
             </Field>
             <Field label="택배사">
-              <input value={f.carrier} onChange={(e) => set('carrier', e.target.value)} className={inputCls} placeholder="예: CJ대한통운" />
+              {/* 자유 입력이면 표기가 조금만 달라도 배송조회 링크·자동추적 매핑이 깨진다 — 공통코드에서 고른다 */}
+              <select value={f.carrier} onChange={(e) => set('carrier', e.target.value)} className={inputCls}>
+                <option value="">선택 안 함</option>
+                {codes.carriers.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
             </Field>
             <Field label="송장번호">
               <input value={f.trackingNo} onChange={(e) => set('trackingNo', e.target.value)} className={inputCls} />
