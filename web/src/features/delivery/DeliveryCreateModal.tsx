@@ -26,6 +26,9 @@ export default function DeliveryCreateModal({
     carrier: '',
     trackingNo: '',
     memo: '',
+    // 배송지가 있어도 "나중에 보내달라"는 요청이면 추후배송으로 접수한다.
+    // 배송지가 비면 서버가 무조건 추후배송으로 넣는다(목록확정 조건을 못 맞추므로).
+    status: '접수',
   })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
@@ -82,6 +85,12 @@ export default function DeliveryCreateModal({
             </Field>
             <Field label="교재2">
               <input value={f.book2Name} onChange={(e) => set('book2Name', e.target.value)} className={inputCls} />
+            </Field>
+            <Field label="접수 상태">
+              <select value={f.status} onChange={(e) => set('status', e.target.value)} className={inputCls}>
+                <option value="접수">접수 (바로 배송 진행)</option>
+                <option value="추후배송">추후배송 (배송 시점 미정)</option>
+              </select>
             </Field>
             <Field label="택배사">
               {/* 자유 입력이면 표기가 조금만 달라도 배송조회 링크·자동추적 매핑이 깨진다 — 공통코드에서 고른다 */}

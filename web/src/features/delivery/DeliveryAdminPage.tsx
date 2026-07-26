@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ComponentType } from 'react'
-import { CheckCircle2, Clock, Download, Eye, Mail, PackageCheck, Plus, Printer, RefreshCw, Truck } from 'lucide-react'
+import { Barcode, CheckCircle2, Clock, Download, Eye, Mail, PackageCheck, Plus, Printer, RefreshCw, Truck } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import Badge from '../../components/ui/Badge'
 import Pagination from '../../components/ui/Pagination'
@@ -17,6 +17,7 @@ import {
 import { listShipments, sendShipmentList, summarizeShipments } from './deliveryStore'
 import DeliveryDetailDrawer from './DeliveryDetailDrawer'
 import DeliveryCreateModal from './DeliveryCreateModal'
+import TrackingBatchModal from './TrackingBatchModal'
 import { printShipments } from './shipmentPrint'
 import { shipmentStatusTone } from './statusTone'
 
@@ -41,6 +42,7 @@ export default function DeliveryAdminPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [sending, setSending] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
+  const [batchOpen, setBatchOpen] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -170,6 +172,19 @@ export default function DeliveryAdminPage() {
             className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110 disabled:opacity-60"
           >
             <Mail size={14} /> {sending ? '전송 중…' : '배송목록 전송'}
+          </button>
+          <button
+            onClick={() => {
+              if (selected.size === 0) {
+                alert('송장번호를 입력할 배송건을 선택하세요.')
+                return
+              }
+              setBatchOpen(true)
+            }}
+            title="선택한 건에 송장번호를 연속 입력합니다 (바코드 리더기 지원)"
+            className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-border px-4 text-sm font-bold text-[#c2cde0] hover:bg-hover"
+          >
+            <Barcode size={14} /> 송장 일괄입력
           </button>
           <button
             onClick={printSelected}
@@ -323,6 +338,17 @@ export default function DeliveryAdminPage() {
           shipmentId={detailId}
           onClose={() => setDetailId(null)}
           onChanged={() => setRefresh((n) => n + 1)}
+        />
+      )}
+
+      {batchOpen && (
+        <TrackingBatchModal
+          shipments={rows.filter((r) => selected.has(r.id))}
+          onClose={() => setBatchOpen(false)}
+          onDone={() => {
+            setSelected(new Set())
+            setRefresh((n) => n + 1)
+          }}
         />
       )}
 
