@@ -138,7 +138,7 @@ function CommonCodeAdmin() {
         계약등록에서 사용하는 소속·계약구분·상태, 은행/기관, 제출서류 종류와
         매출관리(일일보고 수신 이메일·카드결제 분류)를 관리합니다.
       </p>
-      <div className="grid grid-cols-6 gap-4">
+      <div className="grid grid-cols-8 gap-4">
         {GROUPS.map((g) => (
           <CodeCard
             key={g.kind}
