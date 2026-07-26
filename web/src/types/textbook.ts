@@ -20,6 +20,12 @@ export interface TextbookApplication {
   drivePdfFileId: string // 양식 기반 생성 PDF (수기신청서 없을 때)
   drivePdfViewUrl: string
   createdAt: string
+  /** 연결된 매출 (목록 조회에서만 채워진다) — 결제 등록 여부를 대장에서 바로 본다 */
+  saleId?: string
+  saleTotal?: number
+  /** 연결된 배송건 (목록 조회에서만 채워진다) */
+  shipmentId?: string
+  shipmentStatus?: string
 }
 
 export interface TextbookApplicationFilter {

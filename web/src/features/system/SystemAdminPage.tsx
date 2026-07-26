@@ -36,6 +36,12 @@ import {
   useReportEmails,
 } from '../sales/reportStore'
 import {
+  addDeliveryEmail,
+  parseDeliveryEmails,
+  removeDeliveryEmail,
+  useDeliveryEmails,
+} from '../delivery/deliveryEmailStore'
+import {
   addPosition,
   removePosition,
   updatePositionField,
@@ -138,7 +144,7 @@ function CommonCodeAdmin() {
         계약등록에서 사용하는 소속·계약구분·상태, 은행/기관, 제출서류 종류와
         매출관리(일일보고 수신 이메일·카드결제 분류)를 관리합니다.
       </p>
-      <div className="grid grid-cols-6 gap-4">
+      <div className="grid grid-cols-8 gap-4">
         {GROUPS.map((g) => (
           <CodeCard
             key={g.kind}
@@ -151,6 +157,7 @@ function CommonCodeAdmin() {
         <BankCard />
         <DocTypeCard />
         <ReportEmailCard />
+        <DeliveryEmailCard />
         <SalesCategoryCard />
         <PositionSalaryCard />
         <SettlementFeeCard />
@@ -160,6 +167,58 @@ function CommonCodeAdmin() {
           ),
         )}
       </div>
+    </div>
+  )
+}
+
+/** 물류업체 수신 이메일 — 배송관리에서 '배송목록 전송' 시 이 주소로 엑셀이 발송된다 */
+function DeliveryEmailCard() {
+  const emails = parseDeliveryEmails(useDeliveryEmails())
+  const [newEmail, setNewEmail] = useState('')
+  const [err, setErr] = useState('')
+
+  const add = () => {
+    if (!addDeliveryEmail(newEmail)) {
+      setErr('유효한 이메일이 아니거나 이미 등록된 주소입니다.')
+      return
+    }
+    setNewEmail('')
+    setErr('')
+  }
+
+  return (
+    <div className="rounded-[14px] border border-border bg-card p-4">
+      <h3 className="text-[15px] font-extrabold text-text-strong mb-1">물류업체 이메일</h3>
+      <p className="text-[11.5px] text-[#94a3b8] mb-3">배송관리 &gt; 배송목록 전송 시 이 주소로 발송됩니다.</p>
+      <div className="flex gap-2 mb-3">
+        <input
+          value={newEmail}
+          onChange={(e) => setNewEmail(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+          placeholder="새 이메일 입력"
+          className="h-9 flex-1 min-w-0 rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary"
+        />
+        <button
+          onClick={add}
+          className="h-9 shrink-0 whitespace-nowrap rounded-[8px] bg-primary px-3 text-[13px] font-bold text-white hover:brightness-110"
+        >
+          추가
+        </button>
+      </div>
+      {err && <div className="mb-2 text-[11.5px] text-danger">{err}</div>}
+      <ul className="space-y-1.5 max-h-[280px] overflow-y-auto">
+        {emails.map((e) => (
+          <li key={e} className="flex items-center justify-between gap-2 rounded-[8px] border border-border px-3 py-1.5 text-[13px]">
+            <span className="flex-1 min-w-0 truncate text-[#c2cde0]">{e}</span>
+            <DeleteBtn onClick={() => removeDeliveryEmail(e)} />
+          </li>
+        ))}
+        {emails.length === 0 && (
+          <li className="text-center text-[12px] text-[#64748b] py-3">
+            등록된 이메일이 없습니다. 등록해야 배송목록을 전송할 수 있습니다.
+          </li>
+        )}
+      </ul>
     </div>
   )
 }

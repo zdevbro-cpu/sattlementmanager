@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BookOpen, Camera, CalendarCheck, Eye, ExternalLink, FolderOpen, FileText, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import type { ComponentType } from 'react'
-import { dateText } from '../../lib/format'
+import { dateText, won } from '../../lib/format'
+import Badge from '../../components/ui/Badge'
+import { shipmentStatusTone } from '../delivery/statusTone'
 import { generateTextbookPdf } from '../../lib/api'
 import {
   EMPTY_TEXTBOOK_FILTER,
@@ -113,8 +115,8 @@ export default function TextbookAdminPage() {
           <table className="w-full min-w-[1000px] text-[13px]">
             <thead>
               <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
-                {['접수번호', '구매자명', '연락처', '배송지 주소', '자녀명', '신청교재 1/2', '접수일자', '관리'].map((h) => (
-                  <th key={h} className={`px-3 py-1.5 font-semibold whitespace-nowrap ${h === '관리' ? 'text-center' : ''}`}>
+                {['접수번호', '구매자명', '연락처', '배송지 주소', '자녀명', '신청교재 1/2', '접수일자', '결제', '배송', '관리'].map((h) => (
+                  <th key={h} className={`px-3 py-1.5 font-semibold whitespace-nowrap ${h === '관리' || h === '결제' || h === '배송' ? 'text-center' : ''}`}>
                     {h}
                   </th>
                 ))}
@@ -126,7 +128,7 @@ export default function TextbookAdminPage() {
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-3 py-10 text-center text-[#64748b]">
+                  <td colSpan={10} className="px-3 py-10 text-center text-[#64748b]">
                     {loading ? '불러오는 중…' : loadErr ? `불러오기 실패: ${loadErr}` : '조건에 맞는 신청서가 없습니다.'}
                   </td>
                 </tr>
@@ -165,6 +167,23 @@ function Row({
       <td className="px-3 py-1.5 whitespace-nowrap">{a.childName || '-'}</td>
       <td className="px-3 py-1.5 whitespace-nowrap">{[a.book1Name, a.book2Name].filter(Boolean).join(' / ') || '-'}</td>
       <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(a.applyDate)}</td>
+      {/* 결제·배송 — 신청 대장에서 진행 상황을 한눈에 본다(연결은 textbook_application_id 기준) */}
+      <td className="px-3 py-1.5 text-center whitespace-nowrap">
+        {a.saleId ? (
+          <span title={`매출 ${a.saleId}`}>
+            <Badge tone="green">{won(a.saleTotal || 0)}</Badge>
+          </span>
+        ) : (
+          <Badge tone="slate">미등록</Badge>
+        )}
+      </td>
+      <td className="px-3 py-1.5 text-center whitespace-nowrap">
+        {a.shipmentStatus ? (
+          <Badge tone={shipmentStatusTone(a.shipmentStatus)}>{a.shipmentStatus}</Badge>
+        ) : (
+          <span className="text-[#64748b]">-</span>
+        )}
+      </td>
       <td className="px-3 py-1.5">
         <div className="flex items-center justify-center gap-1.5">
           <button onClick={onDetail} title="상세" className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover hover:text-white">

@@ -2,6 +2,7 @@
 import type { Shipment, ShipmentFilter, ShipmentSummary } from '../../types/delivery'
 import {
   createShipmentApi,
+  sendShipmentListApi,
   fetchShipment,
   fetchShipmentSummary,
   fetchShipments,
@@ -40,4 +41,9 @@ export function updateShipment(id: string, patch: Partial<Shipment>): Promise<Sh
 /** 상태 전이 — 실패 사유(전이 불가/배송지 미확정 등)는 서버 메시지를 그대로 화면에 보여준다 */
 export function setShipmentStatus(id: string, toStatus: string, memo?: string): Promise<Shipment> {
   return setShipmentStatusApi(id, toStatus, memo)
+}
+
+/** 배송목록 전송 — '목록확정' 건만 대상이며, 메일 발송에 성공해야 전송완료로 바뀐다 */
+export function sendShipmentList(ids: string[]) {
+  return sendShipmentListApi(ids)
 }

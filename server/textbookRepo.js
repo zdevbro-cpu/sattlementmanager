@@ -61,16 +61,30 @@ function nn(v) {
 }
 
 /** 교재구매 신청 목록 (기간/구매자 필터)
- *  user 를 받으면 역할별 조회 범위를 SQL 단계에서 강제한다 — 점주가 남의 신청을 받아가면 안 된다. */
+ *  user 를 받으면 역할별 조회 범위를 SQL 단계에서 강제한다 — 점주가 남의 신청을 받아가면 안 된다.
+ *  대장에서 결제·배송 진행을 한눈에 보도록 연결된 매출·배송 정보를 함께 붙인다. */
 async function listApplications(filter = {}, user = null) {
-  const scope = user ? scopeFor(user) : { sql: '', params: [] }
+  const scope = user ? scopeFor(user, 'a') : { sql: '', params: [] }
   const { rows } = await pool.query(
-    `SELECT * FROM textbook_applications
+    `SELECT a.*,
+            sa.id  AS sale_id,
+            sa.payment_total AS sale_total,
+            sh.id  AS shipment_id,
+            sh.status AS shipment_status
+       FROM textbook_applications a
+       LEFT JOIN sales     sa ON sa.textbook_application_id = a.id
+       LEFT JOIN shipments sh ON sh.textbook_application_id = a.id
       ${scope.sql ? 'WHERE ' + scope.sql : ''}
-      ORDER BY created_at DESC`,
+      ORDER BY a.created_at DESC`,
     scope.params,
   )
-  const list = rows.map(mapApplication)
+  const list = rows.map((r) => ({
+    ...mapApplication(r),
+    saleId: r.sale_id || '',
+    saleTotal: Number(r.sale_total || 0),
+    shipmentId: r.shipment_id || '',
+    shipmentStatus: r.shipment_status || '',
+  }))
   const { startDate, endDate, buyer } = filter
   return list.filter((a) => {
     if (startDate && a.applyDate && a.applyDate < startDate) return false

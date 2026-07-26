@@ -1371,6 +1371,119 @@ async function collectReportSales() {
 }
 
 // ── 매출 일일보고 자동 발송 (Cloud Scheduler → 매일 22:00 KST 호출) ──
+// ── 물류업체 수신 이메일 설정 (배송목록 전송 대상) ──
+const DEFAULT_DELIVERY_EMAILS = ''
+
+app.get('/api/system/config/delivery-email', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`SELECT value FROM app_settings WHERE key = 'delivery_recipient_emails'`)
+    res.json({ ok: true, data: rows[0]?.value ?? DEFAULT_DELIVERY_EMAILS })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.patch('/api/system/config/delivery-email', async (req, res) => {
+  try {
+    const value = (req.body?.value ?? '').toString()
+    await pool.query(
+      `INSERT INTO app_settings (key, value) VALUES ('delivery_recipient_emails', $1)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [value],
+    )
+    res.json({ ok: true, data: value })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+/** 배송목록 엑셀 — 물류업체가 그대로 쓰는 표라 열 순서를 임의로 바꾸지 않는다 */
+async function buildShipmentListXlsx(rows) {
+  const ExcelJS = require('exceljs')
+  const wb = new ExcelJS.Workbook()
+  const ws = wb.addWorksheet('배송목록')
+  ws.columns = [
+    { header: '접수번호', key: 'id', width: 12 },
+    { header: '수령인', key: 'recipientName', width: 14 },
+    { header: '연락처', key: 'phone', width: 16 },
+    { header: '주소', key: 'address', width: 46 },
+    { header: '배송메모', key: 'deliveryMemo', width: 24 },
+    { header: '교재1', key: 'book1Name', width: 18 },
+    { header: '교재2', key: 'book2Name', width: 18 },
+  ]
+  ws.getRow(1).eachCell((cell) => {
+    // 스타일은 한 번에 대입한다 — 속성을 따로 주면 행이 많을 때 ExcelJS 내부 스타일 테이블이 뒤섞인다
+    cell.style = {
+      font: { bold: true },
+      alignment: { horizontal: 'center', vertical: 'middle' },
+      fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8E8E8' } },
+      border: {
+        top: { style: 'thin' }, bottom: { style: 'thin' },
+        left: { style: 'thin' }, right: { style: 'thin' },
+      },
+    }
+  })
+  for (const r of rows) {
+    ws.addRow({
+      id: r.id,
+      recipientName: r.recipientName,
+      phone: r.phone,
+      address: r.address,
+      deliveryMemo: r.deliveryMemo,
+      book1Name: r.book1Name,
+      book2Name: r.book2Name,
+    })
+  }
+  return Buffer.from(await wb.xlsx.writeBuffer())
+}
+
+/**
+ * 배송목록 전송 — '목록확정' 건을 엑셀로 만들어 물류업체에 메일로 보내고 일괄 '전송완료' 처리한다.
+ * 메일 발송이 실패하면 상태를 바꾸지 않는다 — 보내지 않았는데 전송완료로 남으면 배송이 누락된다.
+ * '추후배송'(배송지 미확정) 건은 markSent 단계에서 대상에서 제외된다.
+ */
+app.post('/api/shipments/send-list', async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : []
+    if (!ids.length) return res.status(400).json({ ok: false, error: '전송할 배송건을 선택하세요.' })
+
+    const all = await shipmentRepo.listShipments({ status: '목록확정' })
+    const targets = all.filter((s) => ids.includes(s.id))
+    if (!targets.length) {
+      return res.status(400).json({ ok: false, error: "'목록확정' 상태인 건이 없습니다. 먼저 목록확정 처리하세요." })
+    }
+
+    const { rows: cfg } = await pool.query(`SELECT value FROM app_settings WHERE key = 'delivery_recipient_emails'`)
+    const emails = (cfg[0]?.value ?? '')
+      .split(/[,;\s]+/)
+      .map((x) => x.trim())
+      .filter((x) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x))
+    if (!emails.length) {
+      return res.status(400).json({ ok: false, error: '물류업체 수신 이메일이 설정되지 않았습니다. 시스템관리에서 등록하세요.' })
+    }
+
+    const mailer = getMailer()
+    if (!mailer) return res.status(500).json({ ok: false, error: '메일 발송 설정이 없습니다.' })
+
+    const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
+    const buf = await buildShipmentListXlsx(targets)
+    await mailer.sendMail({
+      from: mailFrom(),
+      to: emails.join(', '),
+      subject: `[배송목록] ${today} · ${targets.length}건`,
+      html: `<p>${today} 배송목록 ${targets.length}건을 전달드립니다.</p><p>첨부 파일을 확인해 주세요.</p>`,
+      attachments: [{ filename: `배송목록_${today.replace(/-/g, '')}.xlsx`, content: buf }],
+    })
+
+    // 메일이 실제로 나간 뒤에만 상태를 옮긴다
+    const batchId = `B${today.replace(/-/g, '')}-${Date.now().toString().slice(-5)}`
+    const sent = await shipmentRepo.markSent(targets.map((s) => s.id), batchId, req.user?.email || '')
+    res.json({ ok: true, data: { batchId, sent: sent.length, to: emails } })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 // ── 배송추적 자동화 (스마트택배 조회 API) ──
 // 접수·송장발급은 수동이고, 송장번호가 등록된 뒤의 조회만 자동화한다.
 // 호출량을 줄이려고 '배송중' + 송장 있음 + 최근 발송 건만 돌린다(shipmentRepo.listTrackingTargets).

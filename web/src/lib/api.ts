@@ -696,3 +696,18 @@ export interface MyApplication {
 export function fetchMyApplications(keyword = ''): Promise<MyApplication[]> {
   return getData(`/api/my-applications${qs({ keyword })}`)
 }
+
+/* ── 배송목록 전송 (Phase 3) ────────────────────────────── */
+
+export function fetchDeliveryEmails(): Promise<string> {
+  return getData('/api/system/config/delivery-email')
+}
+
+export function updateDeliveryEmailsApi(value: string): Promise<string> {
+  return sendJson('/api/system/config/delivery-email', 'PATCH', { value })
+}
+
+/** 선택한 '목록확정' 건을 물류업체에 메일 전송하고 일괄 전송완료 처리한다 */
+export function sendShipmentListApi(ids: string[]): Promise<{ batchId: string; sent: number; to: string[] }> {
+  return sendJson('/api/shipments/send-list', 'POST', { ids })
+}
