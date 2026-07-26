@@ -474,3 +474,19 @@ ALTER TABLE shipments ADD COLUMN IF NOT EXISTS tracking_status_text TEXT;       
 ALTER TABLE shipments ADD COLUMN IF NOT EXISTS last_tracked_at      TIMESTAMPTZ; -- 마지막 조회 시각
 ALTER TABLE shipments ADD COLUMN IF NOT EXISTS tracking_raw         JSONB;       -- 원본 응답(문제 추적용)
 CREATE INDEX IF NOT EXISTS idx_shipments_tracking ON shipments(status, last_tracked_at);
+
+-- ══════════════════════════════════════════════════════════════
+-- 점주 온보딩 시도 기록 — LAS 고유번호 무차별 대입 차단용
+--   · Cloud Run 인스턴스가 여러 개라 메모리 카운터로는 제한이 새므로 DB 에 남긴다.
+--   · 개인정보는 담지 않는다(고유번호·IP·성공여부만).
+-- ══════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS owner_verify_attempts (
+  id            BIGSERIAL PRIMARY KEY,
+  ip            TEXT,
+  referral_code TEXT,
+  ok            BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_owner_attempt_time ON owner_verify_attempts(created_at);
+CREATE INDEX IF NOT EXISTS idx_owner_attempt_ip   ON owner_verify_attempts(ip, created_at);
+CREATE INDEX IF NOT EXISTS idx_owner_attempt_code ON owner_verify_attempts(referral_code, created_at);

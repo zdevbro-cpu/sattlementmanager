@@ -711,3 +711,11 @@ export function updateDeliveryEmailsApi(value: string): Promise<string> {
 export function sendShipmentListApi(ids: string[]): Promise<{ batchId: string; sent: number; to: string[] }> {
   return sendJson('/api/shipments/send-list', 'POST', { ids })
 }
+
+/* ── 점주 온보딩 (Phase 5) ──────────────────────────────────
+ * las-mgmt 명단과 대조해 계정을 발급한다. 로그인 전에 호출하는 공개 엔드포인트다.
+ * 응답은 성공·실패를 구분하지 않는다 — LAS 고유번호 존재 여부를 노출하지 않기 위함.
+ */
+export function verifyOwnerApi(referralCode: string, name: string): Promise<{ message: string; sentTo: string }> {
+  return sendJson('/api/owner/verify', 'POST', { referralCode, name })
+}

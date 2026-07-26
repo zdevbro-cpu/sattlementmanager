@@ -23,7 +23,9 @@ const drive = require('./services/driveService')
 const ocr = require('./services/ocrService')
 const pdfService = require('./services/pdfService')
 const tracking = require('./services/trackingService')
+const lasDirectory = require('./services/lasDirectory')
 const { authenticate, authorize } = require('./middleware/auth')
+const { auth } = require('./services/firebaseAdmin')
 
 const app = express()
 app.use(cors())
@@ -1371,6 +1373,93 @@ async function collectReportSales() {
 }
 
 // ── 매출 일일보고 자동 발송 (Cloud Scheduler → 매일 22:00 KST 호출) ──
+// ── 점주 온보딩 (las-mgmt 명단 대조 → 계정 발급) ──
+//
+// las-mgmt 비밀번호는 쓰지 않는다(평문 저장이라 신뢰 불가). LAS 고유번호+이름은 "명단에 있는가"만
+// 확인해 줄 뿐 "본인인가"는 확인하지 못하므로(고유번호는 순차 채번이라 추측 가능),
+// 등록된 이메일로 비밀번호 설정 링크를 보내 메일 수신자만 계정을 열 수 있게 한다.
+// 응답은 성공·실패를 구분하지 않는다 — 고유번호 존재 여부조차 노출하지 않기 위함이다.
+
+const OWNER_VERIFY_MSG =
+  '확인이 완료되면 등록된 이메일로 비밀번호 설정 안내를 보내드립니다. 메일이 오지 않으면 관리자에게 문의해 주세요.'
+
+async function tooManyAttempts(ip, code) {
+  const { rows } = await pool.query(
+    `SELECT
+       COUNT(*) FILTER (WHERE ip = $1)            AS by_ip,
+       COUNT(*) FILTER (WHERE referral_code = $2) AS by_code
+     FROM owner_verify_attempts
+     WHERE created_at > now() - interval '1 hour'`,
+    [ip, code],
+  )
+  return Number(rows[0].by_ip) >= 5 || Number(rows[0].by_code) >= 3
+}
+
+app.post('/api/owner/verify', async (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] || '').toString().split(',')[0].trim() || req.ip || ''
+  const code = String(req.body?.referralCode || '').trim().toUpperCase()
+  const name = String(req.body?.name || '').trim()
+  try {
+    if (!code || !name) {
+      return res.status(400).json({ ok: false, error: 'LAS 고유번호와 이름을 입력하세요.' })
+    }
+    if (await tooManyAttempts(ip, code)) {
+      return res.status(429).json({ ok: false, error: '시도 횟수를 초과했습니다. 잠시 후 다시 시도해 주세요.' })
+    }
+
+    const owner = await lasDirectory.findOwnerByReferralCode(code, name)
+    await pool.query(
+      `INSERT INTO owner_verify_attempts (ip, referral_code, ok) VALUES ($1,$2,$3)`,
+      [ip, code, !!owner],
+    )
+    // 불일치여도 같은 응답을 준다(고유번호 존재 여부 비노출)
+    if (!owner) return res.json({ ok: true, data: { message: OWNER_VERIFY_MSG, sentTo: '' } })
+
+    // 이미 계정이 있으면 새로 만들지 않고 안내만 한다 — 같은 사람이 두 계정으로 쪼개지면 안 된다
+    const { rows: exist } = await pool.query(`SELECT id FROM staff_accounts WHERE email = $1`, [owner.email])
+    if (exist.length) {
+      return res.json({
+        ok: true,
+        data: { message: '이미 가입된 계정입니다. 로그인해 주세요.', sentTo: lasDirectory.maskEmail(owner.email) },
+      })
+    }
+
+    const userRecord = await auth.createUser({ email: owner.email, displayName: owner.name })
+    try {
+      await pool.query(
+        `INSERT INTO staff_accounts (id, name, phone, email, role, roles, branch, las_code)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [userRecord.uid, owner.name, owner.phone, owner.email, owner.role, [owner.role], owner.branch, owner.referralCode],
+      )
+    } catch (e) {
+      await auth.deleteUser(userRecord.uid).catch(() => {})
+      throw e
+    }
+
+    const resetLink = await auth.generatePasswordResetLink(owner.email)
+    const mailer = getMailer()
+    if (mailer) {
+      try {
+        await mailer.sendMail({
+          from: mailFrom(),
+          to: owner.email,
+          subject: 'Settlement Manager 계정 안내',
+          html: `<p>${owner.name}님, 확인이 완료되었습니다.</p>
+                 <p>아래 링크에서 비밀번호를 설정한 뒤 로그인해 주세요.</p>
+                 <p><a href="${resetLink}">비밀번호 설정하기</a></p>`,
+        })
+      } catch (mailErr) {
+        console.error('[owner/verify] 메일 발송 실패', mailErr.message)
+      }
+    }
+    res.json({ ok: true, data: { message: OWNER_VERIFY_MSG, sentTo: lasDirectory.maskEmail(owner.email) } })
+  } catch (e) {
+    console.error('[owner/verify] 실패:', e.message)
+    // 내부 사유를 밖으로 흘리지 않는다
+    res.status(500).json({ ok: false, error: '처리 중 오류가 발생했습니다. 관리자에게 문의해 주세요.' })
+  }
+})
+
 // ── 물류업체 수신 이메일 설정 (배송목록 전송 대상) ──
 const DEFAULT_DELIVERY_EMAILS = ''
 
