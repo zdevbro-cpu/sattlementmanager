@@ -2,7 +2,7 @@
 // 조직관리 등록/수정 화면, 급여지급관리, 대시보드가 모두 이 값을 참조하므로 기기·브라우저와
 // 무관하게 동일한 값을 봐야 한다.
 import { useSyncExternalStore } from 'react'
-import { fetchPositionSalaries, updatePositionSalariesApi } from '../../lib/api'
+import { fetchPositionSalaries, onSignedIn, updatePositionSalariesApi } from '../../lib/api'
 
 export interface PositionSalary {
   position: string // 직급
@@ -80,16 +80,19 @@ function emit() {
   listeners.forEach((l) => l())
 }
 
-fetchPositionSalaries()
-  .then((raw) => {
-    if (!raw) return
-    const parsed = normalize(JSON.parse(raw) as StoredPositionSalary[])
-    state = parsed
-    emit()
-  })
-  .catch(() => {
-    /* 서버 미응답 시 로컬 캐시 유지 */
-  })
+// 로그인 이후에 동기화한다 — 로그인 화면에서 보내면 토큰이 없어 401 이 되고, 이 호출은 1회뿐이라 복구되지 않는다
+onSignedIn(() => {
+  fetchPositionSalaries()
+    .then((raw) => {
+      if (!raw) return
+      const parsed = normalize(JSON.parse(raw) as StoredPositionSalary[])
+      state = parsed
+      emit()
+    })
+    .catch(() => {
+      /* 서버 미응답 시 로컬 캐시 유지 */
+    })
+})
 
 export function getPositionSalaries(): PositionSalary[] {
   return state

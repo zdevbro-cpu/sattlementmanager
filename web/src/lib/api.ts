@@ -8,7 +8,22 @@ import type { ExtraPayee } from '../types/payout'
 import type { TextbookApplication, TextbookApplicationFilter } from '../types/textbook'
 import type { RecruitmentLog, Store, StoreFilter } from '../types/store'
 import type { Staff, StaffRequest } from '../types/staff'
+import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from './firebase'
+
+/**
+ * 로그인된 뒤에 실행한다 — 이미 로그인 상태면 즉시, 아니면 로그인되는 시점에 실행된다.
+ *
+ * 설정 스토어들은 모듈이 로드되는 즉시 서버 동기화를 시도하는데, 그 시점은 로그인 화면일 수 있다.
+ * 그때 보낸 요청은 토큰이 없어 인가를 강제하면 401 이 되고, 이 스토어들은 한 번만 호출하고
+ * 실패를 조용히 무시하므로 로그인한 뒤에도 영영 채워지지 않는다(급여표·지점 목록이 빈 채로 남는다).
+ * 로그인 이후로 미뤄 이 문제를 없앤다.
+ */
+export function onSignedIn(run: () => void): void {
+  onAuthStateChanged(auth, (u) => {
+    if (u) run()
+  })
+}
 
 /**
  * 인증 토큰을 붙여 요청한다 — 이 파일의 모든 /api 호출은 이 함수를 거친다.

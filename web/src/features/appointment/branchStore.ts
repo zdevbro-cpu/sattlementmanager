@@ -2,7 +2,7 @@
 // 임용계약 등록/수정, 조직관리 검색필터가 모두 이 목록을 참조하므로 기기·브라우저와 무관하게
 // 동일한 값을 봐야 한다. (공통코드 codeStore 는 localStorage 전용이라 여기에 두지 않는다)
 import { useSyncExternalStore } from 'react'
-import { fetchBranches, updateBranchesApi } from '../../lib/api'
+import { fetchBranches, onSignedIn, updateBranchesApi } from '../../lib/api'
 
 const KEY = 'sm.branches.v1'
 
@@ -41,15 +41,18 @@ function save() {
   })
 }
 
-fetchBranches()
-  .then((raw) => {
-    if (!raw) return
-    state = normalize(JSON.parse(raw) as string[])
-    emit()
-  })
-  .catch(() => {
-    /* 서버 미응답 시 로컬 캐시 유지 */
-  })
+// 로그인 이후에 동기화한다 — 로그인 화면에서 보내면 토큰이 없어 401 이 되고, 이 호출은 1회뿐이라 복구되지 않는다
+onSignedIn(() => {
+  fetchBranches()
+    .then((raw) => {
+      if (!raw) return
+      state = normalize(JSON.parse(raw) as string[])
+      emit()
+    })
+    .catch(() => {
+      /* 서버 미응답 시 로컬 캐시 유지 */
+    })
+})
 
 export function getBranches(): string[] {
   return state

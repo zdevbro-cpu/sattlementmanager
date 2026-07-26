@@ -1,7 +1,7 @@
 // 일일보고 수신 이메일 설정 — Cloud SQL(app_settings) 저장, localStorage는 로딩 전 캐시로만 사용
 // 백엔드 cron(/api/cron/daily-sales-report)이 동일한 DB 값을 참조해 실제 발송 대상자로 사용한다.
 import { useSyncExternalStore } from 'react'
-import { fetchReportEmails, updateReportEmailsApi } from '../../lib/api'
+import { fetchReportEmails, onSignedIn, updateReportEmailsApi } from '../../lib/api'
 
 const KEY = 'sm.reportEmails.v1'
 const DEFAULT =
@@ -27,16 +27,19 @@ function emit() {
   listeners.forEach((l) => l())
 }
 
-fetchReportEmails()
-  .then((v) => {
-    if (v && v !== state) {
-      state = v
-      emit()
-    }
-  })
-  .catch(() => {
-    /* 서버 미응답 시 로컬 캐시 유지 */
-  })
+// 로그인 이후에 동기화한다 — 로그인 화면에서 보내면 토큰이 없어 401 이 되고, 이 호출은 1회뿐이라 복구되지 않는다
+onSignedIn(() => {
+  fetchReportEmails()
+    .then((v) => {
+      if (v && v !== state) {
+        state = v
+        emit()
+      }
+    })
+    .catch(() => {
+      /* 서버 미응답 시 로컬 캐시 유지 */
+    })
+})
 
 export function getReportEmails(): string {
   return state
