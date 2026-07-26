@@ -19,7 +19,10 @@ export function createShipment(
   data: Pick<
     Shipment,
     'recipientName' | 'phone' | 'address' | 'deliveryMemo' | 'book1Name' | 'book2Name' | 'carrier' | 'trackingNo' | 'memo'
-  >,
+  > & {
+    /** 접수 상태 — 배송지가 있어도 '추후배송'을 고를 수 있다. 배송지가 없으면 서버가 추후배송으로 고정한다 */
+    status?: string
+  },
 ): Promise<Shipment> {
   return createShipmentApi(data)
 }

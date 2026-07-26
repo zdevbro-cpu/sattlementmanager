@@ -205,7 +205,11 @@ async function createShipment(s) {
   const phone = s.phone || ''
   const address = s.address || ''
   const ready = !!(recipient.trim() && phone.trim() && address.trim())
-  const status = ready ? STATUS.RECEIVED : STATUS.DEFERRED
+  // 배송지가 없으면 무조건 '추후배송'이다(목록확정 조건을 만족할 수 없다).
+  // 배송지가 있어도 "나중에 보내달라"는 요청이 있으면 담당자가 '추후배송'을 고를 수 있어야 한다 —
+  // 추후배송은 주소 유무가 아니라 '배송 시점 미정'이라는 업무 조건이다.
+  const wanted = s.status === STATUS.DEFERRED ? STATUS.DEFERRED : STATUS.RECEIVED
+  const status = ready ? wanted : STATUS.DEFERRED
 
   const client = await pool.connect()
   try {
