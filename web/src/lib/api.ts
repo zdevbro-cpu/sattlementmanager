@@ -395,7 +395,15 @@ export function deleteStaffApi(id: string): Promise<void> {
 }
 export function updateStaffApi(
   id: string,
-  data: { name: string; phone: string; businessUnit?: string; role: string; part: string; canRegisterStore: boolean },
+  data: {
+    name: string
+    phone: string
+    businessUnit?: string
+    role: string
+    part: string
+    branch?: string
+    canRegisterStore: boolean
+  },
 ): Promise<Staff> {
   return sendJson(`/api/staff/${encodeURIComponent(id)}`, 'PATCH', data)
 }

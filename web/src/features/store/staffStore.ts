@@ -25,7 +25,15 @@ export function deleteStaff(id: string): Promise<void> {
 
 export function updateStaff(
   id: string,
-  data: { name: string; phone: string; businessUnit?: string; role: string; part: string; canRegisterStore: boolean },
+  data: {
+    name: string
+    phone: string
+    businessUnit?: string
+    role: string
+    part: string
+    branch?: string
+    canRegisterStore: boolean
+  },
 ): Promise<Staff> {
   return updateStaffApi(id, data)
 }

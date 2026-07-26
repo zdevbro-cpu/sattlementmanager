@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Check, Eye, KeyRound, Trash2, UserCheck, UserX, X } from 'lucide-react'
-import Badge, { branchTone } from '../../components/ui/Badge'
+import Badge, { branchTone, type Tone } from '../../components/ui/Badge'
 import { dateText } from '../../lib/format'
-import { STAFF_ROLE_LABEL, type Staff, type StaffRequest } from '../../types/staff'
+import { FIELD_ROLES, STAFF_ROLE_LABEL, STORE_ROLES, type Staff, type StaffRequest, type StaffRole } from '../../types/staff'
 import {
   approveStaffRequest,
   deleteStaff,
@@ -13,6 +13,15 @@ import {
   setStaffStatus,
 } from './staffStore'
 import StaffDetailDrawer from './StaffDetailDrawer'
+
+/** 역할별 배지 색상 — 가입요청·등록된 계정 표에서 동일하게 사용한다 */
+function roleTone(role: StaffRole): Tone {
+  if (role === 'part_leader') return 'blue'
+  if (role === 'field_partner') return 'green'
+  return 'amber' // store_owner / store_manager
+}
+
+type SubTab = 'field' | 'store'
 
 /**
  * 파트너 계정 관리 — LAS-On_Store_Manager.md 7.3.4 대응.
@@ -26,6 +35,11 @@ export default function StaffManagePage() {
   const [refresh, setRefresh] = useState(0)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [detailStaff, setDetailStaff] = useState<Staff | null>(null)
+  const [subTab, setSubTab] = useState<SubTab>('field')
+
+  const tabRoles = subTab === 'field' ? FIELD_ROLES : STORE_ROLES
+  const visibleRequests = requests.filter((r) => (tabRoles as StaffRole[]).includes(r.role))
+  const visibleStaff = staff.filter((s) => s.roles.some((r) => (tabRoles as StaffRole[]).includes(r)))
 
   useEffect(() => {
     let alive = true
@@ -92,13 +106,22 @@ export default function StaffManagePage() {
   return (
     <div>
       <p className="mb-4 text-[13px] text-[#94a3b8]">
-        현장 파트장/파트너 본인이 가입 요청 페이지(<code className="text-[#c2cde0]">/staff-request</code>)에서 신청하면,
-        여기서 승인·거절합니다. 승인하면 본인 이메일로 비밀번호 설정 링크가 발송됩니다.
+        현장 파트장/파트너/점주/점장 본인이 가입 요청 페이지에서 신청하면, 여기서 승인·거절합니다. 승인하면 본인
+        이메일로 비밀번호 설정 링크가 발송됩니다.
       </p>
+
+      <div className="flex gap-1 mb-4 border-b border-border">
+        <SubTabButton active={subTab === 'field'} onClick={() => setSubTab('field')}>
+          섭외조직 (파트장·파트너)
+        </SubTabButton>
+        <SubTabButton active={subTab === 'store'} onClick={() => setSubTab('store')}>
+          매장운영 (점주·점장)
+        </SubTabButton>
+      </div>
 
       <section className="mb-6">
         <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">
-          가입 요청 (대기중 {requests.length}건)
+          가입 요청 (대기중 {visibleRequests.length}건)
         </h3>
         <div className="rounded-[14px] border border-border bg-card overflow-hidden">
           <div className="overflow-x-auto">
@@ -113,15 +136,13 @@ export default function StaffManagePage() {
                 </tr>
               </thead>
               <tbody>
-                {requests.map((r) => (
+                {visibleRequests.map((r) => (
                   <tr key={r.id} className="border-b border-border hover:bg-hover">
                     <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{r.name}</td>
                     <td className="px-3 py-1.5 tabular whitespace-nowrap">{r.phone || '-'}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{r.email}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">
-                      <Badge tone={r.role === 'part_leader' ? 'blue' : r.role === 'field_partner' ? 'green' : 'amber'}>
-                        {STAFF_ROLE_LABEL[r.role]}
-                      </Badge>
+                      <Badge tone={roleTone(r.role)}>{STAFF_ROLE_LABEL[r.role]}</Badge>
                     </td>
                     {/* 소속 표기는 축마다 다르다 — 파트너·파트장은 소속 파트, 점주·점장은 사업부/지점 */}
                     <td className="px-3 py-1.5 whitespace-nowrap">
@@ -152,7 +173,7 @@ export default function StaffManagePage() {
                     </td>
                   </tr>
                 ))}
-                {requests.length === 0 && (
+                {visibleRequests.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-3 py-8 text-center text-[#64748b]">
                       {loading ? '불러오는 중…' : '대기중인 가입 요청이 없습니다.'}
@@ -167,14 +188,14 @@ export default function StaffManagePage() {
 
       <section>
         <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">
-          등록된 계정 ({staff.length})
+          등록된 계정 ({visibleStaff.length})
         </h3>
         <div className="rounded-[14px] border border-border bg-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-[13px]">
               <thead>
                 <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
-                  {['이름', '전화번호', '이메일', '사업부', '역할', '소속 파트', '상태', '등록일', '관리'].map((h) => (
+                  {['이름', '전화번호', '이메일', '사업부', '역할', '소속', '상태', '등록일', '관리'].map((h) => (
                     <th key={h} className={`px-3 py-1.5 font-semibold whitespace-nowrap ${h === '관리' ? 'text-center' : ''}`}>
                       {h}
                     </th>
@@ -182,7 +203,7 @@ export default function StaffManagePage() {
                 </tr>
               </thead>
               <tbody>
-                {staff.map((s) => (
+                {visibleStaff.map((s) => (
                   <tr key={s.id} className="border-b border-border hover:bg-hover">
                     <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{s.name}</td>
                     <td className="px-3 py-1.5 tabular whitespace-nowrap">{s.phone || '-'}</td>
@@ -191,9 +212,12 @@ export default function StaffManagePage() {
                       {s.businessUnit ? <Badge tone={branchTone(s.businessUnit)}>{s.businessUnit}</Badge> : '-'}
                     </td>
                     <td className="px-3 py-1.5 whitespace-nowrap">
-                      <Badge tone={s.role === 'part_leader' ? 'blue' : 'green'}>{STAFF_ROLE_LABEL[s.role]}</Badge>
+                      <Badge tone={roleTone(s.role)}>{STAFF_ROLE_LABEL[s.role]}</Badge>
                     </td>
-                    <td className="px-3 py-1.5 whitespace-nowrap">{s.part || '-'}</td>
+                    {/* 소속 표기는 축마다 다르다 — 파트너·파트장은 소속 파트, 점주·점장은 지점 */}
+                    <td className="px-3 py-1.5 whitespace-nowrap">
+                      {s.role === 'store_owner' || s.role === 'store_manager' ? s.branch || '-' : s.part || '-'}
+                    </td>
                     <td className="px-3 py-1.5 whitespace-nowrap">
                       <Badge tone={s.status === 'active' ? 'green' : 'slate'}>{s.status === 'active' ? '활성' : '비활성'}</Badge>
                     </td>
@@ -233,7 +257,7 @@ export default function StaffManagePage() {
                     </td>
                   </tr>
                 ))}
-                {staff.length === 0 && (
+                {visibleStaff.length === 0 && (
                   <tr>
                     <td colSpan={9} className="px-3 py-10 text-center text-[#64748b]">
                       {loading ? '불러오는 중…' : '등록된 계정이 없습니다.'}
@@ -249,6 +273,7 @@ export default function StaffManagePage() {
       {detailStaff && (
         <StaffDetailDrawer
           staff={detailStaff}
+          axis={subTab}
           onClose={() => setDetailStaff(null)}
           onSaved={() => {
             setDetailStaff(null)
@@ -257,5 +282,26 @@ export default function StaffManagePage() {
         />
       )}
     </div>
+  )
+}
+
+function SubTabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3.5 py-2 text-[13px] font-bold border-b-2 -mb-px ${
+        active ? 'border-primary text-text-strong' : 'border-transparent text-[#94a3b8] hover:text-[#c2cde0]'
+      }`}
+    >
+      {children}
+    </button>
   )
 }

@@ -126,14 +126,14 @@ export default function DeliveryAdminPage() {
 
       <div className="mb-4 flex items-center justify-between">
         <div className="text-[12.5px] text-[#94a3b8]">
-          {selected.size > 0 ? `${selected.size}건 선택됨 (엑셀·인쇄는 선택 건 대상)` : '선택 없음 — 엑셀·인쇄는 현재 목록 전체 대상'}
+          {selected.size > 0 ? `${selected.size}건 선택됨 (엑셀·송장인쇄는 선택 건 대상)` : '선택 없음 — 엑셀·송장인쇄는 현재 목록 전체 대상'}
         </div>
         <div className="flex gap-2">
           <button
             onClick={printSelected}
             className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-border px-4 text-sm font-bold text-[#c2cde0] hover:bg-hover"
           >
-            <Printer size={14} /> 인쇄
+            <Printer size={14} /> 송장인쇄
           </button>
           <button
             onClick={exportExcel}

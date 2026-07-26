@@ -3,37 +3,49 @@ import { X } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
 import { dateText } from '../../lib/format'
 import { phoneFmt } from '../../lib/format'
-import { STAFF_ROLE_LABEL, type Staff } from '../../types/staff'
+import { FIELD_ROLES, STAFF_ROLE_LABEL, STORE_ROLES, type Staff } from '../../types/staff'
 import { updateStaff } from './staffStore'
 import { EMPTY_FILTER } from '../../types/contract'
 import { listContracts } from '../contract/contractStore'
 import { useCodes } from '../../lib/codeStore'
+import { useBranches } from '../appointment/branchStore'
 
 const inputCls =
   'h-9 w-full rounded-[8px] bg-input border border-border px-2.5 text-[13px] text-input-text outline-none focus:border-primary'
 
-/** 파트너 계정 등록정보 확인/수정 — 소속 파트는 LAS-On파트장 계약 목록에서 선택한다. */
+/**
+ * 계정 등록정보 확인/수정 — 섭외조직(파트너/파트장)과 매장운영(점주/점장)은 축이 달라 편집 항목이 다르다.
+ * 겸직 계정이라도 이 화면은 호출한 목록의 축(axis)만 보여준다 — 섭외조직 탭에서 열면 파트너 기능만,
+ * 매장운영 탭에서 열면 점주/점장 기능만 표시하고 다른 축은 건드리지 않는다.
+ */
 export default function StaffDetailDrawer({
   staff,
+  axis,
   onClose,
   onSaved,
 }: {
   staff: Staff
+  axis: 'field' | 'store'
   onClose: () => void
   onSaved: () => void
 }) {
   const codes = useCodes()
+  const branches = useBranches()
+  const isStoreAxis = axis === 'store'
+  const axisRoles = isStoreAxis ? STORE_ROLES : FIELD_ROLES
   const [name, setName] = useState(staff.name)
   const [phone, setPhone] = useState(staff.phone)
   const [businessUnit, setBusinessUnit] = useState(staff.businessUnit)
-  const [role, setRole] = useState(staff.role)
+  const [role, setRole] = useState(staff.roles.find((r) => (axisRoles as string[]).includes(r)) ?? axisRoles[0])
   const [part, setPart] = useState(staff.part)
+  const [branch, setBranch] = useState(staff.branch ?? '')
   const [canRegisterStore, setCanRegisterStore] = useState(staff.canRegisterStore)
   const [partLeaders, setPartLeaders] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
   useEffect(() => {
+    if (isStoreAxis) return // 매장운영 계정은 소속 파트(파트장 목록)가 필요 없다
     let alive = true
     listContracts(EMPTY_FILTER).then((list) => {
       if (!alive) return
@@ -46,14 +58,22 @@ export default function StaffDetailDrawer({
     return () => {
       alive = false
     }
-  }, [])
+  }, [isStoreAxis])
 
   const save = async () => {
     if (!name.trim()) return setErr('이름을 입력하세요.')
     setSaving(true)
     setErr('')
     try {
-      await updateStaff(staff.id, { name, phone, businessUnit, role, part, canRegisterStore })
+      await updateStaff(staff.id, {
+        name,
+        phone,
+        businessUnit,
+        role,
+        part: isStoreAxis ? '' : part,
+        branch: isStoreAxis ? branch : '',
+        canRegisterStore: isStoreAxis ? false : canRegisterStore,
+      })
       onSaved()
     } catch (e) {
       setErr((e as Error).message)
@@ -97,31 +117,54 @@ export default function StaffDetailDrawer({
               ))}
             </select>
           </Field>
-          <Field label="역할">
-            <select value={role} onChange={(e) => setRole(e.target.value as Staff['role'])} className={inputCls}>
-              <option value="field_partner">{STAFF_ROLE_LABEL.field_partner}</option>
-              <option value="part_leader">{STAFF_ROLE_LABEL.part_leader}</option>
-            </select>
-          </Field>
-          <Field label="소속 파트 (파트장 목록에서 선택)">
-            <select value={part} onChange={(e) => setPart(e.target.value)} className={inputCls}>
-              <option value="">선택 안 함</option>
-              {partLeaders.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <label className="flex items-center gap-2 text-[13px] text-[#c2cde0]">
-            <input
-              type="checkbox"
-              checked={canRegisterStore}
-              onChange={(e) => setCanRegisterStore(e.target.checked)}
-              className="h-4 w-4 accent-primary"
-            />
-            매장섭외관리 신규 매장 등록 권한 (본부 담당자로 지정)
-          </label>
+          {isStoreAxis ? (
+            <>
+              <Field label="역할">
+                <select value={role} onChange={(e) => setRole(e.target.value as Staff['role'])} className={inputCls}>
+                  <option value="store_owner">{STAFF_ROLE_LABEL.store_owner}</option>
+                  <option value="store_manager">{STAFF_ROLE_LABEL.store_manager}</option>
+                </select>
+              </Field>
+              <Field label="소속 지점">
+                <select value={branch} onChange={(e) => setBranch(e.target.value)} className={inputCls}>
+                  <option value="">선택 안 함</option>
+                  {branches.map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </>
+          ) : (
+            <>
+              <Field label="역할">
+                <select value={role} onChange={(e) => setRole(e.target.value as Staff['role'])} className={inputCls}>
+                  <option value="field_partner">{STAFF_ROLE_LABEL.field_partner}</option>
+                  <option value="part_leader">{STAFF_ROLE_LABEL.part_leader}</option>
+                </select>
+              </Field>
+              <Field label="소속 파트 (파트장 목록에서 선택)">
+                <select value={part} onChange={(e) => setPart(e.target.value)} className={inputCls}>
+                  <option value="">선택 안 함</option>
+                  {partLeaders.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <label className="flex items-center gap-2 text-[13px] text-[#c2cde0]">
+                <input
+                  type="checkbox"
+                  checked={canRegisterStore}
+                  onChange={(e) => setCanRegisterStore(e.target.checked)}
+                  className="h-4 w-4 accent-primary"
+                />
+                매장섭외관리 신규 매장 등록 권한 (본부 담당자로 지정)
+              </label>
+            </>
+          )}
           <Field label="등록일">
             <input value={dateText(staff.createdAt)} disabled className={`${inputCls} opacity-60`} />
           </Field>

@@ -154,17 +154,18 @@ async function rejectRequest(id) {
 
 /** 등록정보 수정 — 이름/전화번호/사업부/역할/소속 파트/매장 등록 권한
  *  role 변경 시 roles 의 '섭외축'만 교체하고 다른 축(store_owner 등)은 보존한다. */
-async function updateStaff(id, { name, phone, businessUnit, role, part, canRegisterStore }) {
+async function updateStaff(id, { name, phone, businessUnit, role, part, branch, canRegisterStore }) {
   const { rows: cur } = await pool.query(`SELECT roles, role FROM staff_accounts WHERE id = $1`, [id])
   if (!cur.length) return null
   const prev = Array.isArray(cur[0].roles) && cur[0].roles.length ? cur[0].roles : [cur[0].role]
-  // 섭외축 역할만 제거한 뒤 새 role 을 넣는다 → 매장 운영축·관리축 역할은 그대로 유지
-  const nextRoles = [...new Set([...prev.filter((r) => !FIELD_AXIS_ROLES.includes(r)), role])]
+  // role 이 속한 축만 교체한다 → 다른 축(섭외조직↔매장운영)의 겸직 역할은 그대로 유지
+  const axis = FIELD_AXIS_ROLES.includes(role) ? FIELD_AXIS_ROLES : STORE_AXIS_ROLES
+  const nextRoles = [...new Set([...prev.filter((r) => !axis.includes(r)), role])]
 
   const { rows } = await pool.query(
-    `UPDATE staff_accounts SET name = $2, phone = $3, business_unit = $4, role = $5, roles = $6, part = $7, can_register_store = $8
+    `UPDATE staff_accounts SET name = $2, phone = $3, business_unit = $4, role = $5, roles = $6, part = $7, branch = $8, can_register_store = $9
        WHERE id = $1 RETURNING *`,
-    [id, name, phone || '', businessUnit || '', role, nextRoles, part || '', !!canRegisterStore],
+    [id, name, phone || '', businessUnit || '', role, nextRoles, part || '', branch || '', !!canRegisterStore],
   )
   if (!rows.length) return null
   if (name) await auth.updateUser(id, { displayName: name }).catch(() => {})

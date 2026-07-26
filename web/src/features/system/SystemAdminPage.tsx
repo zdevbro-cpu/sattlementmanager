@@ -92,7 +92,7 @@ export default function SystemAdminPage() {
           사용자관리
         </TabButton>
         <TabButton active={tab === 'partners'} onClick={() => setTab('partners')}>
-          파트너 계정관리
+          계정관리
         </TabButton>
       </div>
 
