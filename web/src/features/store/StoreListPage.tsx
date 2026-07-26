@@ -8,10 +8,9 @@ import { EMPTY_STORE_FILTER, RELEASED_FILTER_VALUE, STORE_STATUSES, type Store, 
 import { deleteStore, listStores, summarizeStores } from './storeStore'
 import StoreRegisterModal from './StoreRegisterModal'
 import StoreDetailDrawer from './StoreDetailDrawer'
-import { EMPTY_FILTER } from '../../types/contract'
-import { listContracts } from '../contract/contractStore'
-import { listStaff } from './staffStore'
+import { fetchMe, fetchPartLeaders } from '../../lib/api'
 import { useAuth } from '../auth/AuthContext'
+import { listStaff } from './staffStore'
 
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
@@ -53,34 +52,42 @@ export default function StoreListPage() {
 
   useEffect(() => {
     let alive = true
-    listStaff().then((list) => {
+    if (!user?.email) return
+    fetchMe().then((me) => {
       if (!alive) return
-      if (user?.email) {
-        const me = list.find((s) => s.email === user.email)
-        setCanRegister(!me || me.canRegisterStore)
-      }
-      const map: Record<string, { phone: string; businessUnit: string }> = {}
-      list.forEach((s) => {
-        if (s.name) map[s.name] = { phone: s.phone, businessUnit: s.businessUnit }
-      })
-      setStaffInfoByName(map)
+      // 파트너 계정이 아니면(관리자) 제한 없음
+      setCanRegister(!me.isStaff || me.canRegisterStore)
     })
     return () => {
       alive = false
     }
   }, [user?.email])
 
+  // 선점담당 연락처·사업부 표시용 — /api/staff는 관리자 전용이라 관리자가 아니면 조용히 비워둔다(권한 오류 무시)
   useEffect(() => {
     let alive = true
-    listContracts(EMPTY_FILTER).then((list) => {
-      if (alive) {
-        setPartLeaders(
-          list
-            .filter((c) => c.current.contractType === 'LAS-On파트장' && c.current.status !== '폐기')
-            .map((c) => c.current.contractorName),
-        )
-      }
-    })
+    listStaff()
+      .then((list) => {
+        if (!alive) return
+        const map: Record<string, { phone: string; businessUnit: string }> = {}
+        list.forEach((s) => {
+          if (s.name) map[s.name] = { phone: s.phone, businessUnit: s.businessUnit || '' }
+        })
+        setStaffInfoByName(map)
+      })
+      .catch(() => {
+        /* 파트너 계정은 403 — 선점담당 연락처/사업부 칸이 "-"로 남는다 */
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let alive = true
+    fetchPartLeaders().then((names) => {
+      if (alive) setPartLeaders(names)
+      })
     return () => {
       alive = false
     }

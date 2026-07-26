@@ -375,3 +375,24 @@ CREATE TABLE IF NOT EXISTS system_codes (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (kind, value)
 );
+
+-- 다중 역할 — 조직 축이 다르면 한 사람이 여러 역할을 겸할 수 있다(예: LAS-On파트너이면서 매장 점주).
+--   섭외축: part_leader > field_partner (축 내부 배타)
+--   운영축: store_owner / store_manager (축 내부 배타)
+--   관리축: admin
+-- 인가 판정은 roles 기준이며, 권한은 보유 역할 권한의 합집합이다.
+-- 기존 role 컬럼은 주 역할 표시용으로 유지한다(하위호환).
+ALTER TABLE staff_accounts ADD COLUMN IF NOT EXISTS roles TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE staff_accounts ADD COLUMN IF NOT EXISTS las_code      TEXT;  -- las-mgmt referral_code (LAS1000~2999)
+ALTER TABLE staff_accounts ADD COLUMN IF NOT EXISTS branch        TEXT;  -- 지점(배송 조회 범위 제한용)
+ALTER TABLE staff_accounts ADD COLUMN IF NOT EXISTS business_unit TEXT;  -- 사업부(점주/점장)
+
+-- 가입 요청 — 섭외 조직(파트너/파트장)과 매장 운영(점주/점장)은 별도 운영이라 폼이 나뉘고,
+-- 어느 축의 요청인지는 role 값으로 구분된다. 사업부·지점은 점주/점장 요청에서만 채워진다.
+ALTER TABLE staff_requests ADD COLUMN IF NOT EXISTS business_unit TEXT;
+ALTER TABLE staff_requests ADD COLUMN IF NOT EXISTS branch        TEXT;
+CREATE INDEX IF NOT EXISTS idx_staff_roles    ON staff_accounts USING GIN(roles);
+CREATE INDEX IF NOT EXISTS idx_staff_las_code ON staff_accounts(las_code);
+CREATE INDEX IF NOT EXISTS idx_staff_email    ON staff_accounts(email);
+-- 기존 데이터 이관 (멱등: roles가 비어있는 행만)
+UPDATE staff_accounts SET roles = ARRAY[role] WHERE roles = '{}' OR roles IS NULL;

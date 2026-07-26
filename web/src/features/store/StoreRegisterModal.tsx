@@ -3,9 +3,8 @@ import { AlertTriangle, Paperclip, X } from 'lucide-react'
 import { STORE_STATUSES, type Store } from '../../types/store'
 import { createStore, findDuplicates, uploadPhoto } from './storeStore'
 import { listStaff } from './staffStore'
+import { fetchMe, fetchPartLeaders } from '../../lib/api'
 import { phoneFmt } from '../../lib/format'
-import { EMPTY_FILTER } from '../../types/contract'
-import { listContracts } from '../contract/contractStore'
 import { useAuth } from '../auth/AuthContext'
 import DateTextInput from '../../components/ui/DateTextInput'
 import DropZone from '../../components/ui/DropZone'
@@ -89,15 +88,9 @@ export default function StoreRegisterModal({
 
   useEffect(() => {
     let alive = true
-    listContracts(EMPTY_FILTER).then((list) => {
-      if (alive) {
-        setPartLeaders(
-          list
-            .filter((c) => c.current.contractType === 'LAS-On파트장' && c.current.status !== '폐기')
-            .map((c) => c.current.contractorName),
-        )
-      }
-    })
+    fetchPartLeaders().then((names) => {
+      if (alive) setPartLeaders(names)
+      })
     return () => {
       alive = false
     }
@@ -106,22 +99,14 @@ export default function StoreRegisterModal({
   // 선점 담당자·선점 파트는 로그인한 사용자의 파트너 계정 기본정보로 자동 채우되, 수동으로도 변경할 수 있다
   useEffect(() => {
     let alive = true
-    listStaff().then((list) => {
+    if (!user?.email) return
+    fetchMe().then((me) => {
       if (!alive) return
-      const map: Record<string, { phone: string; businessUnit: string }> = {}
-      list.forEach((s) => {
-        if (s.name) map[s.name] = { phone: s.phone, businessUnit: s.businessUnit }
-      })
-      setStaffInfoByName(map)
-
-      if (!user?.email) return
-      const me = list.find((s) => s.email === user.email)
-      // 매칭되는 파트너 계정이 없으면(관리자 로그인 등) 이메일로 채우지 않고 공란으로 두어 직접 입력하게 한다
+      // 파트너 계정이 아니면(관리자 로그인 등) 공란으로 두어 직접 입력하게 한다
       setF((prev) => ({
         ...prev,
-        claimedStaff: prev.claimedStaff || me?.name || '',
-        claimedPart: prev.claimedPart || me?.part || '',
-        businessUnit: prev.businessUnit || me?.businessUnit || '',
+        claimedStaff: prev.claimedStaff || (me.isStaff ? me.name : ''),
+        claimedPart: prev.claimedPart || (me.isStaff ? me.part : ''),
       }))
     })
     return () => {
@@ -129,6 +114,31 @@ export default function StoreRegisterModal({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.email])
+
+  // 선점담당 전화번호·사업부 표시용 — /api/staff는 관리자 전용이라 관리자가 아니면 조용히 비워둔다(권한 오류 무시)
+  useEffect(() => {
+    let alive = true
+    listStaff()
+      .then((list) => {
+        if (!alive) return
+        const map: Record<string, { phone: string; businessUnit: string }> = {}
+        list.forEach((s) => {
+          if (s.name) map[s.name] = { phone: s.phone, businessUnit: s.businessUnit || '' }
+        })
+        setStaffInfoByName(map)
+        setF((prev) => ({
+          ...prev,
+          businessUnit: prev.businessUnit || map[prev.claimedStaff]?.businessUnit || '',
+        }))
+      })
+      .catch(() => {
+        /* 파트너 계정은 403 — 전화번호/사업부 자동표시가 안 되며, 수동으로 입력·선택하면 된다 */
+      })
+    return () => {
+      alive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const claimedStaffInfo = staffInfoByName[f.claimedStaff]
 

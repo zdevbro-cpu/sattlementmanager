@@ -105,7 +105,7 @@ export default function StaffManagePage() {
             <table className="w-full min-w-[800px] text-[13px]">
               <thead>
                 <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
-                  {['이름', '전화번호', '이메일', '사업부', '희망역할', '희망소속', '신청일', '처리'].map((h) => (
+                  {['이름', '전화번호', '이메일', '역할', '소속', '신청일', '처리'].map((h) => (
                     <th key={h} className={`px-3 py-1.5 font-semibold whitespace-nowrap ${h === '처리' ? 'text-center' : ''}`}>
                       {h}
                     </th>
@@ -119,12 +119,16 @@ export default function StaffManagePage() {
                     <td className="px-3 py-1.5 tabular whitespace-nowrap">{r.phone || '-'}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{r.email}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">
-                      {r.businessUnit ? <Badge tone={branchTone(r.businessUnit)}>{r.businessUnit}</Badge> : '-'}
+                      <Badge tone={r.role === 'part_leader' ? 'blue' : r.role === 'field_partner' ? 'green' : 'amber'}>
+                        {STAFF_ROLE_LABEL[r.role]}
+                      </Badge>
                     </td>
+                    {/* 소속 표기는 축마다 다르다 — 파트너·파트장은 소속 파트, 점주·점장은 사업부/지점 */}
                     <td className="px-3 py-1.5 whitespace-nowrap">
-                      <Badge tone={r.role === 'part_leader' ? 'blue' : 'green'}>{STAFF_ROLE_LABEL[r.role]}</Badge>
+                      {r.role === 'store_owner' || r.role === 'store_manager'
+                        ? [r.businessUnit, r.branch].filter(Boolean).join(' / ') || '-'
+                        : r.part || '-'}
                     </td>
-                    <td className="px-3 py-1.5 whitespace-nowrap">{r.part || '-'}</td>
                     <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{dateText(r.createdAt)}</td>
                     <td className="px-3 py-1.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">
@@ -150,7 +154,7 @@ export default function StaffManagePage() {
                 ))}
                 {requests.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-3 py-8 text-center text-[#64748b]">
+                    <td colSpan={7} className="px-3 py-8 text-center text-[#64748b]">
                       {loading ? '불러오는 중…' : '대기중인 가입 요청이 없습니다.'}
                     </td>
                   </tr>

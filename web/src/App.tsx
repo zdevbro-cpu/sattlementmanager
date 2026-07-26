@@ -10,8 +10,9 @@ import MobileSalesRegisterPage from './features/sales/MobileSalesRegisterPage'
 import MobileEvidenceUploadPage from './features/contract/MobileEvidenceUploadPage'
 import StoreListPage from './features/store/StoreListPage'
 import MobileStoreListPage from './features/store/MobileStoreListPage'
-import { listStaff } from './features/store/staffStore'
+import { fetchMe, type MeInfo } from './lib/api'
 import StaffRequestPage from './features/store/StaffRequestPage'
+import OwnerRequestPage from './features/store/OwnerRequestPage'
 import DashboardPage from './features/dashboard/DashboardPage'
 import { AuthProvider, useAuth } from './features/auth/AuthContext'
 import LoginPage from './features/auth/LoginPage'
@@ -37,30 +38,51 @@ function isMobileDevice(): boolean {
 
 function AuthedApp() {
   const { user } = useAuth()
-  // 매장섭외관리 파트너 계정(staff_accounts) 여부 — 파트너 계정은 모바일에서 매장섭외관리만 접근 가능하다.
-  const [isPartnerAccount, setIsPartnerAccount] = useState<boolean | null>(null)
+  // 본인 역할(roles) — 서버(/api/me)가 staff_accounts 기준으로 확정해 준다.
+  // 예전처럼 전체 계정 목록을 받아 판정하지 않는다(타인 이메일 노출 방지).
+  const [me, setMe] = useState<MeInfo | null>(null)
 
   useEffect(() => {
     let alive = true
     if (!user?.email) {
-      setIsPartnerAccount(false)
+      setMe(null)
       return
     }
-    listStaff().then((list) => {
-      if (!alive) return
-      setIsPartnerAccount(list.some((s) => s.email === user.email))
-    })
+    fetchMe()
+      .then((info) => {
+        if (alive) setMe(info)
+      })
+      .catch(() => {
+        // 조회 실패 시 권한을 넓히지 않는다 — 가장 좁은 범위로 취급
+        if (alive)
+          setMe({ email: user.email ?? '', name: '', roles: [], isStaff: true, part: '', branch: '', canRegisterStore: false })
+      })
     return () => {
       alive = false
     }
   }, [user?.email])
 
+  const roles = me?.roles ?? []
+  const has = (...r: string[]) => roles.some((x) => r.includes(x))
+  const isAdmin = has('admin')
+  const isFieldStaff = has('part_leader', 'field_partner') // 섭외 조직
+  const isStoreUser = has('store_owner', 'store_manager') // 매장 운영
+
   if (isMobileDevice()) {
-    if (isPartnerAccount === null) {
+    if (me === null) {
       return <div className="flex min-h-screen items-center justify-center bg-[#0a0e1a]" />
     }
-    if (isPartnerAccount) {
-      // 파트너 계정은 모바일에서 매장섭외관리 외 다른 메뉴(결재/증빙등록/교재신청)에 접근할 수 없다.
+    // 점주/점장 — 교재신청만 사용한다(매장섭외관리 접근 불가)
+    if (isStoreUser && !isAdmin && !isFieldStaff) {
+      return (
+        <Routes>
+          <Route path="/textbook-apply" element={<TextbookApplyMobilePage />} />
+          <Route path="*" element={<Navigate to="/textbook-apply" replace />} />
+        </Routes>
+      )
+    }
+    // 섭외 조직(파트장/파트너) — 매장섭외관리 외 다른 메뉴(결재/증빙등록/교재신청)에 접근할 수 없다.
+    if (isFieldStaff && !isAdmin) {
       return (
         <Routes>
           <Route path="/mobile-stores" element={<MobileStoreListPage />} />
@@ -82,12 +104,22 @@ function AuthedApp() {
     )
   }
 
-  if (isPartnerAccount === null) {
+  if (me === null) {
     return <div className="flex min-h-screen items-center justify-center bg-[#0a0e1a]" />
   }
 
-  if (isPartnerAccount) {
-    // 파트너 계정은 데스크톱에서도 매장섭외관리 외 다른 메뉴에 접근할 수 없다.
+  // 점주/점장 — 데스크톱에서도 교재신청만 사용한다
+  if (isStoreUser && !isAdmin && !isFieldStaff) {
+    return (
+      <Routes>
+        <Route path="/textbook-apply" element={<TextbookApplyPage />} />
+        <Route path="*" element={<Navigate to="/textbook-apply" replace />} />
+      </Routes>
+    )
+  }
+
+  if (isFieldStaff && !isAdmin) {
+    // 섭외 조직은 데스크톱에서도 매장섭외관리 외 다른 메뉴에 접근할 수 없다.
     return (
       <Routes>
         <Route path="/stores" element={<StoreListPage />} />
@@ -119,8 +151,10 @@ function AuthedApp() {
 function Gate() {
   const { user, loading } = useAuth()
   const location = useLocation()
-  // 파트너 가입 요청 페이지는 로그인 없이 접근 가능해야 한다 (인증 검사보다 먼저 처리)
-  if (location.pathname === '/staff-request') return <StaffRequestPage />
+  // 가입 요청 페이지는 로그인 없이 접근 가능해야 한다 (인증 검사보다 먼저 처리).
+  // 섭외 조직과 매장 운영은 별도 운영이라 신청 폼이 나뉜다.
+  if (location.pathname === '/staff-request') return <StaffRequestPage />   // 파트너·파트장
+  if (location.pathname === '/owner-request') return <OwnerRequestPage />   // 점주·점장
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-[#0a0e1a]" />
   }
