@@ -14,7 +14,7 @@ import {
   type ShipmentFilter,
   type ShipmentSummary,
 } from '../../types/delivery'
-import { deleteShipment, listShipments, sendShipmentList, summarizeShipments } from './deliveryStore'
+import { deleteShipment, listBookNames, listShipments, sendShipmentList, summarizeShipments } from './deliveryStore'
 import DeliveryDetailDrawer from './DeliveryDetailDrawer'
 import DeliveryCreateModal from './DeliveryCreateModal'
 import TrackingBatchModal from './TrackingBatchModal'
@@ -44,6 +44,9 @@ export default function DeliveryAdminPage() {
   const [sending, setSending] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [batchOpen, setBatchOpen] = useState(false)
+  // 교재 선택지는 필터 결과와 무관하게 전체 기준으로 받는다 —
+  // 고른 교재로 목록이 좁혀진 뒤 선택지까지 같이 줄면 다른 교재로 못 바꾼다.
+  const [bookNames, setBookNames] = useState<string[]>([])
 
   useEffect(() => {
     let alive = true
@@ -114,6 +117,18 @@ export default function DeliveryAdminPage() {
       alert((e as Error).message)
     }
   }
+
+  useEffect(() => {
+    let alive = true
+    listBookNames()
+      .then((list) => {
+        if (alive) setBookNames(list)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [refresh])
 
   const targetRows = sortByBook(selected.size > 0 ? rows.filter((r) => selected.has(r.id)) : rows)
 
@@ -270,12 +285,18 @@ export default function DeliveryAdminPage() {
             </select>
           </Field>
           <Field label="교재">
-            <input
+            <select
               value={filter.book}
               onChange={(e) => setFilter({ ...filter, book: e.target.value })}
-              placeholder="교재명 일부"
               className={inputCls}
-            />
+            >
+              <option value="">전체</option>
+              {bookNames.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="검색">
             <input

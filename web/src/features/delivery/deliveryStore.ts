@@ -5,6 +5,7 @@ import {
   deleteShipmentApi,
   sendShipmentListApi,
   fetchShipment,
+  fetchShipmentBooks,
   fetchShipmentSummary,
   fetchShipments,
   setShipmentStatusApi,
@@ -55,4 +56,9 @@ export function sendShipmentList(ids: string[]) {
 /** 배송건 삭제 — 잘못 등록한 건 정리용. 발송 전 상태만 가능하다(서버가 판정한다) */
 export function deleteShipment(id: string) {
   return deleteShipmentApi(id)
+}
+
+/** 검색필터 교재 목록 — 공통코드가 아니라 실제 배송건의 교재명을 모은 것이다 */
+export function listBookNames(): Promise<string[]> {
+  return fetchShipmentBooks()
 }

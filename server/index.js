@@ -738,6 +738,15 @@ app.get('/api/shipments/summary', async (_req, res) => {
   }
 })
 
+// 검색필터 드롭다운용 교재명 목록 — ':id' 보다 먼저 등록해야 경로가 가로채이지 않는다
+app.get('/api/shipments/books', async (_req, res) => {
+  try {
+    res.json({ ok: true, data: await shipmentRepo.listBookNames() })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 app.get('/api/shipments/:id', async (req, res) => {
   try {
     const s = await shipmentRepo.getShipment(req.params.id)

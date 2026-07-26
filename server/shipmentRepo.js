@@ -122,11 +122,12 @@ async function listShipments(filter = {}) {
   if (endDate) add(`created_at < (?::date + 1)`, endDate)
   if (status && status !== '전체') add(`status = ?`, status)
   if (batchId) add(`batch_id = ?`, batchId)
-  // 교재 — 교재1/교재2 어느 쪽에 들어 있든 걸리게 한다(신청서마다 기입 칸이 다르다)
+  // 교재 — 목록에서 고른 정확한 이름이 오므로 정확일치로 본다.
+  // 교재1/교재2 어느 칸에 적혔든 걸리게 한다(신청서마다 기입 위치가 다르다).
   if (book) {
-    params.push(`%${book}%`)
+    params.push(book)
     const i = params.length
-    where.push(`(book1_name ILIKE $${i} OR book2_name ILIKE $${i})`)
+    where.push(`(book1_name = $${i} OR book2_name = $${i})`)
   }
   if (keyword) {
     params.push(`%${keyword}%`)
@@ -140,6 +141,24 @@ async function listShipments(filter = {}) {
     params,
   )
   return rows.map(mapShipment)
+}
+
+/**
+ * 검색필터용 교재명 목록.
+ * 교재는 공통코드로 관리하지 않으므로 실제 배송건에 들어 있는 이름을 그대로 모은다
+ * (코드표를 따로 두면 신청서에 적힌 이름과 어긋나 검색이 안 되는 쪽이 더 위험하다).
+ */
+async function listBookNames() {
+  const { rows } = await pool.query(
+    `SELECT DISTINCT name FROM (
+        SELECT book1_name AS name FROM shipments
+        UNION ALL
+        SELECT book2_name AS name FROM shipments
+      ) t
+      WHERE name IS NOT NULL AND btrim(name) <> ''
+      ORDER BY name`,
+  )
+  return rows.map((r) => r.name)
 }
 
 /** 단건 (+ 상태 전이 이력) */
@@ -462,6 +481,7 @@ module.exports = {
   recordTracking,
   TRANSITIONS,
   listShipments,
+  listBookNames,
   getShipment,
   createFromApplication,
   createShipment,
