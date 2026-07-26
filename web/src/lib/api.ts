@@ -613,6 +613,8 @@ export interface CodeSetApi {
   statuses: string[]
   businessUnits: string[]
   appointmentStatuses: string[]
+  /** 택배사 — 값이 배송조회 링크 매핑 키다(features/delivery/trackingUrl.ts) */
+  carriers: string[]
 }
 export function fetchCodes(): Promise<CodeSetApi> {
   return getData('/api/codes')

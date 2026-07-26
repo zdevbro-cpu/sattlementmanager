@@ -70,6 +70,11 @@ const GROUPS: { kind: CodeKind; title: string; desc: string }[] = [
     title: '임용계약 상태',
     desc: '정상 / 휴직 / 해지',
   },
+  {
+    kind: 'carriers',
+    title: '택배사',
+    desc: '배송관리 택배사 선택 (값이 배송조회 링크와 연결됨)',
+  },
 ]
 
 type Tab = 'codes' | 'users' | 'partners'

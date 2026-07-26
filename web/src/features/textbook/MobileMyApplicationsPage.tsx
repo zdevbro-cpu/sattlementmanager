@@ -4,21 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import Badge, { type Tone } from '../../components/ui/Badge'
 import { dateText } from '../../lib/format'
 import { fetchMyApplications, type MyApplication } from '../../lib/api'
-
-/** 택배사별 배송조회 페이지 — 송장번호가 등록되면 링크를 걸어준다.
- *  자동 추적(크론 폴링)은 아직 없으므로, 상세 진행은 택배사 페이지에서 확인한다. */
-const TRACKING_URL: Record<string, string> = {
-  CJ대한통운: 'https://trace.cjlogistics.com/next/tracking.html?wblNo=',
-  롯데택배: 'https://www.lotteglogis.com/home/reservation/tracking/linkView?InvNo=',
-  한진택배: 'https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillResult.do?mCode=MN038&schLang=KR&wblnumText2=',
-  우체국택배: 'https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?sid1=',
-  로젠택배: 'https://www.ilogen.com/web/personal/trace/',
-}
-
-function trackingUrl(carrier: string, no: string): string {
-  const base = TRACKING_URL[carrier.trim()]
-  return base ? base + encodeURIComponent(no) : ''
-}
+import { trackingUrl } from '../delivery/trackingUrl'
 
 function statusTone(s: string): Tone {
   switch (s) {

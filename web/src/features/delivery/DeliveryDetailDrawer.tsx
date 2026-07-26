@@ -8,6 +8,7 @@ import {
   type ShipmentStatus,
 } from '../../types/delivery'
 import { getShipment, setShipmentStatus, updateShipment } from './deliveryStore'
+import { useCodes } from '../../lib/codeStore'
 import { shipmentStatusTone } from './statusTone'
 
 const inputCls =
@@ -221,6 +222,7 @@ function EditForm({
   })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
+  const codes = useCodes()
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF({ ...f, [k]: v })
 
   const submit = async () => {
@@ -259,7 +261,15 @@ function EditForm({
           <input value={f.book2Name} onChange={(e) => set('book2Name', e.target.value)} className={inputCls} />
         </Field>
         <Field label="택배사">
-          <input value={f.carrier} onChange={(e) => set('carrier', e.target.value)} className={inputCls} placeholder="예: CJ대한통운" />
+          {/* 자유 입력이면 표기가 조금만 달라도 배송조회 링크 매핑이 깨진다 — 공통코드에서 고른다 */}
+          <select value={f.carrier} onChange={(e) => set('carrier', e.target.value)} className={inputCls}>
+            <option value="">선택 안 함</option>
+            {codes.carriers.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field label="송장번호">
           <input value={f.trackingNo} onChange={(e) => set('trackingNo', e.target.value)} className={inputCls} />

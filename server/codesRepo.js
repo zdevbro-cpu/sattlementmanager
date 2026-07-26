@@ -1,7 +1,7 @@
 // 시스템관리 공통코드(소속/계약구분/상태/사업부/임용상태) — 로그인 없는 공개 페이지에서도 읽어야 해서 DB에 둔다
 const { pool } = require('./db')
 
-const KINDS = ['orgs', 'contractTypes', 'statuses', 'businessUnits', 'appointmentStatuses']
+const KINDS = ['orgs', 'contractTypes', 'statuses', 'businessUnits', 'appointmentStatuses', 'carriers']
 
 const DEFAULTS = {
   orgs: ['A', 'B'],
@@ -9,13 +9,24 @@ const DEFAULTS = {
   statuses: ['신규', '증액', '양수', '양도', '해지', '폐기'],
   businessUnits: ['교육선교위원회', '교육사업부', 'LAS-On', '구독'],
   appointmentStatuses: ['정상', '휴직', '해지'],
+  // 택배사 — 배송 상세에서 선택한다. 값이 배송조회 링크 매핑 키라서 표기를 임의로 바꾸면 링크가 끊긴다
+  // (web/src/features/delivery/trackingUrl.ts 의 키와 일치해야 한다).
+  carriers: ['CJ대한통운', '롯데택배', '한진택배', '우체국택배', '로젠택배'],
 }
 
-/** 최초 조회 시 테이블이 비어있으면 기본값으로 채운다(1회성 시드) */
+/**
+ * 종류별로 비어 있으면 기본값을 채운다.
+ * 테이블 전체가 비었을 때만 시드하면, 이미 운영 중인 상태에서 종류를 새로 추가해도
+ * 영영 채워지지 않는다(실제로 '택배사'를 추가하며 겪음). 종류 단위로 판정해야 한다.
+ * 관리자가 항목을 전부 지운 종류는 다음 조회 때 기본값이 되살아난다 — 의도된 동작이다.
+ */
 async function seedIfEmpty() {
-  const { rows } = await pool.query(`SELECT COUNT(*)::int AS n FROM system_codes`)
-  if (rows[0].n > 0) return
+  const { rows } = await pool.query(
+    `SELECT kind, COUNT(*)::int AS n FROM system_codes GROUP BY kind`,
+  )
+  const counts = Object.fromEntries(rows.map((r) => [r.kind, r.n]))
   for (const kind of KINDS) {
+    if (counts[kind] > 0) continue
     for (let i = 0; i < DEFAULTS[kind].length; i++) {
       await pool.query(
         `INSERT INTO system_codes (kind, value, sort_order) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`,
@@ -29,7 +40,7 @@ async function seedIfEmpty() {
 async function listCodes() {
   await seedIfEmpty()
   const { rows } = await pool.query(`SELECT kind, value FROM system_codes ORDER BY sort_order ASC, id ASC`)
-  const result = { orgs: [], contractTypes: [], statuses: [], businessUnits: [], appointmentStatuses: [] }
+  const result = { orgs: [], contractTypes: [], statuses: [], businessUnits: [], appointmentStatuses: [], carriers: [] }
   for (const r of rows) {
     if (result[r.kind]) result[r.kind].push(r.value)
   }
