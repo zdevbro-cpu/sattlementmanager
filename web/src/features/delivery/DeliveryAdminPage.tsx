@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ComponentType } from 'react'
-import { CheckCircle2, Clock, Download, Eye, PackageCheck, Plus, Printer, RefreshCw, Truck } from 'lucide-react'
+import { CheckCircle2, Clock, Download, Eye, Mail, PackageCheck, Plus, Printer, RefreshCw, Truck } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import Badge from '../../components/ui/Badge'
 import Pagination from '../../components/ui/Pagination'
@@ -14,7 +14,7 @@ import {
   type ShipmentFilter,
   type ShipmentSummary,
 } from '../../types/delivery'
-import { listShipments, summarizeShipments } from './deliveryStore'
+import { listShipments, sendShipmentList, summarizeShipments } from './deliveryStore'
 import DeliveryDetailDrawer from './DeliveryDetailDrawer'
 import DeliveryCreateModal from './DeliveryCreateModal'
 import { printShipments } from './shipmentPrint'
@@ -39,6 +39,7 @@ export default function DeliveryAdminPage() {
   const [perPage, setPerPage] = useState(20)
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [sending, setSending] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
 
   useEffect(() => {
@@ -93,6 +94,39 @@ export default function DeliveryAdminPage() {
   /** 선택 건이 있으면 선택 건만, 없으면 현재 필터링된 전체 목록 대상 */
   const targetRows = selected.size > 0 ? rows.filter((r) => selected.has(r.id)) : rows
 
+  /**
+   * 배송목록 전송 — 선택한 건 중 '목록확정' 상태만 물류업체에 메일로 보낸다.
+   * 메일 발송에 성공해야 서버가 '전송완료'로 옮긴다(보내지 않았는데 전송완료로 남으면 배송이 누락된다).
+   */
+  const onSendList = async () => {
+    const ready = rows.filter((r) => selected.has(r.id) && r.status === '목록확정')
+    if (ready.length === 0) {
+      alert(
+        selected.size === 0
+          ? '전송할 배송건을 선택하세요.'
+          : "선택한 건 중 '목록확정' 상태가 없습니다. 배송지를 확인하고 먼저 목록확정 처리하세요.",
+      )
+      return
+    }
+    const skipped = selected.size - ready.length
+    const msg =
+      `${ready.length}건을 물류업체에 전송할까요?` +
+      (skipped > 0 ? ` (목록확정이 아닌 ${skipped}건은 제외됩니다)` : '')
+    if (!confirm(msg)) return
+
+    setSending(true)
+    try {
+      const r = await sendShipmentList(ready.map((x) => x.id))
+      alert(`전송 완료 — ${r.sent}건 · 수신 ${r.to.join(', ')} · 배치 ${r.batchId}`)
+      setSelected(new Set())
+      setRefresh((n) => n + 1)
+    } catch (e) {
+      alert((e as Error).message)
+    } finally {
+      setSending(false)
+    }
+  }
+
   const exportExcel = () => {
     const headers = ['배송번호', '접수일', '수령인', '연락처', '주소', '배송메모', '교재', '택배사', '송장번호', '상태']
     const data = targetRows.map((s) => [
@@ -129,6 +163,14 @@ export default function DeliveryAdminPage() {
           {selected.size > 0 ? `${selected.size}건 선택됨 (엑셀·송장인쇄는 선택 건 대상)` : '선택 없음 — 엑셀·송장인쇄는 현재 목록 전체 대상'}
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={onSendList}
+            disabled={sending}
+            title="선택한 '목록확정' 건을 물류업체에 메일로 전송합니다"
+            className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110 disabled:opacity-60"
+          >
+            <Mail size={14} /> {sending ? '전송 중…' : '배송목록 전송'}
+          </button>
           <button
             onClick={printSelected}
             className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-border px-4 text-sm font-bold text-[#c2cde0] hover:bg-hover"
