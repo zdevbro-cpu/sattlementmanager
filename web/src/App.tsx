@@ -19,6 +19,7 @@ import { AuthProvider, useAuth } from './features/auth/AuthContext'
 import LoginPage from './features/auth/LoginPage'
 import TextbookApplyPage from './features/textbook/TextbookApplyPage'
 import TextbookApplyMobilePage from './features/textbook/TextbookApplyMobilePage'
+import MobileMyApplicationsPage from './features/textbook/MobileMyApplicationsPage'
 import MobileHomePage from './features/mobile/MobileHomePage'
 
 function Placeholder({ title }: { title: string }) {
@@ -78,6 +79,7 @@ function AuthedApp() {
       return (
         <Routes>
           <Route path="/textbook-apply" element={<TextbookApplyMobilePage />} />
+          <Route path="/my-applications" element={<MobileMyApplicationsPage />} />
           <Route path="*" element={<Navigate to="/textbook-apply" replace />} />
         </Routes>
       )
@@ -99,6 +101,7 @@ function AuthedApp() {
         <Route path="/mobile-evidence" element={<MobileEvidenceUploadPage />} />
         <Route path="/mobile-stores" element={<MobileStoreListPage />} />
         <Route path="/textbook-apply" element={<TextbookApplyMobilePage />} />
+        <Route path="/my-applications" element={<MobileMyApplicationsPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="*" element={<MobileHomePage />} />
       </Routes>

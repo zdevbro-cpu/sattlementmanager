@@ -22,6 +22,7 @@ const shipmentRepo = require('./shipmentRepo')
 const drive = require('./services/driveService')
 const ocr = require('./services/ocrService')
 const pdfService = require('./services/pdfService')
+const tracking = require('./services/trackingService')
 const { authenticate, authorize } = require('./middleware/auth')
 
 const app = express()
@@ -768,14 +769,32 @@ app.post('/api/shipments/:id/status', async (req, res) => {
   }
 })
 
+// ── 본인 신청·배송 조회 (모바일) ──
+// 점주는 본인이 올린 건만, 점장은 자기 지점 건까지 본다. 범위는 서버가 강제한다(textbookRepo.scopeFor).
+// 구매자가 배송을 문의하면 점주가 여기서 확인해 알려주는 흐름이라, 배송 상태는 요약해서 내려준다.
+app.get('/api/my-applications', async (req, res) => {
+  try {
+    const list = await textbookRepo.listMyApplications(req.user || {}, {
+      keyword: req.query.keyword || '',
+    })
+    res.json({ ok: true, data: list })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 // ── 교재구매 신청 관리 (교재구입 정보만 — 결제/입금은 매출관리에서 별도 처리) ──
 app.get('/api/textbook-applications', async (req, res) => {
   try {
-    const list = await textbookRepo.listApplications({
-      startDate: req.query.startDate || '',
-      endDate: req.query.endDate || '',
-      buyer: req.query.buyer || '',
-    })
+    // 조회 범위를 서버가 강제한다 — 점주는 본인 건, 점장은 자기 지점 건만 받는다
+    const list = await textbookRepo.listApplications(
+      {
+        startDate: req.query.startDate || '',
+        endDate: req.query.endDate || '',
+        buyer: req.query.buyer || '',
+      },
+      req.user || null,
+    )
     res.json({ ok: true, data: list })
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message })
@@ -795,7 +814,12 @@ app.get('/api/textbook-applications/:id', async (req, res) => {
 app.post('/api/textbook-applications', async (req, res) => {
   try {
     const { payment, ...applicationData } = req.body || {}
-    const a = await textbookRepo.createApplication(applicationData)
+    // 소유자·지점은 클라이언트 값을 신뢰하지 않고 토큰에서 채운다 — 위조하면 남의 신청을 조회할 수 있다
+    const a = await textbookRepo.createApplication({
+      ...applicationData,
+      createdByEmail: req.user?.email || '',
+      createdByBranch: req.user?.branch || '',
+    })
     // 신청 접수는 항상 성공 처리 — 매출 연결 실패는 로그만 남기고 신청 결과에 영향을 주지 않는다.
     if (payment && (payment.totalAmount || 0) > 0) {
       try {
@@ -1347,6 +1371,46 @@ async function collectReportSales() {
 }
 
 // ── 매출 일일보고 자동 발송 (Cloud Scheduler → 매일 22:00 KST 호출) ──
+// ── 배송추적 자동화 (스마트택배 조회 API) ──
+// 접수·송장발급은 수동이고, 송장번호가 등록된 뒤의 조회만 자동화한다.
+// 호출량을 줄이려고 '배송중' + 송장 있음 + 최근 발송 건만 돌린다(shipmentRepo.listTrackingTargets).
+// 외부 API가 실패해도 상태를 바꾸지 않고 넘어간다 — 수동 상태변경 경로는 항상 살아 있어야 한다.
+app.post('/api/cron/track-shipments', async (req, res) => {
+  try {
+    if (req.headers['x-cron-secret'] !== process.env.CRON_SECRET) {
+      return res.status(403).json({ ok: false, error: 'forbidden' })
+    }
+    const targets = await shipmentRepo.listTrackingTargets()
+    let checked = 0
+    let delivered = 0
+    let failed = 0
+
+    for (const s of targets) {
+      const r = await tracking.track(s.carrier, s.trackingNo)
+      if (!r) {
+        failed += 1
+        continue
+      }
+      checked += 1
+      await shipmentRepo.recordTracking(s.id, r)
+      if (r.delivered) {
+        try {
+          await shipmentRepo.setStatus(s.id, shipmentRepo.STATUS.DELIVERED, 'system', `자동추적: ${r.statusText}`)
+          delivered += 1
+        } catch (e) {
+          // 전이 규칙에 걸리면(이미 다른 상태로 바뀐 경우 등) 기록만 남기고 넘어간다
+          console.warn('[cron/track] 상태 전이 실패', s.id, e.message)
+        }
+      }
+    }
+    console.log(`[cron/track] 대상 ${targets.length} · 조회 ${checked} · 배송완료 ${delivered} · 실패 ${failed}`)
+    res.json({ ok: true, data: { targets: targets.length, checked, delivered, failed } })
+  } catch (e) {
+    console.error('[cron/track-shipments] 실패:', e.message)
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 app.post('/api/cron/daily-sales-report', async (req, res) => {
   try {
     if (req.headers['x-cron-secret'] !== process.env.CRON_SECRET) {

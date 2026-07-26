@@ -5,7 +5,13 @@
 import { useSyncExternalStore } from 'react'
 import { addCodeApi, fetchCodes, reorderCodeApi, removeCodeApi, type CodeSetApi } from './api'
 
-export type CodeKind = 'orgs' | 'contractTypes' | 'statuses' | 'businessUnits' | 'appointmentStatuses'
+export type CodeKind =
+  | 'orgs'
+  | 'contractTypes'
+  | 'statuses'
+  | 'businessUnits'
+  | 'appointmentStatuses'
+  | 'carriers'
 export type CodeSet = CodeSetApi
 
 const DEFAULTS: CodeSet = {
@@ -14,6 +20,7 @@ const DEFAULTS: CodeSet = {
   statuses: ['신규', '증액', '양수', '양도', '해지', '폐기'],
   businessUnits: ['교육선교위원회', '교육사업부', 'LAS-On', '구독'],
   appointmentStatuses: ['정상', '휴직', '해지'],
+  carriers: ['CJ대한통운', '롯데택배', '한진택배', '우체국택배', '로젠택배'],
 }
 
 let state: CodeSet = { ...DEFAULTS }

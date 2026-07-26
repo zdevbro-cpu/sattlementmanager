@@ -613,6 +613,8 @@ export interface CodeSetApi {
   statuses: string[]
   businessUnits: string[]
   appointmentStatuses: string[]
+  /** 택배사 — 값이 배송조회 링크 매핑 키다(features/delivery/trackingUrl.ts) */
+  carriers: string[]
 }
 export function fetchCodes(): Promise<CodeSetApi> {
   return getData('/api/codes')
@@ -667,4 +669,30 @@ export function updateShipmentApi(id: string, patch: Partial<Shipment>): Promise
 /** 상태 전이 — 규칙에 없는 전이·배송지 미확정 확정은 서버가 사유와 함께 거부한다 */
 export function setShipmentStatusApi(id: string, toStatus: string, memo?: string): Promise<Shipment> {
   return sendJson(`/api/shipments/${encodeURIComponent(id)}/status`, 'POST', { toStatus, memo })
+}
+
+/* ══════════════════════════════════════════════════════════
+ * 본인 신청·배송 조회 (모바일) — 점주는 본인 건, 점장은 자기 지점 건.
+ * 조회 범위는 서버가 강제한다(클라이언트 필터가 아니다).
+ * ══════════════════════════════════════════════════════════ */
+
+export interface MyApplication {
+  id: string
+  applyDate: string
+  buyerName: string
+  childName: string
+  phone: string
+  address: string
+  book1Name: string
+  book2Name: string
+  createdAt: string
+  shipmentId: string
+  /** 요약 상태 — 내부 8단계가 아니라 구매자에게 그대로 읽어줄 수 있는 말 */
+  deliveryStatus: string
+  carrier: string
+  trackingNo: string
+}
+
+export function fetchMyApplications(keyword = ''): Promise<MyApplication[]> {
+  return getData(`/api/my-applications${qs({ keyword })}`)
 }

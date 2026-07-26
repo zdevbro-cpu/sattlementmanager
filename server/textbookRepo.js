@@ -31,18 +31,44 @@ function mapApplication(a) {
     drivePhotoViewUrl: a.drive_photo_view_url || '',
     drivePdfFileId: a.drive_pdf_file_id || '',
     drivePdfViewUrl: a.drive_pdf_view_url || '',
+    createdByEmail: a.created_by_email || '',
+    createdByBranch: a.created_by_branch || '',
     createdAt: isoDate(a.created_at),
   }
+}
+
+/**
+ * 로그인 사용자의 조회 범위를 SQL 조건으로 만든다 — 화면이 아니라 서버가 강제한다.
+ *   admin         → 전체
+ *   store_manager → 자기 지점(점장은 산하 점주 신청건을 함께 본다)
+ *   store_owner   → 본인이 올린 건만
+ * 섭외 조직(파트너·파트장)은 교재 판매와 무관해 애초에 인가에서 걸러진다(middleware/auth.js).
+ */
+function scopeFor(user, alias = '') {
+  const p = alias ? `${alias}.` : ''
+  const roles = user?.roles || []
+  if (roles.includes('admin')) return { sql: '', params: [] }
+  if (roles.includes('store_manager')) {
+    // 지점이 지정되지 않은 점장은 확장 조회 대상이 없다 — 본인 것만 보이게 둔다
+    if (user.branch) return { sql: `${p}created_by_branch = $1`, params: [user.branch] }
+    return { sql: `${p}created_by_email = $1`, params: [user.email || ''] }
+  }
+  return { sql: `${p}created_by_email = $1`, params: [user?.email || ''] }
 }
 
 function nn(v) {
   return v === '' || v === undefined ? null : v
 }
 
-/** 교재구매 신청 목록 (기간/구매자 필터) */
-async function listApplications(filter = {}) {
+/** 교재구매 신청 목록 (기간/구매자 필터)
+ *  user 를 받으면 역할별 조회 범위를 SQL 단계에서 강제한다 — 점주가 남의 신청을 받아가면 안 된다. */
+async function listApplications(filter = {}, user = null) {
+  const scope = user ? scopeFor(user) : { sql: '', params: [] }
   const { rows } = await pool.query(
-    `SELECT * FROM textbook_applications ORDER BY created_at DESC`,
+    `SELECT * FROM textbook_applications
+      ${scope.sql ? 'WHERE ' + scope.sql : ''}
+      ORDER BY created_at DESC`,
+    scope.params,
   )
   const list = rows.map(mapApplication)
   const { startDate, endDate, buyer } = filter
@@ -72,8 +98,9 @@ async function createApplication(a) {
     `INSERT INTO textbook_applications
        (id, apply_date, buyer_name, child_name, child_birthdate, phone, address, delivery_memo,
         book1_name, book2_name, subscription_type, management_type, seller_name, seller_phone,
-        drive_photo_file_id, drive_photo_view_url, drive_pdf_file_id, drive_pdf_view_url)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+        drive_photo_file_id, drive_photo_view_url, drive_pdf_file_id, drive_pdf_view_url,
+        created_by_email, created_by_branch)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
     [
       id,
       nn(a.applyDate),
@@ -93,6 +120,9 @@ async function createApplication(a) {
       a.drivePhotoViewUrl || null,
       a.drivePdfFileId || null,
       a.drivePdfViewUrl || null,
+      // 소유자·지점은 신청 시점 값으로 박아둔다(나중에 지점을 옮겨도 과거 건 조회 범위가 흔들리지 않는다)
+      a.createdByEmail || '',
+      a.createdByBranch || '',
     ],
   )
   const created = await getApplication(id)
@@ -107,6 +137,74 @@ async function createApplication(a) {
   }
 
   return created
+}
+
+/**
+ * 배송 내부 상태(8종) → 신청자에게 보여줄 요약 상태.
+ * 신청자에게 '목록확정'·'전송완료' 같은 내부 처리 단계는 의미가 없다.
+ * 구매자가 물어보면 그대로 읽어줄 수 있는 말로 줄인다.
+ */
+function summaryStatus(s) {
+  switch (s) {
+    case '접수':
+      return '접수됨'
+    case '추후배송':
+      return '배송지 확인 필요'
+    case '목록확정':
+    case '전송완료':
+      return '발송 준비중'
+    case '배송중':
+      return '배송중'
+    case '배송완료':
+    case '완료확인':
+      return '배송완료'
+    case '취소':
+      return '취소됨'
+    default:
+      return s || '접수됨'
+  }
+}
+
+/**
+ * 본인(또는 지점) 신청 내역 + 배송 상태 — 모바일 조회용.
+ * 범위는 scopeFor 가 서버에서 강제한다. shipment_log(처리자 이메일 포함)는 노출하지 않는다.
+ */
+async function listMyApplications(user, filter = {}) {
+  const scope = scopeFor(user, 'a')
+  const where = []
+  const params = [...scope.params]
+  if (scope.sql) where.push(scope.sql)
+  if (filter.keyword) {
+    params.push(`%${filter.keyword}%`)
+    const i = params.length
+    where.push(`(a.buyer_name ILIKE $${i} OR a.child_name ILIKE $${i} OR a.phone ILIKE $${i} OR a.id ILIKE $${i})`)
+  }
+  const { rows } = await pool.query(
+    `SELECT a.id, a.apply_date, a.buyer_name, a.child_name, a.phone, a.address,
+            a.book1_name, a.book2_name, a.created_at,
+            s.id AS shipment_id, s.status AS shipment_status, s.carrier, s.tracking_no
+       FROM textbook_applications a
+       LEFT JOIN shipments s ON s.textbook_application_id = a.id
+      ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+      ORDER BY a.created_at DESC, a.id DESC`,
+    params,
+  )
+  return rows.map((r) => ({
+    id: r.id,
+    applyDate: isoDate(r.apply_date),
+    buyerName: r.buyer_name || '',
+    childName: r.child_name || '',
+    phone: r.phone || '',
+    address: r.address || '',
+    book1Name: r.book1_name || '',
+    book2Name: r.book2_name || '',
+    createdAt: isoDate(r.created_at),
+    shipmentId: r.shipment_id || '',
+    // 내부 상태는 내보내지 않고 요약만 준다
+    deliveryStatus: r.shipment_id ? summaryStatus(r.shipment_status) : '접수됨',
+    carrier: r.carrier || '',
+    trackingNo: r.tracking_no || '',
+  }))
 }
 
 async function deleteApplication(id) {
@@ -133,6 +231,7 @@ async function setPdf(id, driveFileId, driveViewUrl) {
 
 module.exports = {
   listApplications,
+  listMyApplications,
   getApplication,
   createApplication,
   deleteApplication,

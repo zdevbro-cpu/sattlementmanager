@@ -369,6 +369,39 @@ async function markSent(ids, batchId, actor) {
   }
 }
 
+/**
+ * 자동추적 대상 — 호출량을 줄이려고 범위를 좁힌다.
+ *   · '배송중' 상태만 (접수·목록확정 건은 아직 송장이 없거나 발송 전이다)
+ *   · 송장번호와 택배사가 모두 있는 건만
+ *   · 발송 후 14일 지난 건은 제외 — 미아 건을 영원히 조회하지 않기 위함
+ *   · 같은 건을 하루에 두 번 조회하지 않도록 최근 조회분은 건너뛴다
+ */
+async function listTrackingTargets({ maxAgeDays = 14, minIntervalHours = 12, limit = 200 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT * FROM shipments
+      WHERE status = $1
+        AND COALESCE(tracking_no, '') <> ''
+        AND COALESCE(carrier, '') <> ''
+        AND COALESCE(shipped_at, created_at) > now() - ($2 || ' days')::interval
+        AND (last_tracked_at IS NULL OR last_tracked_at < now() - ($3 || ' hours')::interval)
+      ORDER BY COALESCE(last_tracked_at, 'epoch'::timestamptz) ASC
+      LIMIT $4`,
+    [STATUS.SHIPPING, String(maxAgeDays), String(minIntervalHours), limit],
+  )
+  return rows.map(mapShipment)
+}
+
+/** 조회 결과 기록 — 상태 전이 없이 추적 흔적만 남긴다(아직 배송중인 경우) */
+async function recordTracking(id, { provider, statusText, raw }) {
+  await pool.query(
+    `UPDATE shipments
+        SET tracking_provider = $2, tracking_status_text = $3, tracking_raw = $4,
+            last_tracked_at = now(), updated_at = now()
+      WHERE id = $1`,
+    [id, provider || '', (statusText || '').slice(0, 100), raw ? JSON.stringify(raw) : null],
+  )
+}
+
 /** 요약 카드용 집계 */
 async function summarize() {
   const { rows } = await pool.query(`SELECT status, COUNT(*)::int AS c FROM shipments GROUP BY status`)
@@ -386,6 +419,8 @@ async function summarize() {
 
 module.exports = {
   STATUS,
+  listTrackingTargets,
+  recordTracking,
   TRANSITIONS,
   listShipments,
   getShipment,
