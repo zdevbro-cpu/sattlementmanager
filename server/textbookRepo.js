@@ -153,7 +153,7 @@ async function createApplication(a) {
       a.createdByBranch || '',
     ],
   )
-  const created = await getApplication(id)
+  let created = await getApplication(id)
 
   // 배송건 자동 생성 — 신청 저장과 트랜잭션을 묶지 않는다.
   // 신청 접수는 현장 최우선 경로이므로, 배송행 생성이 실패해도 신청은 성공 처리한다.
@@ -162,6 +162,20 @@ async function createApplication(a) {
     await shipmentRepo.createFromApplication(created)
   } catch (e) {
     console.error('[shipment] 자동 생성 실패', id, e.message)
+  }
+
+  // 구독·관리회원 상품이 지정됐으면 정기발송을 바로 건다.
+  // 신청 시 1년치를 한 번에 결제하므로, 상품을 고른 것 자체가 1년 구독을 뜻한다 —
+  // 관리자가 상세에서 다시 '구독 시작'을 눌러야 한다면 누락이 생긴다.
+  // 배송건 생성 뒤에 호출해야 위에서 만든 1회차에 회차번호(1)가 매겨진다.
+  const product = (a.subscriptionType || a.managementType || '').trim()
+  if (product) {
+    try {
+      created = (await startSubscription(id, { product })) || created
+    } catch (e) {
+      // 구독 설정 실패가 신청 접수를 막으면 안 된다 — 상세에서 수동으로 걸 수 있다
+      console.error('[subscription] 자동 시작 실패', id, e.message)
+    }
   }
 
   return created
@@ -253,14 +267,16 @@ const SHIP_TOTAL = 26 // 1년 ÷ 2주
 async function startSubscription(id, { product, intervalDays, total } = {}) {
   const iv = Number(intervalDays) > 0 ? Number(intervalDays) : SHIP_INTERVAL_DAYS
   const tt = Number(total) > 0 ? Number(total) : SHIP_TOTAL
+  // $3 을 정수 컬럼과 문자열 연결에 동시에 쓰면 Postgres 가 타입을 하나로 추론하지 못한다
+  // (inconsistent types deduced for parameter $3). 명시적으로 int 로 캐스팅해 양쪽에서 같은 타입으로 쓴다.
   const { rows } = await pool.query(
     `UPDATE textbook_applications
-        SET ship_product = $2, ship_interval_days = $3, ship_total = $4,
+        SET ship_product = $2, ship_interval_days = $3::int, ship_total = $4::int,
             ship_seq = GREATEST(ship_seq, 1),
-            ship_next_date = (CURRENT_DATE + ($3 || ' days')::interval)::date,
+            ship_next_date = (CURRENT_DATE + ($3::int * INTERVAL '1 day'))::date,
             ship_paused = FALSE, ship_canceled_at = NULL
       WHERE id = $1 RETURNING *`,
-    [id, product || '', String(iv), tt],
+    [id, product || '', iv, tt],
   )
   if (!rows.length) return null
   // 1회차 배송건에 회차 번호를 채워준다(신청 시 생성분은 seq 가 비어 있다)
