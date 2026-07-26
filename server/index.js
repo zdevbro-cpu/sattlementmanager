@@ -467,7 +467,8 @@ app.post('/api/staff-requests/:id/approve', async (req, res) => {
     const result = await staffRepo.approveRequest(req.params.id)
     if (!result) return res.status(404).json({ ok: false, error: 'not found' })
     const mailer = getMailer()
-    if (mailer) {
+    // 기존 계정에 역할만 추가된 경우(merged)는 비밀번호가 이미 있으므로 설정 메일을 보내지 않는다
+    if (mailer && !result.merged && result.resetLink) {
       try {
         await mailer.sendMail({
           from: mailFrom(),

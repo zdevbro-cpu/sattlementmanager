@@ -12,6 +12,7 @@ import StoreListPage from './features/store/StoreListPage'
 import MobileStoreListPage from './features/store/MobileStoreListPage'
 import { fetchMe, type MeInfo } from './lib/api'
 import StaffRequestPage from './features/store/StaffRequestPage'
+import OwnerRequestPage from './features/store/OwnerRequestPage'
 import DashboardPage from './features/dashboard/DashboardPage'
 import { AuthProvider, useAuth } from './features/auth/AuthContext'
 import LoginPage from './features/auth/LoginPage'
@@ -150,8 +151,10 @@ function AuthedApp() {
 function Gate() {
   const { user, loading } = useAuth()
   const location = useLocation()
-  // 파트너 가입 요청 페이지는 로그인 없이 접근 가능해야 한다 (인증 검사보다 먼저 처리)
-  if (location.pathname === '/staff-request') return <StaffRequestPage />
+  // 가입 요청 페이지는 로그인 없이 접근 가능해야 한다 (인증 검사보다 먼저 처리).
+  // 섭외 조직과 매장 운영은 별도 운영이라 신청 폼이 나뉜다.
+  if (location.pathname === '/staff-request') return <StaffRequestPage />   // 파트너·파트장
+  if (location.pathname === '/owner-request') return <OwnerRequestPage />   // 점주·점장
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-[#0a0e1a]" />
   }

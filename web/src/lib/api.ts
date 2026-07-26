@@ -386,6 +386,8 @@ export function submitStaffRequestApi(data: {
   email: string
   role: string
   part: string
+  businessUnit?: string
+  branch?: string
 }): Promise<StaffRequest> {
   return sendJson('/api/staff-requests', 'POST', data)
 }
