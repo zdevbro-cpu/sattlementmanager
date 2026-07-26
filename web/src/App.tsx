@@ -14,6 +14,7 @@ import { fetchMe, type MeInfo } from './lib/api'
 import StaffRequestPage from './features/store/StaffRequestPage'
 import OwnerRequestPage from './features/store/OwnerRequestPage'
 import DashboardPage from './features/dashboard/DashboardPage'
+import DeliveryAdminPage from './features/delivery/DeliveryAdminPage'
 import { AuthProvider, useAuth } from './features/auth/AuthContext'
 import LoginPage from './features/auth/LoginPage'
 import TextbookApplyPage from './features/textbook/TextbookApplyPage'
@@ -137,6 +138,7 @@ function AuthedApp() {
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/base" element={<AppointmentListPage />} />
       <Route path="/stores" element={<StoreListPage />} />
+      <Route path="/delivery" element={<DeliveryAdminPage />} />
       <Route path="/sales" element={<SalesListPage />} />
       <Route path="/settlement" element={<Placeholder title="정산 계산" />} />
       <Route path="/payment" element={<PaymentListPage />} />

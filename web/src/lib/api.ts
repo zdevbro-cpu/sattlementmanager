@@ -8,6 +8,7 @@ import type { ExtraPayee } from '../types/payout'
 import type { TextbookApplication, TextbookApplicationFilter } from '../types/textbook'
 import type { RecruitmentLog, Store, StoreFilter } from '../types/store'
 import type { Staff, StaffRequest } from '../types/staff'
+import type { Shipment, ShipmentFilter, ShipmentSummary } from '../types/delivery'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from './firebase'
 
@@ -562,4 +563,36 @@ export async function generateTextbookPdf(
   if (!res.ok) throw new Error(`PDF 생성 실패 (${res.status})`)
   const json = await res.json()
   return { driveFileId: json.driveFileId ?? '', driveViewUrl: json.driveViewUrl ?? '#' }
+}
+
+/* ══════════════════════════════════════════════════════════
+ * 배송관리 — 교재구매 신청에서 파생된 배송 라이프사이클
+ * ══════════════════════════════════════════════════════════ */
+
+export function fetchShipments(filter: ShipmentFilter): Promise<Shipment[]> {
+  return getData(
+    `/api/shipments${qs({
+      startDate: filter.startDate,
+      endDate: filter.endDate,
+      status: filter.status === '전체' ? '' : filter.status,
+      keyword: filter.keyword,
+    })}`,
+  )
+}
+
+export function fetchShipmentSummary(): Promise<ShipmentSummary> {
+  return getData('/api/shipments/summary')
+}
+
+export function fetchShipment(id: string): Promise<Shipment> {
+  return getData(`/api/shipments/${encodeURIComponent(id)}`)
+}
+
+export function updateShipmentApi(id: string, patch: Partial<Shipment>): Promise<Shipment> {
+  return sendJson(`/api/shipments/${encodeURIComponent(id)}`, 'PATCH', patch)
+}
+
+/** 상태 전이 — 규칙에 없는 전이·배송지 미확정 확정은 서버가 사유와 함께 거부한다 */
+export function setShipmentStatusApi(id: string, toStatus: string, memo?: string): Promise<Shipment> {
+  return sendJson(`/api/shipments/${encodeURIComponent(id)}/status`, 'POST', { toStatus, memo })
 }
