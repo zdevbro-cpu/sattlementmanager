@@ -15,6 +15,18 @@
         "source": "**",
         "destination": "/index.html"
       }
+    ],
+    "headers": [
+      {
+        "//": "SPA 진입점(HTML)은 캐시하지 않는다. 기본값(max-age=3600)이면 배포 후 최대 1시간 동안 브라우저가 예전 HTML을 써서 구버전 번들을 계속 로드한다(실제로 겪음 — 인증 토큰 수정이 반영되지 않았다). 인증을 강제하는 시점에 구버전 프론트가 살아 있으면 전 요청이 401 이 된다. 사용자는 /index.html 이 아니라 / 나 /stores 로 들어오므로 요청 경로 전체(**)에 걸어야 한다.",
+        "source": "**",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+      },
+      {
+        "//": "정적 자산은 파일명에 해시가 붙어 내용이 바뀌면 이름도 바뀐다 — 장기 캐시가 안전하다. 위 ** 규칙보다 뒤에 두어 자산에 대해서만 덮어쓴다.",
+        "source": "**/*.@(js|css|woff|woff2|ttf|png|jpg|jpeg|gif|svg|ico)",
+        "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+      }
     ]
   }
 }

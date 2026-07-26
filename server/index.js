@@ -20,10 +20,19 @@ const textbookRepo = require('./textbookRepo')
 const drive = require('./services/driveService')
 const ocr = require('./services/ocrService')
 const pdfService = require('./services/pdfService')
+const { authenticate, authorize } = require('./middleware/auth')
 
 const app = express()
 app.use(cors())
 app.use(express.json({ limit: '25mb' }))
+
+// 인증 — 모든 /api/* 는 Firebase ID 토큰이 필요하다.
+// 예외: /api/health, POST /api/staff-requests(공개 가입요청), /api/cron/*·/api/admin/migrate(CRON_SECRET).
+// AUTH_ENFORCE=true 전까지는 관찰 모드로 동작해 기존 클라이언트를 끊지 않는다(middleware/auth.js 참조).
+app.use(authenticate)
+// 인가 — 경로별 필요 역할은 middleware/auth.js 의 POLICY 한 곳에서 관리한다.
+// 정책에 없는 신규 경로는 기본이 관리자 전용이다(누락 시 닫히는 방향).
+app.use(authorize)
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -40,6 +49,37 @@ app.get('/api/health', async (_req, res) => {
     db = 'down'
   }
   res.json({ ok: true, db, time: new Date().toISOString() })
+})
+
+// ── 로그인 사용자 본인 정보 (역할·소속) ─────────────────────────────
+// 프론트 라우팅은 이 응답의 roles 로 분기한다. 예전처럼 전체 계정 목록(/api/staff)을
+// 받아서 판정하지 않는다 — 일반 사용자에게 타인 이메일이 노출되지 않아야 한다.
+app.get('/api/me', async (req, res) => {
+  try {
+    if (!req.user) {
+      // 관찰 모드(AUTH_ENFORCE=false)에서 토큰이 없는 경우 — 기존 동작(관리자)을 유지한다
+      return res.json({
+        ok: true,
+        data: { email: '', name: '', roles: ['admin'], isStaff: false, part: '', branch: '', canRegisterStore: false },
+      })
+    }
+    const { email, name, roles, isStaff, part, branch, lasCode, canRegisterStore } = req.user
+    res.json({
+      ok: true,
+      data: {
+        email,
+        name: name || '',
+        roles,
+        isStaff,
+        part: part || '',
+        branch: branch || '',
+        lasCode: lasCode || '',
+        canRegisterStore: !!canRegisterStore,
+      },
+    })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
 })
 
 // ── 계약 목록 ─────────────────────────────
@@ -271,6 +311,28 @@ app.post('/api/appointments/:id/document', async (req, res) => {
 })
 
 // ── LAS-ON 매장선정관리 (매장 마스터/섭외이력) ──
+
+// 선점 파트 선택용 파트장 이름 목록.
+// 예전에는 화면에서 계약 원장 전체(/api/contracts)를 받아 이름만 추려 썼는데,
+// 그러면 섭외 담당자에게 보증금·결제정보까지 통째로 내려간다. 이름만 반환한다.
+app.get('/api/part-leaders', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT DISTINCT h.contractor_name AS name
+         FROM contract_history h
+         JOIN (SELECT contract_id, MAX(id) AS id FROM contract_history GROUP BY contract_id) latest
+           ON latest.id = h.id
+        WHERE h.contract_type = 'LAS-On파트장'
+          AND h.status <> '폐기'
+          AND COALESCE(h.contractor_name, '') <> ''
+        ORDER BY 1`,
+    )
+    res.json({ ok: true, data: rows.map((r) => r.name) })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 app.get('/api/stores', async (req, res) => {
   try {
     const list = await storeRepo.listStores({
@@ -405,7 +467,8 @@ app.post('/api/staff-requests/:id/approve', async (req, res) => {
     const result = await staffRepo.approveRequest(req.params.id)
     if (!result) return res.status(404).json({ ok: false, error: 'not found' })
     const mailer = getMailer()
-    if (mailer) {
+    // 기존 계정에 역할만 추가된 경우(merged)는 비밀번호가 이미 있으므로 설정 메일을 보내지 않는다
+    if (mailer && !result.merged && result.resetLink) {
       try {
         await mailer.sendMail({
           from: mailFrom(),

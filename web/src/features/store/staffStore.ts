@@ -42,6 +42,8 @@ export function submitStaffRequest(data: {
   email: string
   role: string
   part: string
+  businessUnit?: string
+  branch?: string
 }): Promise<StaffRequest> {
   return submitStaffRequestApi(data)
 }

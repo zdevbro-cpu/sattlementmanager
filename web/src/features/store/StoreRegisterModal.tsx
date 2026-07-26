@@ -2,10 +2,8 @@ import { useEffect, useState } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 import { STORE_STATUSES, type Store } from '../../types/store'
 import { createStore, findDuplicates } from './storeStore'
-import { listStaff } from './staffStore'
+import { fetchMe, fetchPartLeaders } from '../../lib/api'
 import { phoneFmt } from '../../lib/format'
-import { EMPTY_FILTER } from '../../types/contract'
-import { listContracts } from '../contract/contractStore'
 import { useAuth } from '../auth/AuthContext'
 
 const inputCls =
@@ -79,15 +77,9 @@ export default function StoreRegisterModal({
 
   useEffect(() => {
     let alive = true
-    listContracts(EMPTY_FILTER).then((list) => {
-      if (alive) {
-        setPartLeaders(
-          list
-            .filter((c) => c.current.contractType === 'LAS-On파트장' && c.current.status !== '폐기')
-            .map((c) => c.current.contractorName),
-        )
-      }
-    })
+    fetchPartLeaders().then((names) => {
+      if (alive) setPartLeaders(names)
+      })
     return () => {
       alive = false
     }
@@ -97,14 +89,13 @@ export default function StoreRegisterModal({
   useEffect(() => {
     let alive = true
     if (!user?.email) return
-    listStaff().then((list) => {
+    fetchMe().then((me) => {
       if (!alive) return
-      const me = list.find((s) => s.email === user.email)
-      // 매칭되는 파트너 계정이 없으면(관리자 로그인 등) 이메일로 채우지 않고 공란으로 두어 직접 입력하게 한다
+      // 파트너 계정이 아니면(관리자 로그인 등) 공란으로 두어 직접 입력하게 한다
       setF((prev) => ({
         ...prev,
-        claimedStaff: prev.claimedStaff || me?.name || '',
-        claimedPart: prev.claimedPart || me?.part || '',
+        claimedStaff: prev.claimedStaff || (me.isStaff ? me.name : ''),
+        claimedPart: prev.claimedPart || (me.isStaff ? me.part : ''),
       }))
     })
     return () => {

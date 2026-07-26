@@ -119,9 +119,16 @@ export default function StaffManagePage() {
                     <td className="px-3 py-1.5 tabular whitespace-nowrap">{r.phone || '-'}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{r.email}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">
-                      <Badge tone={r.role === 'part_leader' ? 'blue' : 'green'}>{STAFF_ROLE_LABEL[r.role]}</Badge>
+                      <Badge tone={r.role === 'part_leader' ? 'blue' : r.role === 'field_partner' ? 'green' : 'amber'}>
+                        {STAFF_ROLE_LABEL[r.role]}
+                      </Badge>
                     </td>
-                    <td className="px-3 py-1.5 whitespace-nowrap">{r.part || '-'}</td>
+                    {/* 소속 표기는 축마다 다르다 — 파트너·파트장은 소속 파트, 점주·점장은 사업부/지점 */}
+                    <td className="px-3 py-1.5 whitespace-nowrap">
+                      {r.role === 'store_owner' || r.role === 'store_manager'
+                        ? [r.businessUnit, r.branch].filter(Boolean).join(' / ') || '-'
+                        : r.part || '-'}
+                    </td>
                     <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{dateText(r.createdAt)}</td>
                     <td className="px-3 py-1.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">

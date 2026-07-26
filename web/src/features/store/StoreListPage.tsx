@@ -8,9 +8,7 @@ import { EMPTY_STORE_FILTER, RELEASED_FILTER_VALUE, STORE_STATUSES, type Store, 
 import { deleteStore, listStores, summarizeStores } from './storeStore'
 import StoreRegisterModal from './StoreRegisterModal'
 import StoreDetailDrawer from './StoreDetailDrawer'
-import { EMPTY_FILTER } from '../../types/contract'
-import { listContracts } from '../contract/contractStore'
-import { listStaff } from './staffStore'
+import { fetchMe, fetchPartLeaders } from '../../lib/api'
 import { useAuth } from '../auth/AuthContext'
 
 const inputCls =
@@ -52,10 +50,10 @@ export default function StoreListPage() {
   useEffect(() => {
     let alive = true
     if (!user?.email) return
-    listStaff().then((list) => {
+    fetchMe().then((me) => {
       if (!alive) return
-      const me = list.find((s) => s.email === user.email)
-      setCanRegister(!me || me.canRegisterStore)
+      // 파트너 계정이 아니면(관리자) 제한 없음
+      setCanRegister(!me.isStaff || me.canRegisterStore)
     })
     return () => {
       alive = false
@@ -64,15 +62,9 @@ export default function StoreListPage() {
 
   useEffect(() => {
     let alive = true
-    listContracts(EMPTY_FILTER).then((list) => {
-      if (alive) {
-        setPartLeaders(
-          list
-            .filter((c) => c.current.contractType === 'LAS-On파트장' && c.current.status !== '폐기')
-            .map((c) => c.current.contractorName),
-        )
-      }
-    })
+    fetchPartLeaders().then((names) => {
+      if (alive) setPartLeaders(names)
+      })
     return () => {
       alive = false
     }
