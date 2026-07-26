@@ -18,6 +18,7 @@ const codesRepo = require('./codesRepo')
 const salesRepo = require('./salesRepo')
 const extraPayoutRepo = require('./extraPayoutRepo')
 const textbookRepo = require('./textbookRepo')
+const shipmentRepo = require('./shipmentRepo')
 const drive = require('./services/driveService')
 const ocr = require('./services/ocrService')
 const pdfService = require('./services/pdfService')
@@ -695,6 +696,65 @@ app.delete('/api/extra-payouts/:id', async (req, res) => {
     res.json({ ok: true })
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// ── 배송관리 (교재구매 신청 → 배송 라이프사이클) ──
+// 신청 접수 시 배송건이 자동 생성되며(textbookRepo), 상태 전이는 규칙표 검증을 거친다.
+app.get('/api/shipments', async (req, res) => {
+  try {
+    const list = await shipmentRepo.listShipments({
+      startDate: req.query.startDate || '',
+      endDate: req.query.endDate || '',
+      status: req.query.status || '',
+      keyword: req.query.keyword || '',
+      batchId: req.query.batchId || '',
+    })
+    res.json({ ok: true, data: list })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.get('/api/shipments/summary', async (_req, res) => {
+  try {
+    res.json({ ok: true, data: await shipmentRepo.summarize() })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.get('/api/shipments/:id', async (req, res) => {
+  try {
+    const s = await shipmentRepo.getShipment(req.params.id)
+    if (!s) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: s })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.patch('/api/shipments/:id', async (req, res) => {
+  try {
+    const s = await shipmentRepo.updateShipment(req.params.id, req.body || {})
+    if (!s) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: s })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// 상태 전이 — 규칙표에 없는 전이·배송지 미확정 확정 시도는 400 으로 거부한다(서버 오류가 아니다)
+app.post('/api/shipments/:id/status', async (req, res) => {
+  try {
+    const { toStatus, memo } = req.body || {}
+    if (!toStatus) return res.status(400).json({ ok: false, error: '변경할 상태가 없습니다.' })
+    const actor = req.user?.email || ''
+    const s = await shipmentRepo.setStatus(req.params.id, toStatus, actor, memo || '')
+    if (!s) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: s })
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message })
   }
 })
 

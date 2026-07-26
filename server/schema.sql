@@ -396,3 +396,48 @@ CREATE INDEX IF NOT EXISTS idx_staff_las_code ON staff_accounts(las_code);
 CREATE INDEX IF NOT EXISTS idx_staff_email    ON staff_accounts(email);
 -- 기존 데이터 이관 (멱등: roles가 비어있는 행만)
 UPDATE staff_accounts SET roles = ARRAY[role] WHERE roles = '{}' OR roles IS NULL;
+
+-- ══════════════════════════════════════════════════════════════
+-- 배송관리 (교재구매 신청 → 배송 라이프사이클)
+--   · 신청 1건당 배송 1건 자동 생성. 배송지/교재는 신청 시점 스냅샷.
+--   · 접수 ≠ 배송: 신청 시점에 배송지가 확정되지 않을 수 있어(현장의 "추후배송" 조건)
+--     배송지가 없으면 '추후배송'으로 시작하고 배송목록 전송 대상에서 제외한다.
+-- ══════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS shipments (
+  id                      TEXT PRIMARY KEY,                 -- S0001 (MAX+1)
+  textbook_application_id TEXT REFERENCES textbook_applications(id) ON DELETE SET NULL,
+  -- 배송지 스냅샷 (신청 시점 복사, 배송건에서 수정 가능 — 신청 원본과 분리한다)
+  recipient_name          TEXT,
+  phone                   TEXT,
+  address                 TEXT,
+  delivery_memo           TEXT,
+  book1_name              TEXT,
+  book2_name              TEXT,
+  -- 상태 / 추적
+  status                  TEXT NOT NULL DEFAULT '접수',      -- 접수/추후배송/목록확정/전송완료/배송중/배송완료/완료확인/취소
+  carrier                 TEXT,                             -- 택배사
+  tracking_no             TEXT,                             -- 송장번호
+  batch_id                TEXT,                             -- 목록 전송 배치 식별(한 번에 보낸 묶음)
+  sent_to_logistics_at    TIMESTAMPTZ,                      -- 물류업체 전송 시각
+  shipped_at              TIMESTAMPTZ,                      -- 발송(송장등록) 시각
+  delivered_at            TIMESTAMPTZ,                      -- 배송완료 시각
+  confirmed_at            TIMESTAMPTZ,                      -- 완료확인 시각
+  memo                    TEXT,
+  created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_shipments_status ON shipments(status);
+CREATE INDEX IF NOT EXISTS idx_shipments_app    ON shipments(textbook_application_id);
+CREATE INDEX IF NOT EXISTS idx_shipments_batch  ON shipments(batch_id);
+
+-- 상태 전이 이력 — 모든 전이를 actor/memo 와 함께 남긴다(물리 삭제 대신 '취소' 상태로 관리)
+CREATE TABLE IF NOT EXISTS shipment_log (
+  id           BIGSERIAL PRIMARY KEY,
+  shipment_id  TEXT NOT NULL REFERENCES shipments(id) ON DELETE CASCADE,
+  from_status  TEXT,
+  to_status    TEXT,
+  actor        TEXT,                                       -- 처리자(이메일/이름)
+  memo         TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_shipment_log_shipment ON shipment_log(shipment_id);

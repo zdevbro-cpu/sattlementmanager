@@ -10,6 +10,7 @@ import {
   Landmark,
   Receipt,
   Settings,
+  Truck,
   Users,
   Wallet,
 } from 'lucide-react'
@@ -43,6 +44,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: '/sales', label: '매출관리', icon: Receipt, enabled: true },
       { to: '/base', label: '임용관리', icon: Users, enabled: true },
       { to: '/stores', label: '매장섭외관리', icon: Building2, enabled: true },
+      { to: '/delivery', label: '배송관리', icon: Truck, enabled: true },
     ],
   },
   {
@@ -66,6 +68,7 @@ const BREADCRUMB: Record<string, string> = {
   '/dashboard': '운영',
   '/base': '운영',
   '/stores': '운영',
+  '/delivery': '운영',
   '/contracts': '계약관리',
   '/sales': '매출관리',
   '/settlement': '정산센터',

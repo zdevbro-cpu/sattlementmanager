@@ -1,6 +1,7 @@
 // 교재구매 신청 관리 도메인 DB 레포지토리 (Cloud SQL / PostgreSQL)
 // 교재구입 정보만 취급 — 결제/입금 관련 내용은 매출관리(salesRepo)에서 별도 처리한다.
 const { pool } = require('./db')
+const shipmentRepo = require('./shipmentRepo')
 
 /** DATE/TIMESTAMPTZ 값 → YYYY-MM-DD (KST 기준) */
 function isoDate(v) {
@@ -94,7 +95,18 @@ async function createApplication(a) {
       a.drivePdfViewUrl || null,
     ],
   )
-  return getApplication(id)
+  const created = await getApplication(id)
+
+  // 배송건 자동 생성 — 신청 저장과 트랜잭션을 묶지 않는다.
+  // 신청 접수는 현장 최우선 경로이므로, 배송행 생성이 실패해도 신청은 성공 처리한다.
+  // 누락된 건은 배송관리 대장에서 사후 보정한다(신청은 있는데 배송행이 없는 건 조회 → 수동 생성).
+  try {
+    await shipmentRepo.createFromApplication(created)
+  } catch (e) {
+    console.error('[shipment] 자동 생성 실패', id, e.message)
+  }
+
+  return created
 }
 
 async function deleteApplication(id) {

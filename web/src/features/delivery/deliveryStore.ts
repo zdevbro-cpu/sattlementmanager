@@ -1,0 +1,32 @@
+// 배송관리 데이터 접근 계층 — Cloud SQL(server/shipmentRepo.js)을 통해 조회/저장한다.
+import type { Shipment, ShipmentFilter, ShipmentSummary } from '../../types/delivery'
+import {
+  fetchShipment,
+  fetchShipmentSummary,
+  fetchShipments,
+  setShipmentStatusApi,
+  updateShipmentApi,
+} from '../../lib/api'
+
+export function listShipments(filter: ShipmentFilter): Promise<Shipment[]> {
+  return fetchShipments(filter)
+}
+
+/** 상세 — 상태 전이 이력(log)이 함께 온다 */
+export function getShipment(id: string): Promise<Shipment> {
+  return fetchShipment(id)
+}
+
+export function summarizeShipments(): Promise<ShipmentSummary> {
+  return fetchShipmentSummary()
+}
+
+/** 배송지·택배사·송장·메모 수정 (상태는 setStatus 로만 바꾼다) */
+export function updateShipment(id: string, patch: Partial<Shipment>): Promise<Shipment> {
+  return updateShipmentApi(id, patch)
+}
+
+/** 상태 전이 — 실패 사유(전이 불가/배송지 미확정 등)는 서버 메시지를 그대로 화면에 보여준다 */
+export function setShipmentStatus(id: string, toStatus: string, memo?: string): Promise<Shipment> {
+  return setShipmentStatusApi(id, toStatus, memo)
+}
