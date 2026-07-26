@@ -247,6 +247,15 @@ export default function ContractListPage() {
           fg="#2563eb"
           icon={FileText}
         />
+        {/* 임시저장은 결재합계 검증 전이라 계약총액과 섞으면 매출과 맞지 않는다 — 미확정 물량으로 따로 본다 */}
+        <SummaryCard
+          label="임시저장"
+          value={won(sum.draftTotal)}
+          sub={`${sum.draftCount}건 (계약등록 확정 전)`}
+          tint="#f1f5f9"
+          fg="#64748b"
+          icon={Clock}
+        />
         <SummaryCard
           label="이번달 계약총액"
           value={won(sum.monthTotal)}
@@ -268,15 +277,6 @@ export default function ContractListPage() {
           tint="#fee2e2"
           fg="#ef4444"
           icon={XCircle}
-        />
-        {/* 임시저장은 결재합계 검증 전이라 계약총액과 섞으면 매출과 맞지 않는다 — 미확정 물량으로 따로 본다 */}
-        <SummaryCard
-          label="임시저장"
-          value={won(sum.draftTotal)}
-          sub={`${sum.draftCount}건 (계약등록 확정 전)`}
-          tint="#f1f5f9"
-          fg="#64748b"
-          icon={Clock}
         />
       </div>
 
