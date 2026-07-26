@@ -152,13 +152,15 @@ async function getShipment(id) {
  * 접수 ≠ 배송이므로 배송지가 없으면 '추후배송'으로 시작한다(배송목록 전송 대상에서 제외).
  * app 은 textbookRepo 가 반환한 camelCase 객체를 그대로 받는다.
  */
-async function createFromApplication(app) {
+async function createFromApplication(app, seq = null) {
   const recipient = app.buyerName || ''
   const phone = app.phone || ''
   const address = app.address || ''
   // 수령인·연락처·주소가 모두 있어야 배송 대상으로 본다
   const ready = !!(recipient.trim() && phone.trim() && address.trim())
   const status = ready ? STATUS.RECEIVED : STATUS.DEFERRED
+  // 구독 회차 — seq 가 있으면 (신청ID, 회차) 유니크 제약이 중복 생성을 막는다
+  const seqNote = seq ? ` (${seq}회차)` : ''
 
   const client = await pool.connect()
   try {
@@ -167,8 +169,8 @@ async function createFromApplication(app) {
     const { rows } = await client.query(
       `INSERT INTO shipments
          (id, textbook_application_id, recipient_name, phone, address, delivery_memo,
-          book1_name, book2_name, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+          book1_name, book2_name, status, ship_seq)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
       [
         id,
         app.id || null,
@@ -179,12 +181,18 @@ async function createFromApplication(app) {
         app.book1Name || '',
         app.book2Name || '',
         status,
+        seq,
       ],
     )
     await client.query(
       `INSERT INTO shipment_log (shipment_id, from_status, to_status, actor, memo)
        VALUES ($1, NULL, $2, $3, $4)`,
-      [id, status, 'system', ready ? '신청 접수로 자동 생성' : '배송지 미확정 — 추후배송으로 생성'],
+      [
+        id,
+        status,
+        'system',
+        (ready ? '신청 접수로 자동 생성' : '배송지 미확정 — 추후배송으로 생성') + seqNote,
+      ],
     )
     await client.query('COMMIT')
     return mapShipment(rows[0])

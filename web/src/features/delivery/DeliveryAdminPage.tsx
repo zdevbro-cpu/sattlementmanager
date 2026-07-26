@@ -20,6 +20,7 @@ import DeliveryCreateModal from './DeliveryCreateModal'
 import TrackingBatchModal from './TrackingBatchModal'
 import { printShipments } from './shipmentPrint'
 import { shipmentStatusTone } from './statusTone'
+import { sortByBook } from './sortByBook'
 
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
@@ -94,7 +95,8 @@ export default function DeliveryAdminPage() {
   }
 
   /** 선택 건이 있으면 선택 건만, 없으면 현재 필터링된 전체 목록 대상 */
-  const targetRows = selected.size > 0 ? rows.filter((r) => selected.has(r.id)) : rows
+  // 엑셀·송장인쇄·일괄입력은 모두 교재별로 정렬해 내보낸다 — 창고 피킹 동선을 줄이기 위함
+  const targetRows = sortByBook(selected.size > 0 ? rows.filter((r) => selected.has(r.id)) : rows)
 
   /**
    * 배송목록 전송 — 선택한 건 중 '목록확정' 상태만 물류업체에 메일로 보낸다.
@@ -343,7 +345,7 @@ export default function DeliveryAdminPage() {
 
       {batchOpen && (
         <TrackingBatchModal
-          shipments={rows.filter((r) => selected.has(r.id))}
+          shipments={sortByBook(rows.filter((r) => selected.has(r.id)))}
           onClose={() => setBatchOpen(false)}
           onDone={() => {
             setSelected(new Set())
