@@ -16,6 +16,7 @@ const enforce = () => process.env.AUTH_ENFORCE === 'true'
 const PUBLIC_ROUTES = [
   { method: 'GET', path: '/api/health' },
   { method: 'POST', path: '/api/staff-requests' }, // 파트너 본인 가입요청(공개 페이지 /staff-request)
+  { method: 'GET', path: '/api/codes' }, // 가입요청 공개 페이지의 사업부 선택창 — 로그인 전에도 읽어야 한다
 ]
 
 /** /api/cron/* 와 /api/admin/migrate 는 기존 CRON_SECRET 헤더로 보호된다(사용자 토큰 아님) */
@@ -138,6 +139,9 @@ const POLICY = [
   { prefix: '/api/stores', roles: FIELD },
   // 선점 파트 선택용 파트장 이름 목록(계약 원장이 아니라 이름만 반환)
   { prefix: '/api/part-leaders', roles: FIELD },
+  // 공통코드(소속/계약구분/상태/사업부/임용상태) — 로그인한 사용자는 누구나 읽어야 각자 화면의
+  // 드롭다운(매장등록 사업부 선택 등)이 채워진다. 로그인 전 조회는 PUBLIC_ROUTES에서 별도 허용한다.
+  { prefix: '/api/codes', roles: ANY },
   // 나머지(계약·매출·임용·지급·시스템설정·계정관리)는 아래 기본값(관리자 전용)
 ]
 
