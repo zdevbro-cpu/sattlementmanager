@@ -9,12 +9,14 @@ import { useAuth } from '../auth/AuthContext'
 import PaymentEditor, { emptyPayment } from '../contract/PaymentEditor'
 import type { PaymentInfo } from '../../types/contract'
 import { AlertTriangle, Camera, CheckCircle2, ChevronLeft } from 'lucide-react'
+import { useCodes } from '../../lib/codeStore'
 
 const inputCls =
   'h-11 w-full rounded-[8px] bg-input border border-border px-3 text-[14px] text-input-text outline-none focus:border-primary'
 
 /** 교재구매·회원가입 신청 — 모바일 신청자모드 (docs/교재구매 신청화면_모바일_신청자모드.png 준용) */
 export default function TextbookApplyMobilePage() {
+  const codes = useCodes()
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
 
@@ -66,8 +68,12 @@ export default function TextbookApplyMobilePage() {
       if (r.deliveryMemo) setDeliveryMemo(r.deliveryMemo)
       if (r.book1Name) setBook1Name(r.book1Name)
       if (r.book2Name) setBook2Name(r.book2Name)
-      if (r.subscriptionType) setSubscriptionType(r.subscriptionType)
-      if (r.managementType) setManagementType(r.managementType)
+      // OCR 이 읽은 상품명은 공통코드에 있는 값일 때만 반영한다 —
+      // 목록에 없는 값을 넣으면 select 가 빈 채로 보여 담당자가 왜 안 들어갔는지 알 수 없다.
+      if (r.subscriptionType && codes.subscriptionProducts.includes(r.subscriptionType))
+        setSubscriptionType(r.subscriptionType)
+      if (r.managementType && codes.subscriptionProducts.includes(r.managementType))
+        setManagementType(r.managementType)
       if (up) {
         setDriveFileId(up.driveFileId)
         setDriveViewUrl(up.driveViewUrl)
@@ -235,11 +241,22 @@ export default function TextbookApplyMobilePage() {
             <Field label="교재구입 2">
               <input value={book2Name} onChange={(e) => setBook2Name(e.target.value)} placeholder="교재명 2" className={inputCls} />
             </Field>
+            {/* 자유 입력이면 어떤 값이 정기발송 대상인지 코드가 판단할 수 없다 — 공통코드에서 고른다 */}
             <Field label="구독회원 구분">
-              <input value={subscriptionType} onChange={(e) => setSubscriptionType(e.target.value)} placeholder="상품구분" className={inputCls} />
+              <select value={subscriptionType} onChange={(e) => setSubscriptionType(e.target.value)} className={inputCls}>
+                <option value="">해당 없음</option>
+                {codes.subscriptionProducts.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
             </Field>
             <Field label="관리회원 구분">
-              <input value={managementType} onChange={(e) => setManagementType(e.target.value)} placeholder="상품구분" className={inputCls} />
+              <select value={managementType} onChange={(e) => setManagementType(e.target.value)} className={inputCls}>
+                <option value="">해당 없음</option>
+                {codes.subscriptionProducts.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
             </Field>
           </div>
         </section>

@@ -69,8 +69,12 @@ export default function TextbookApplyPage() {
       if (r.deliveryMemo) setDeliveryMemo(r.deliveryMemo)
       if (r.book1Name) setBook1Name(r.book1Name)
       if (r.book2Name) setBook2Name(r.book2Name)
-      if (r.subscriptionType) setSubscriptionType(r.subscriptionType)
-      if (r.managementType) setManagementType(r.managementType)
+      // OCR 이 읽은 상품명은 공통코드에 있는 값일 때만 반영한다 —
+      // 목록에 없는 값을 넣으면 select 가 빈 채로 보여 담당자가 왜 안 들어갔는지 알 수 없다.
+      if (r.subscriptionType && codes.subscriptionProducts.includes(r.subscriptionType))
+        setSubscriptionType(r.subscriptionType)
+      if (r.managementType && codes.subscriptionProducts.includes(r.managementType))
+        setManagementType(r.managementType)
       if (up) {
         setDriveFileId(up.driveFileId)
         setDriveViewUrl(up.driveViewUrl)
