@@ -141,6 +141,13 @@ export default function TextbookApplyMobilePage() {
           <ChevronLeft size={14} /> 처음으로
         </button>
         <div className="flex items-center gap-2">
+          {/* 점주/점장은 첫 화면 메뉴가 없어 여기서만 조회 화면으로 갈 수 있다 */}
+          <button
+            onClick={() => navigate('/my-applications')}
+            className="text-[11px] font-semibold text-primary hover:brightness-125"
+          >
+            내역 조회
+          </button>
           <span className="max-w-[120px] truncate text-[11px] text-[#64748b]">{user?.email}</span>
           <button onClick={() => signOut()} className="text-[11px] font-semibold text-[#94a3b8] hover:text-white">
             로그아웃

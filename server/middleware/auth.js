@@ -124,13 +124,17 @@ const requireAdmin = requireRole('admin')
  * ══════════════════════════════════════════════════════════ */
 
 const ANY = '*' // 로그인한 사용자면 누구나(역할 무관)
-const FIELD = ['admin', 'part_leader', 'field_partner']
+const FIELD = ['admin', 'part_leader', 'field_partner'] // 섭외 조직 — 매장섭외관리
+const STORE = ['admin', 'store_manager', 'store_owner'] // 매장 운영 — 교재 판매·배송
 
 const POLICY = [
   // 본인 정보 — 모든 로그인 사용자
   { prefix: '/api/me', roles: ANY },
-  // 교재구매 신청 — 관리자·섭외조직·점주 모두 사용
-  { prefix: '/api/textbook-applications', roles: ANY },
+  // 본인 신청·배송 조회 — 범위(본인/지점)는 라우트 안에서 req.user 로 강제한다
+  { prefix: '/api/my-applications', roles: STORE },
+  // 교재구매 신청 — 책 판매는 매장 운영 조직(점주·점장)의 업무다.
+  // 섭외 조직(파트너·파트장)은 교재 판매와 무관하므로 접근시키지 않는다.
+  { prefix: '/api/textbook-applications', roles: STORE },
   // 첨부·OCR·임시파일 — 신청/매출 등록 과정에서 공용
   { prefix: '/api/ocr', roles: ANY },
   { prefix: '/api/drive/upload', roles: ANY },

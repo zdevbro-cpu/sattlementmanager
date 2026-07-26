@@ -768,14 +768,32 @@ app.post('/api/shipments/:id/status', async (req, res) => {
   }
 })
 
+// ── 본인 신청·배송 조회 (모바일) ──
+// 점주는 본인이 올린 건만, 점장은 자기 지점 건까지 본다. 범위는 서버가 강제한다(textbookRepo.scopeFor).
+// 구매자가 배송을 문의하면 점주가 여기서 확인해 알려주는 흐름이라, 배송 상태는 요약해서 내려준다.
+app.get('/api/my-applications', async (req, res) => {
+  try {
+    const list = await textbookRepo.listMyApplications(req.user || {}, {
+      keyword: req.query.keyword || '',
+    })
+    res.json({ ok: true, data: list })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 // ── 교재구매 신청 관리 (교재구입 정보만 — 결제/입금은 매출관리에서 별도 처리) ──
 app.get('/api/textbook-applications', async (req, res) => {
   try {
-    const list = await textbookRepo.listApplications({
-      startDate: req.query.startDate || '',
-      endDate: req.query.endDate || '',
-      buyer: req.query.buyer || '',
-    })
+    // 조회 범위를 서버가 강제한다 — 점주는 본인 건, 점장은 자기 지점 건만 받는다
+    const list = await textbookRepo.listApplications(
+      {
+        startDate: req.query.startDate || '',
+        endDate: req.query.endDate || '',
+        buyer: req.query.buyer || '',
+      },
+      req.user || null,
+    )
     res.json({ ok: true, data: list })
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message })
@@ -795,7 +813,12 @@ app.get('/api/textbook-applications/:id', async (req, res) => {
 app.post('/api/textbook-applications', async (req, res) => {
   try {
     const { payment, ...applicationData } = req.body || {}
-    const a = await textbookRepo.createApplication(applicationData)
+    // 소유자·지점은 클라이언트 값을 신뢰하지 않고 토큰에서 채운다 — 위조하면 남의 신청을 조회할 수 있다
+    const a = await textbookRepo.createApplication({
+      ...applicationData,
+      createdByEmail: req.user?.email || '',
+      createdByBranch: req.user?.branch || '',
+    })
     // 신청 접수는 항상 성공 처리 — 매출 연결 실패는 로그만 남기고 신청 결과에 영향을 주지 않는다.
     if (payment && (payment.totalAmount || 0) > 0) {
       try {

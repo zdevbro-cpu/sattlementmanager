@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import type { ComponentType } from 'react'
-import { ChevronRight, LayoutDashboard, NotebookPen, ScanLine, Store, Wallet } from 'lucide-react'
+import { ChevronRight, ClipboardList, LayoutDashboard, NotebookPen, ScanLine, Store, Wallet } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 
 /** 모바일 접속 시 첫 화면 — 결재/교재신청 중 사용할 기능을 선택한다. */
@@ -60,6 +60,14 @@ export default function MobileHomePage() {
           tint="#e2f7ec"
           fg="#16a34a"
           onClick={() => navigate('/textbook-apply')}
+        />
+        <MenuCard
+          icon={ClipboardList}
+          title="내 신청·배송 조회"
+          sub="교재신청 내역과 배송 상태 확인 (송장번호·택배사 조회)"
+          tint="#e0edff"
+          fg="#2563eb"
+          onClick={() => navigate('/my-applications')}
         />
         <MenuCard
           icon={Store}
