@@ -17,6 +17,9 @@ const PUBLIC_ROUTES = [
   { method: 'GET', path: '/api/health' },
   { method: 'POST', path: '/api/staff-requests' }, // 파트너 본인 가입요청(공개 페이지 /staff-request)
   { method: 'GET', path: '/api/codes' }, // 가입요청 공개 페이지의 사업부 선택창 — 로그인 전에도 읽어야 한다
+  // 점주 온보딩 — 아직 계정이 없는 사람이 쓰는 경로라 로그인 전에 열려 있어야 한다.
+  // 무차별 대입은 라우트 안에서 IP·고유번호 단위 rate limit 으로 막는다.
+  { method: 'POST', path: '/api/owner/verify' },
 ]
 
 /** /api/cron/* 와 /api/admin/migrate 는 기존 CRON_SECRET 헤더로 보호된다(사용자 토큰 아님) */
