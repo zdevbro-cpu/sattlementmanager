@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Building2, CheckCircle2, Layers, Plus, RefreshCw, Timer, Trash2, Eye } from 'lucide-react'
 import type { ComponentType } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
-import Badge, { dDayTone, storeStatusTone } from '../../components/ui/Badge'
+import Badge, { branchTone, dDayTone, storeStatusTone } from '../../components/ui/Badge'
 import Pagination from '../../components/ui/Pagination'
 import { EMPTY_STORE_FILTER, RELEASED_FILTER_VALUE, STORE_STATUSES, type Store, type StoreFilter } from '../../types/store'
 import { deleteStore, listStores, summarizeStores } from './storeStore'
@@ -48,14 +48,22 @@ export default function StoreListPage() {
   const { user } = useAuth()
   // 파트너 계정(staff_accounts)으로 로그인한 경우만 매장 등록 권한 여부를 확인한다 — 못 찾으면(=관리자 계정) 제한 없이 허용
   const [canRegister, setCanRegister] = useState(true)
+  // 선점담당 연락처·사업부 표시용 — 이름으로 파트너 계정 정보를 찾는다
+  const [staffInfoByName, setStaffInfoByName] = useState<Record<string, { phone: string; businessUnit: string }>>({})
 
   useEffect(() => {
     let alive = true
-    if (!user?.email) return
     listStaff().then((list) => {
       if (!alive) return
-      const me = list.find((s) => s.email === user.email)
-      setCanRegister(!me || me.canRegisterStore)
+      if (user?.email) {
+        const me = list.find((s) => s.email === user.email)
+        setCanRegister(!me || me.canRegisterStore)
+      }
+      const map: Record<string, { phone: string; businessUnit: string }> = {}
+      list.forEach((s) => {
+        if (s.name) map[s.name] = { phone: s.phone, businessUnit: s.businessUnit }
+      })
+      setStaffInfoByName(map)
     })
     return () => {
       alive = false
@@ -226,14 +234,14 @@ export default function StoreListPage() {
                 <th colSpan={6} className="px-3 py-1 font-semibold whitespace-nowrap text-center border-x border-border">
                   매장
                 </th>
-                <th colSpan={2} className="px-3 py-1 font-semibold whitespace-nowrap text-center border-r border-border">
+                <th colSpan={4} className="px-3 py-1 font-semibold whitespace-nowrap text-center border-r border-border">
                   선점 정보
                 </th>
                 <th className="px-3 py-1 font-semibold whitespace-nowrap"></th>
                 <th className="px-3 py-1 font-semibold whitespace-nowrap"></th>
               </tr>
               <tr className="text-left text-[12.5px] text-[#94a3b8] border-b border-border">
-                {['번호', '매장명', '상태', '주소', '전화번호', '담당자', '담당자연락처', '선점파트', '선점담당', '만료D-day', '관리'].map((h) => (
+                {['번호', '매장명', '상태', '주소', '전화번호', '담당자', '담당자연락처', '사업부', '선점파트', '선점담당', '선점담당연락처', '만료D-day', '관리'].map((h) => (
                   <th
                     key={h}
                     className={`px-3 py-1.5 font-semibold whitespace-nowrap ${h === '관리' ? 'text-center' : ''}`}
@@ -261,8 +269,20 @@ export default function StoreListPage() {
                     <td className="px-3 py-1.5 tabular whitespace-nowrap">{s.storePhone || '-'}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{s.contactName || '-'}</td>
                     <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{s.contactMobile || '-'}</td>
+                    <td className="px-3 py-1.5 whitespace-nowrap">
+                      {s.claimedStaff ? (
+                        <Badge tone={branchTone(staffInfoByName[s.claimedStaff]?.businessUnit || 'LASON(본사)')}>
+                          {staffInfoByName[s.claimedStaff]?.businessUnit || 'LASON(본사)'}
+                        </Badge>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{s.claimedPart || '-'}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{s.claimedStaff || '-'}</td>
+                    <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">
+                      {(s.claimedStaff && staffInfoByName[s.claimedStaff]?.phone) || '-'}
+                    </td>
                     <td className="px-3 py-1.5 tabular whitespace-nowrap">
                       {d === null ? '-' : <Badge tone={dDayTone(d)}>{d >= 0 ? `D-${d}` : `만료 D+${-d}`}</Badge>}
                     </td>
@@ -289,7 +309,7 @@ export default function StoreListPage() {
               })}
               {visibleRows.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="px-3 py-10 text-center text-[#64748b]">
+                  <td colSpan={13} className="px-3 py-10 text-center text-[#64748b]">
                     {loading ? '불러오는 중…' : '조건에 맞는 매장이 없습니다.'}
                   </td>
                 </tr>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Check, Eye, KeyRound, Trash2, UserCheck, UserX, X } from 'lucide-react'
-import Badge from '../../components/ui/Badge'
+import Badge, { branchTone } from '../../components/ui/Badge'
 import { dateText } from '../../lib/format'
 import { STAFF_ROLE_LABEL, type Staff, type StaffRequest } from '../../types/staff'
 import {
@@ -105,7 +105,7 @@ export default function StaffManagePage() {
             <table className="w-full min-w-[800px] text-[13px]">
               <thead>
                 <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
-                  {['이름', '전화번호', '이메일', '희망역할', '희망소속', '신청일', '처리'].map((h) => (
+                  {['이름', '전화번호', '이메일', '사업부', '희망역할', '희망소속', '신청일', '처리'].map((h) => (
                     <th key={h} className={`px-3 py-1.5 font-semibold whitespace-nowrap ${h === '처리' ? 'text-center' : ''}`}>
                       {h}
                     </th>
@@ -118,6 +118,9 @@ export default function StaffManagePage() {
                     <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{r.name}</td>
                     <td className="px-3 py-1.5 tabular whitespace-nowrap">{r.phone || '-'}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{r.email}</td>
+                    <td className="px-3 py-1.5 whitespace-nowrap">
+                      {r.businessUnit ? <Badge tone={branchTone(r.businessUnit)}>{r.businessUnit}</Badge> : '-'}
+                    </td>
                     <td className="px-3 py-1.5 whitespace-nowrap">
                       <Badge tone={r.role === 'part_leader' ? 'blue' : 'green'}>{STAFF_ROLE_LABEL[r.role]}</Badge>
                     </td>
@@ -147,7 +150,7 @@ export default function StaffManagePage() {
                 ))}
                 {requests.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-3 py-8 text-center text-[#64748b]">
+                    <td colSpan={8} className="px-3 py-8 text-center text-[#64748b]">
                       {loading ? '불러오는 중…' : '대기중인 가입 요청이 없습니다.'}
                     </td>
                   </tr>
@@ -167,7 +170,7 @@ export default function StaffManagePage() {
             <table className="w-full min-w-[900px] text-[13px]">
               <thead>
                 <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
-                  {['이름', '전화번호', '이메일', '역할', '소속 파트', '상태', '등록일', '관리'].map((h) => (
+                  {['이름', '전화번호', '이메일', '사업부', '역할', '소속 파트', '상태', '등록일', '관리'].map((h) => (
                     <th key={h} className={`px-3 py-1.5 font-semibold whitespace-nowrap ${h === '관리' ? 'text-center' : ''}`}>
                       {h}
                     </th>
@@ -180,6 +183,9 @@ export default function StaffManagePage() {
                     <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{s.name}</td>
                     <td className="px-3 py-1.5 tabular whitespace-nowrap">{s.phone || '-'}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{s.email}</td>
+                    <td className="px-3 py-1.5 whitespace-nowrap">
+                      {s.businessUnit ? <Badge tone={branchTone(s.businessUnit)}>{s.businessUnit}</Badge> : '-'}
+                    </td>
                     <td className="px-3 py-1.5 whitespace-nowrap">
                       <Badge tone={s.role === 'part_leader' ? 'blue' : 'green'}>{STAFF_ROLE_LABEL[s.role]}</Badge>
                     </td>
@@ -225,7 +231,7 @@ export default function StaffManagePage() {
                 ))}
                 {staff.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-3 py-10 text-center text-[#64748b]">
+                    <td colSpan={9} className="px-3 py-10 text-center text-[#64748b]">
                       {loading ? '불러오는 중…' : '등록된 계정이 없습니다.'}
                     </td>
                   </tr>

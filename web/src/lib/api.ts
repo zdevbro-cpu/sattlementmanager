@@ -334,7 +334,7 @@ export function deleteStaffApi(id: string): Promise<void> {
 }
 export function updateStaffApi(
   id: string,
-  data: { name: string; phone: string; role: string; part: string; canRegisterStore: boolean },
+  data: { name: string; phone: string; businessUnit: string; role: string; part: string; canRegisterStore: boolean },
 ): Promise<Staff> {
   return sendJson(`/api/staff/${encodeURIComponent(id)}`, 'PATCH', data)
 }
@@ -346,6 +346,7 @@ export function submitStaffRequestApi(data: {
   name: string
   phone: string
   email: string
+  businessUnit: string
   role: string
   part: string
 }): Promise<StaffRequest> {
@@ -453,6 +454,38 @@ export function updateBranchesApi(value: string): Promise<string> {
   return sendJson('/api/system/config/branches', 'PATCH', { value })
 }
 
+// ── 은행/기관 목록 ────────────────────────────────────────
+export function fetchBanks(): Promise<string> {
+  return getData('/api/system/config/banks')
+}
+export function updateBanksApi(value: string): Promise<string> {
+  return sendJson('/api/system/config/banks', 'PATCH', { value })
+}
+
+// ── 제출서류 종류 ─────────────────────────────────────────
+export function fetchDocTypes(): Promise<string> {
+  return getData('/api/system/config/doc-types')
+}
+export function updateDocTypesApi(value: string): Promise<string> {
+  return sendJson('/api/system/config/doc-types', 'PATCH', { value })
+}
+
+// ── 매출구분(카드결제 분류) ──────────────────────────────────
+export function fetchSalesCategories(): Promise<string> {
+  return getData('/api/system/config/sales-categories')
+}
+export function updateSalesCategoriesApi(value: string): Promise<string> {
+  return sendJson('/api/system/config/sales-categories', 'PATCH', { value })
+}
+
+// ── 정산 수수료율 ────────────────────────────────────────
+export function fetchSettlementFeeRate(): Promise<string> {
+  return getData('/api/system/config/settlement-fee-rate')
+}
+export function updateSettlementFeeRateApi(value: string): Promise<string> {
+  return sendJson('/api/system/config/settlement-fee-rate', 'PATCH', { value })
+}
+
 // ── 교재구매 신청 관리 ──────────────────────────────────────
 export function fetchTextbookApplications(
   filter: TextbookApplicationFilter,
@@ -501,4 +534,25 @@ export async function generateTextbookPdf(
   if (!res.ok) throw new Error(`PDF 생성 실패 (${res.status})`)
   const json = await res.json()
   return { driveFileId: json.driveFileId ?? '', driveViewUrl: json.driveViewUrl ?? '#' }
+}
+
+// ── 시스템관리 공통코드 (로그인 없이도 조회 가능 — 파트너 가입요청 페이지에서 사용) ──
+export interface CodeSetApi {
+  orgs: string[]
+  contractTypes: string[]
+  statuses: string[]
+  businessUnits: string[]
+  appointmentStatuses: string[]
+}
+export function fetchCodes(): Promise<CodeSetApi> {
+  return getData('/api/codes')
+}
+export function addCodeApi(kind: string, value: string): Promise<CodeSetApi> {
+  return sendJson('/api/codes', 'POST', { kind, value })
+}
+export function removeCodeApi(kind: string, value: string): Promise<CodeSetApi> {
+  return sendJson('/api/codes', 'DELETE', { kind, value })
+}
+export function reorderCodeApi(kind: string, value: string, direction: 'up' | 'down'): Promise<CodeSetApi> {
+  return sendJson('/api/codes/reorder', 'POST', { kind, value, direction })
 }

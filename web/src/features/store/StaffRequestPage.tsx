@@ -5,6 +5,7 @@ import type { StaffRole } from '../../types/staff'
 import { submitStaffRequest } from './staffStore'
 import { EMPTY_FILTER } from '../../types/contract'
 import { listContracts } from '../contract/contractStore'
+import { useCodes } from '../../lib/codeStore'
 
 const inputCls =
   'h-11 w-full rounded-[8px] bg-input border border-border px-3 text-[14px] text-input-text outline-none focus:border-primary'
@@ -14,9 +15,11 @@ const inputCls =
  * 본인이 이름/전화번호/이메일/희망역할/희망소속을 제출하면 관리자 승인 후 비밀번호 설정 이메일을 받는다.
  */
 export default function StaffRequestPage() {
+  const codes = useCodes()
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
+  const [businessUnit, setBusinessUnit] = useState('')
   const [role, setRole] = useState<StaffRole>('field_partner')
   const [part, setPart] = useState('')
   const [partLeaders, setPartLeaders] = useState<string[]>([])
@@ -49,7 +52,7 @@ export default function StaffRequestPage() {
     setSaving(true)
     setErr('')
     try {
-      await submitStaffRequest({ name: name.trim(), phone, email: email.trim(), role, part })
+      await submitStaffRequest({ name: name.trim(), phone, email: email.trim(), businessUnit, role, part })
       setDone(true)
     } catch (e) {
       setErr((e as Error).message)
@@ -93,10 +96,14 @@ export default function StaffRequestPage() {
           <Field label="이메일 (로그인 아이디)">
             <input value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} placeholder="example@company.com" />
           </Field>
-          <Field label="희망 역할">
-            <select value={role} onChange={(e) => setRole(e.target.value as StaffRole)} className={inputCls}>
-              <option value="field_partner">파트너</option>
-              <option value="part_leader">파트장</option>
+          <Field label="사업부">
+            <select value={businessUnit} onChange={(e) => setBusinessUnit(e.target.value)} className={inputCls}>
+              <option value="">선택 안 함</option>
+              {codes.businessUnits.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
             </select>
           </Field>
           <Field label="소속 파트">
@@ -107,6 +114,12 @@ export default function StaffRequestPage() {
                   {n}
                 </option>
               ))}
+            </select>
+          </Field>
+          <Field label="희망 역할">
+            <select value={role} onChange={(e) => setRole(e.target.value as StaffRole)} className={inputCls}>
+              <option value="field_partner">파트너</option>
+              <option value="part_leader">파트장</option>
             </select>
           </Field>
         </div>

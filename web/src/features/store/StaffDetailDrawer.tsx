@@ -7,6 +7,7 @@ import { STAFF_ROLE_LABEL, type Staff } from '../../types/staff'
 import { updateStaff } from './staffStore'
 import { EMPTY_FILTER } from '../../types/contract'
 import { listContracts } from '../contract/contractStore'
+import { useCodes } from '../../lib/codeStore'
 
 const inputCls =
   'h-9 w-full rounded-[8px] bg-input border border-border px-2.5 text-[13px] text-input-text outline-none focus:border-primary'
@@ -21,8 +22,10 @@ export default function StaffDetailDrawer({
   onClose: () => void
   onSaved: () => void
 }) {
+  const codes = useCodes()
   const [name, setName] = useState(staff.name)
   const [phone, setPhone] = useState(staff.phone)
+  const [businessUnit, setBusinessUnit] = useState(staff.businessUnit)
   const [role, setRole] = useState(staff.role)
   const [part, setPart] = useState(staff.part)
   const [canRegisterStore, setCanRegisterStore] = useState(staff.canRegisterStore)
@@ -50,7 +53,7 @@ export default function StaffDetailDrawer({
     setSaving(true)
     setErr('')
     try {
-      await updateStaff(staff.id, { name, phone, role, part, canRegisterStore })
+      await updateStaff(staff.id, { name, phone, businessUnit, role, part, canRegisterStore })
       onSaved()
     } catch (e) {
       setErr((e as Error).message)
@@ -83,6 +86,16 @@ export default function StaffDetailDrawer({
           </Field>
           <Field label="전화번호">
             <input value={phone} onChange={(e) => setPhone(phoneFmt(e.target.value))} className={inputCls} />
+          </Field>
+          <Field label="사업부">
+            <select value={businessUnit} onChange={(e) => setBusinessUnit(e.target.value)} className={inputCls}>
+              <option value="">선택 안 함</option>
+              {codes.businessUnits.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="역할">
             <select value={role} onChange={(e) => setRole(e.target.value as Staff['role'])} className={inputCls}>

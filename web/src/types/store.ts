@@ -57,6 +57,7 @@ export interface Store {
   ceoConfirm: string
   surveyDate: string
   status: string
+  businessUnit: string
   claimedPart: string
   claimedStaff: string
   claimedAt: string

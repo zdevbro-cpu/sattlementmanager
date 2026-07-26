@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, X } from 'lucide-react'
+import { AlertTriangle, Paperclip, X } from 'lucide-react'
 import { STORE_STATUSES, type Store } from '../../types/store'
-import { createStore, findDuplicates } from './storeStore'
+import { createStore, findDuplicates, uploadPhoto } from './storeStore'
 import { listStaff } from './staffStore'
 import { phoneFmt } from '../../lib/format'
 import { EMPTY_FILTER } from '../../types/contract'
 import { listContracts } from '../contract/contractStore'
 import { useAuth } from '../auth/AuthContext'
+import DateTextInput from '../../components/ui/DateTextInput'
+import DropZone from '../../components/ui/DropZone'
+import { useCodes } from '../../lib/codeStore'
 
 const inputCls =
-  'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
+  'h-8 w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
 
 interface FormState {
   storeName: string
@@ -29,8 +32,10 @@ interface FormState {
   contactPosition: string
   contactMobile: string
   decisionAuthority: string
+  businessUnit: string
   claimedPart: string
   claimedStaff: string
+  surveyDate: string
   memo: string
 }
 
@@ -52,8 +57,10 @@ const EMPTY_FORM: FormState = {
   contactPosition: '',
   contactMobile: '',
   decisionAuthority: '',
+  businessUnit: '',
   claimedPart: '',
   claimedStaff: '',
+  surveyDate: '',
   memo: '',
 }
 
@@ -75,7 +82,10 @@ export default function StoreRegisterModal({
   const [dupCandidates, setDupCandidates] = useState<Store[] | null>(null)
   const [checking, setChecking] = useState(false)
   const [partLeaders, setPartLeaders] = useState<string[]>([])
+  const [staffInfoByName, setStaffInfoByName] = useState<Record<string, { phone: string; businessUnit: string }>>({})
+  const [photoFiles, setPhotoFiles] = useState<File[]>([])
   const { user } = useAuth()
+  const codes = useCodes()
 
   useEffect(() => {
     let alive = true
@@ -96,15 +106,22 @@ export default function StoreRegisterModal({
   // 선점 담당자·선점 파트는 로그인한 사용자의 파트너 계정 기본정보로 자동 채우되, 수동으로도 변경할 수 있다
   useEffect(() => {
     let alive = true
-    if (!user?.email) return
     listStaff().then((list) => {
       if (!alive) return
+      const map: Record<string, { phone: string; businessUnit: string }> = {}
+      list.forEach((s) => {
+        if (s.name) map[s.name] = { phone: s.phone, businessUnit: s.businessUnit }
+      })
+      setStaffInfoByName(map)
+
+      if (!user?.email) return
       const me = list.find((s) => s.email === user.email)
       // 매칭되는 파트너 계정이 없으면(관리자 로그인 등) 이메일로 채우지 않고 공란으로 두어 직접 입력하게 한다
       setF((prev) => ({
         ...prev,
         claimedStaff: prev.claimedStaff || me?.name || '',
         claimedPart: prev.claimedPart || me?.part || '',
+        businessUnit: prev.businessUnit || me?.businessUnit || '',
       }))
     })
     return () => {
@@ -113,13 +130,15 @@ export default function StoreRegisterModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.email])
 
+  const claimedStaffInfo = staffInfoByName[f.claimedStaff]
+
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF({ ...f, [k]: v })
 
   const doCreate = async () => {
     setSaving(true)
     setErr('')
     try {
-      await createStore({
+      const created = await createStore({
         storeName: f.storeName.trim(),
         status: f.status,
         roadAddress: f.roadAddress.trim(),
@@ -137,10 +156,16 @@ export default function StoreRegisterModal({
         contactPosition: f.contactPosition,
         contactMobile: f.contactMobile,
         decisionAuthority: f.decisionAuthority,
+        businessUnit: f.businessUnit,
         claimedPart: f.claimedPart,
         claimedStaff: f.claimedStaff,
+        surveyDate: f.surveyDate,
         memo: f.memo,
       })
+      // 등록 시점엔 매장 id가 없어 로컬에 담아뒀던 사진을, 매장 생성 직후 순서대로 업로드해 Drive·목록과 연계한다
+      for (const file of photoFiles) {
+        await uploadPhoto(created.id, file)
+      }
       onCreated()
     } catch (e) {
       setErr((e as Error).message)
@@ -185,23 +210,14 @@ export default function StoreRegisterModal({
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-5 max-h-[74vh] overflow-y-auto">
+        <div className="px-6 py-4 space-y-3 max-h-[74vh] overflow-y-auto">
           <section>
-            <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">
-              매장
+            <h3 className="mb-1.5 text-[13px] font-extrabold text-text-strong">
+              1. 매장 기본정보
             </h3>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               <Field label="매장명 *">
                 <input value={f.storeName} onChange={(e) => set('storeName', e.target.value)} className={inputCls} />
-              </Field>
-              <Field label="상태">
-                <select value={f.status} onChange={(e) => set('status', e.target.value)} className={inputCls}>
-                  {STORE_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
               </Field>
               <Field label="도로명주소 *">
                 <input value={f.roadAddress} onChange={(e) => set('roadAddress', e.target.value)} className={inputCls} />
@@ -212,29 +228,35 @@ export default function StoreRegisterModal({
               <Field label="매장 전화번호 *">
                 <input value={f.storePhone} onChange={(e) => set('storePhone', phoneFmt(e.target.value))} className={inputCls} placeholder="02-1234-5678" />
               </Field>
-              <Field label="담당자">
-                <input value={f.contactName} onChange={(e) => set('contactName', e.target.value)} className={inputCls} />
-              </Field>
-              <Field label="연락처">
-                <input value={f.contactMobile} onChange={(e) => set('contactMobile', phoneFmt(e.target.value))} className={inputCls} />
-              </Field>
               <Field label="사업자등록번호">
                 <input value={f.businessRegNo} onChange={(e) => set('businessRegNo', e.target.value)} className={inputCls} placeholder="실무협의 단계부터 필수" />
+              </Field>
+              <Field label="업종/업태">
+                <input value={f.businessType} onChange={(e) => set('businessType', e.target.value)} className={inputCls} placeholder="예: 마트, 서점, 카페" />
+              </Field>
+              <Field label="체인/브랜드 명">
+                <input value={f.chainBrand} onChange={(e) => set('chainBrand', e.target.value)} className={inputCls} />
+              </Field>
+              <Field label="상태">
+                <select value={f.status} onChange={(e) => set('status', e.target.value)} className={inputCls}>
+                  {STORE_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
               </Field>
             </div>
           </section>
 
           <section>
-            <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">매장 상세정보 (선택)</h3>
-            <div className="grid grid-cols-3 gap-3">
-              <Field label="업종/업태">
-                <input value={f.businessType} onChange={(e) => set('businessType', e.target.value)} className={inputCls} placeholder="예: 마트, 서점, 카페" />
-              </Field>
-              <Field label="소속 체인/브랜드">
-                <input value={f.chainBrand} onChange={(e) => set('chainBrand', e.target.value)} className={inputCls} />
-              </Field>
+            <h3 className="mb-1.5 text-[13px] font-extrabold text-text-strong">2. 공간 · 상권</h3>
+            <div className="grid grid-cols-3 gap-2">
               <Field label="층/위치">
                 <input value={f.floorLocation} onChange={(e) => set('floorLocation', e.target.value)} className={inputCls} placeholder="예: 1층 입구" />
+              </Field>
+              <Field label="영업시간">
+                <input value={f.businessHours} onChange={(e) => set('businessHours', e.target.value)} className={inputCls} />
               </Field>
               <Field label="전체 면적">
                 <input value={f.totalArea} onChange={(e) => set('totalArea', e.target.value)} className={inputCls} />
@@ -242,17 +264,8 @@ export default function StoreRegisterModal({
               <Field label="입점 가능 면적">
                 <input value={f.availableArea} onChange={(e) => set('availableArea', e.target.value)} className={inputCls} />
               </Field>
-              <Field label="영업시간">
-                <input value={f.businessHours} onChange={(e) => set('businessHours', e.target.value)} className={inputCls} />
-              </Field>
-              <Field label="직위">
-                <input value={f.contactPosition} onChange={(e) => set('contactPosition', e.target.value)} className={inputCls} placeholder="점주/점장/본사담당" />
-              </Field>
-              <Field label="의사결정권">
-                <input value={f.decisionAuthority} onChange={(e) => set('decisionAuthority', e.target.value)} className={inputCls} placeholder="점주 직접 / 체인 본사 승인 필요" />
-              </Field>
             </div>
-            <div className="mt-3">
+            <div className="mt-2">
               <Field label="상권 특성 메모">
                 <input value={f.commercialNote} onChange={(e) => set('commercialNote', e.target.value)} className={inputCls} placeholder="유동인구, 상권 특성 등" />
               </Field>
@@ -260,8 +273,36 @@ export default function StoreRegisterModal({
           </section>
 
           <section>
-            <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">선점 정보</h3>
-            <div className="grid grid-cols-3 gap-3">
+            <h3 className="mb-1.5 text-[13px] font-extrabold text-text-strong">3. 매장 담당자 (의사결정 라인)</h3>
+            <div className="grid grid-cols-3 gap-2">
+              <Field label="담당자명">
+                <input value={f.contactName} onChange={(e) => set('contactName', e.target.value)} className={inputCls} />
+              </Field>
+              <Field label="직위">
+                <input value={f.contactPosition} onChange={(e) => set('contactPosition', e.target.value)} className={inputCls} placeholder="점주/점장/본사담당" />
+              </Field>
+              <Field label="휴대폰">
+                <input value={f.contactMobile} onChange={(e) => set('contactMobile', phoneFmt(e.target.value))} className={inputCls} />
+              </Field>
+              <Field label="의사결정권">
+                <input value={f.decisionAuthority} onChange={(e) => set('decisionAuthority', e.target.value)} className={inputCls} placeholder="점주 직접 / 체인 본사 승인 필요" />
+              </Field>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="mb-1.5 text-[13px] font-extrabold text-text-strong">4. 선점 관리</h3>
+            <div className="grid grid-cols-3 gap-2">
+              <Field label="사업부">
+                <select value={f.businessUnit} onChange={(e) => set('businessUnit', e.target.value)} className={inputCls}>
+                  <option value="">선택 안 함</option>
+                  {codes.businessUnits.map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
+                </select>
+              </Field>
               <Field label="선점 파트 *">
                 <select value={f.claimedPart} onChange={(e) => set('claimedPart', e.target.value)} className={inputCls}>
                   <option value="">선택 안 함</option>
@@ -280,12 +321,53 @@ export default function StoreRegisterModal({
                   placeholder="로그인 계정 기준 자동 입력 (수정 가능)"
                 />
               </Field>
+              <Field label="전화번호">
+                <input value={claimedStaffInfo?.phone || ''} disabled className={inputCls} placeholder="선점 담당자 계정 기준 자동 표시" />
+              </Field>
+              <Field label="조사일">
+                <DateTextInput value={f.surveyDate} onChange={(v) => set('surveyDate', v)} className={inputCls} />
+              </Field>
             </div>
-            <div className="mt-3">
+            <div className="mt-2">
               <Field label="비고">
                 <input value={f.memo} onChange={(e) => set('memo', e.target.value)} className={inputCls} />
               </Field>
             </div>
+          </section>
+
+          <section>
+            <h3 className="mb-1.5 text-[13px] font-extrabold text-text-strong">5. 매장 사진</h3>
+            <DropZone
+              onFile={(file) => setPhotoFiles((prev) => [...prev, file])}
+              accept="image/*"
+              hint="매장 외관/내부/입점 예정 위치 등 — 등록 시 Drive에 저장되어 목록과 연계됩니다"
+            >
+              <div className="text-[12.5px] text-[#94a3b8]">
+                <span className="text-primary font-bold">클릭(탐색기)</span> 또는{' '}
+                <span className="text-primary font-bold">드래그드롭</span>으로 사진 추가 (여러 장 가능)
+              </div>
+            </DropZone>
+            {photoFiles.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {photoFiles.map((file, i) => (
+                  <li
+                    key={`${file.name}-${i}`}
+                    className="flex items-center justify-between rounded-[8px] border border-border px-3 py-1.5 text-[12.5px]"
+                  >
+                    <span className="inline-flex items-center gap-1.5 text-[#c2cde0]">
+                      <Paperclip size={12} /> {file.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPhotoFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="text-[11.5px] text-danger hover:underline"
+                    >
+                      제거
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
 
           {err && <div className="text-[13px] text-danger">{err}</div>}
@@ -354,7 +436,7 @@ export default function StoreRegisterModal({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[11.5px] font-semibold text-[#94a3b8]">{label}</span>
+      <span className="mb-0.5 block text-[11.5px] font-semibold text-[#94a3b8]">{label}</span>
       {children}
     </label>
   )

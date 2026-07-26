@@ -295,6 +295,7 @@ CREATE TABLE IF NOT EXISTS store_master (
   ceo_confirm            TEXT,                   -- CEO컨펌 여부(컨펌완료/컨펌전 등)
   survey_date            TEXT,                   -- 실측(예정)일
   status                 TEXT NOT NULL DEFAULT '신규등록', -- 신규등록/접촉중/협의중/계약진행/입점완료/보류/거절
+  business_unit          TEXT,                   -- 사업부 (선점 담당자 계정 기준 자동표시, 시스템관리 공통코드 목록에서 선택)
   claimed_part           TEXT,                   -- 선점 파트
   claimed_staff          TEXT,                   -- 선점 담당자
   claimed_at             DATE,
@@ -339,15 +340,16 @@ CREATE INDEX IF NOT EXISTS idx_store_photos_store ON store_photos(store_id);
 -- 파트너 계정(현장 파트장/파트너) — Firebase Auth 이메일/비밀번호 계정 + 역할·소속 정보
 -- 파트너 가입 요청 (본인 제출 → 관리자 승인/거절)
 CREATE TABLE IF NOT EXISTS staff_requests (
-  id          BIGSERIAL PRIMARY KEY,
-  name        TEXT NOT NULL,
-  phone       TEXT,
-  email       TEXT NOT NULL,
-  role        TEXT NOT NULL DEFAULT 'field_partner',
-  part        TEXT,
-  status      TEXT NOT NULL DEFAULT 'pending',       -- pending / approved / rejected
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  reviewed_at TIMESTAMPTZ
+  id            BIGSERIAL PRIMARY KEY,
+  name          TEXT NOT NULL,
+  phone         TEXT,
+  email         TEXT NOT NULL,
+  business_unit TEXT,                                  -- 사업부 (시스템관리 공통코드 목록에서 선택)
+  role          TEXT NOT NULL DEFAULT 'field_partner',
+  part          TEXT,
+  status        TEXT NOT NULL DEFAULT 'pending',       -- pending / approved / rejected
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  reviewed_at   TIMESTAMPTZ
 );
 
 CREATE TABLE IF NOT EXISTS staff_accounts (
@@ -355,9 +357,21 @@ CREATE TABLE IF NOT EXISTS staff_accounts (
   name        TEXT NOT NULL,
   phone       TEXT,
   email       TEXT NOT NULL,
+  business_unit TEXT,                    -- 사업부 (시스템관리 공통코드 목록에서 선택)
   role        TEXT NOT NULL DEFAULT 'field_partner', -- field_partner / part_leader
   part        TEXT,                      -- 소속 파트(파트장명)
   status      TEXT NOT NULL DEFAULT 'active',        -- active / inactive
   can_register_store BOOLEAN NOT NULL DEFAULT FALSE,  -- 매장섭외관리 신규 매장 등록 권한(본부 담당자 지정용)
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 시스템관리 공통코드 (소속/계약구분/상태/사업부/임용상태) — 로그인 없는 공개 페이지(파트너 가입요청)에서도
+-- 읽을 수 있어야 해서 브라우저 localStorage가 아니라 서버 DB에 둔다.
+CREATE TABLE IF NOT EXISTS system_codes (
+  id         BIGSERIAL PRIMARY KEY,
+  kind       TEXT NOT NULL,  -- orgs / contractTypes / statuses / businessUnits / appointmentStatuses
+  value      TEXT NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0,  -- 표시 순서 (관리자가 위/아래로 이동 가능)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (kind, value)
 );

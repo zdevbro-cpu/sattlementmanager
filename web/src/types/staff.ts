@@ -12,6 +12,7 @@ export interface Staff {
   name: string
   phone: string
   email: string
+  businessUnit: string
   role: StaffRole
   part: string
   status: 'active' | 'inactive'
@@ -25,6 +26,7 @@ export interface StaffRequest {
   name: string
   phone: string
   email: string
+  businessUnit: string
   role: StaffRole
   part: string
   status: 'pending' | 'approved' | 'rejected'

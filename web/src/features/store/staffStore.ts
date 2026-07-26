@@ -25,7 +25,7 @@ export function deleteStaff(id: string): Promise<void> {
 
 export function updateStaff(
   id: string,
-  data: { name: string; phone: string; role: string; part: string; canRegisterStore: boolean },
+  data: { name: string; phone: string; businessUnit: string; role: string; part: string; canRegisterStore: boolean },
 ): Promise<Staff> {
   return updateStaffApi(id, data)
 }
@@ -40,6 +40,7 @@ export function submitStaffRequest(data: {
   name: string
   phone: string
   email: string
+  businessUnit: string
   role: string
   part: string
 }): Promise<StaffRequest> {

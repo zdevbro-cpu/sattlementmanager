@@ -87,6 +87,7 @@ function mapStore(s, log, photos) {
     ceoConfirm: s.ceo_confirm || '',
     surveyDate: s.survey_date || '',
     status: s.status,
+    businessUnit: s.business_unit || '',
     claimedPart: s.claimed_part || '',
     claimedStaff: s.claimed_staff || '',
     claimedAt: isoDate(s.claimed_at),
@@ -204,8 +205,8 @@ async function createStore(data) {
         business_type, total_area, available_area, floor_location, business_hours, commercial_note,
         chain_brand, contact_name, contact_position, contact_mobile, decision_authority,
         progress_status, ceo_confirm, survey_date,
-        status, claimed_part, claimed_staff, claimed_at, claim_expires_at, memo, created_by, updated_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)`,
+        status, business_unit, claimed_part, claimed_staff, claimed_at, claim_expires_at, memo, created_by, updated_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)`,
     [
       id,
       data.businessRegNo || '',
@@ -230,6 +231,7 @@ async function createStore(data) {
       data.ceoConfirm || '',
       data.surveyDate || '',
       data.status || '신규등록',
+      data.businessUnit || '',
       data.claimedPart || '',
       data.claimedStaff || '',
       isPastContractComplete(data.status) ? null : today,
@@ -262,9 +264,9 @@ async function updateStore(id, data) {
        business_reg_no=$2, store_phone=$3, road_address=$4, detail_address=$5, lat=$6, lng=$7,
        store_name=$8, business_type=$9, total_area=$10, available_area=$11, floor_location=$12,
        business_hours=$13, commercial_note=$14, chain_brand=$15, contact_name=$16, contact_position=$17,
-       contact_mobile=$18, decision_authority=$19, status=$20, claimed_part=$21, claimed_staff=$22,
-       claimed_at=$23, claim_expires_at=$24, reject_reason=$25, recontact_available_at=$26,
-       memo=$27, updated_by=$28, progress_status=$29, ceo_confirm=$30, survey_date=$31, updated_at=now()
+       contact_mobile=$18, decision_authority=$19, status=$20, business_unit=$21, claimed_part=$22, claimed_staff=$23,
+       claimed_at=$24, claim_expires_at=$25, reject_reason=$26, recontact_available_at=$27,
+       memo=$28, updated_by=$29, progress_status=$30, ceo_confirm=$31, survey_date=$32, updated_at=now()
      WHERE id=$1`,
     [
       id,
@@ -287,6 +289,7 @@ async function updateStore(id, data) {
       data.contactMobile || '',
       data.decisionAuthority || '',
       nextStatus,
+      data.businessUnit || '',
       data.claimedPart || '',
       data.claimedStaff || '',
       claimedAt,

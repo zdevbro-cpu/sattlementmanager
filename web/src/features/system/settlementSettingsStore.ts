@@ -1,6 +1,7 @@
-// 정산 설정 — 수수료율 등, 시스템관리에서 관리, localStorage 영속화
-// (추후 정산센터/백엔드 연동 시 교체 가능)
+// 정산 설정 — 수수료율 등, 시스템관리에서 관리.
+// Cloud SQL(app_settings) 저장, localStorage는 로딩 전 캐시로만 사용.
 import { useSyncExternalStore } from 'react'
+import { fetchSettlementFeeRate, updateSettlementFeeRateApi } from '../../lib/api'
 
 export interface SettlementSettings {
   feeRate: number // 수수료율(%), 매출 대비 정산 시 차감
@@ -10,7 +11,7 @@ const DEFAULTS: SettlementSettings = { feeRate: 0 }
 
 const KEY = 'sm.settlementSettings.v1'
 
-function load(): SettlementSettings {
+function loadCache(): SettlementSettings {
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return DEFAULTS
@@ -21,13 +22,38 @@ function load(): SettlementSettings {
   }
 }
 
-let state: SettlementSettings = load()
+let state: SettlementSettings = loadCache()
 const listeners = new Set<() => void>()
 
 function emit() {
-  localStorage.setItem(KEY, JSON.stringify(state))
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state))
+  } catch {
+    /* ignore */
+  }
   listeners.forEach((l) => l())
 }
+
+function save() {
+  updateSettlementFeeRateApi(JSON.stringify(state)).catch(() => {
+    /* 서버 저장 실패는 조용히 무시 — 다음 로드 시 재동기화 */
+  })
+}
+
+fetchSettlementFeeRate()
+  .then((raw) => {
+    if (!raw) {
+      // 서버에 아직 값이 없으면(최초 마이그레이션) 이 기기의 기존 캐시를 그대로 서버에 올려 보존한다
+      save()
+      return
+    }
+    const parsed = JSON.parse(raw) as Partial<SettlementSettings>
+    state = { feeRate: Number(parsed.feeRate) || 0 }
+    emit()
+  })
+  .catch(() => {
+    /* 서버 미응답 시 로컬 캐시 유지 */
+  })
 
 export function getSettlementSettings(): SettlementSettings {
   return state
@@ -37,6 +63,7 @@ export function getSettlementSettings(): SettlementSettings {
 export function updateFeeRate(feeRate: number): void {
   state = { ...state, feeRate }
   emit()
+  save()
 }
 
 function subscribe(cb: () => void) {

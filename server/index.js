@@ -14,6 +14,7 @@ const repo = require('./contractRepo')
 const appointmentRepo = require('./appointmentRepo')
 const storeRepo = require('./storeRepo')
 const staffRepo = require('./staffRepo')
+const codesRepo = require('./codesRepo')
 const salesRepo = require('./salesRepo')
 const extraPayoutRepo = require('./extraPayoutRepo')
 const textbookRepo = require('./textbookRepo')
@@ -365,6 +366,43 @@ app.post('/api/stores/:id/photo', async (req, res) => {
       driveViewUrl: up.driveViewUrl,
     })
     res.json({ ok: true, data: s })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// ── 시스템관리 공통코드 (소속/계약구분/상태/사업부/임용상태) — 공개 가입요청 페이지에서도 조회 가능 ──
+app.get('/api/codes', async (req, res) => {
+  try {
+    const data = await codesRepo.listCodes()
+    res.json({ ok: true, data })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.post('/api/codes', async (req, res) => {
+  try {
+    const data = await codesRepo.addCode(req.body.kind, req.body.value)
+    res.json({ ok: true, data })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.delete('/api/codes', async (req, res) => {
+  try {
+    const data = await codesRepo.removeCode(req.body.kind, req.body.value)
+    res.json({ ok: true, data })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+app.post('/api/codes/reorder', async (req, res) => {
+  try {
+    const data = await codesRepo.reorderCode(req.body.kind, req.body.value, req.body.direction)
+    res.json({ ok: true, data })
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message })
   }
@@ -813,6 +851,98 @@ app.patch('/api/system/config/branches', async (req, res) => {
     const value = req.body?.value ?? ''
     await pool.query(
       `INSERT INTO app_settings (key, value) VALUES ('branches', $1)
+       ON CONFLICT (key) DO UPDATE SET value = $1`,
+      [value],
+    )
+    res.json({ ok: true, data: value })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// ── 은행/기관 목록 (임용계약 등록의 InstitutionSelect) ──
+app.get('/api/system/config/banks', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`SELECT value FROM app_settings WHERE key = 'banks'`)
+    res.json({ ok: true, data: rows[0]?.value ?? '' })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+app.patch('/api/system/config/banks', async (req, res) => {
+  try {
+    const value = req.body?.value ?? ''
+    await pool.query(
+      `INSERT INTO app_settings (key, value) VALUES ('banks', $1)
+       ON CONFLICT (key) DO UPDATE SET value = $1`,
+      [value],
+    )
+    res.json({ ok: true, data: value })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// ── 제출서류 종류 (임용계약 상세의 DocUploadList) ──
+app.get('/api/system/config/doc-types', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`SELECT value FROM app_settings WHERE key = 'doc_types'`)
+    res.json({ ok: true, data: rows[0]?.value ?? '' })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+app.patch('/api/system/config/doc-types', async (req, res) => {
+  try {
+    const value = req.body?.value ?? ''
+    await pool.query(
+      `INSERT INTO app_settings (key, value) VALUES ('doc_types', $1)
+       ON CONFLICT (key) DO UPDATE SET value = $1`,
+      [value],
+    )
+    res.json({ ok: true, data: value })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// ── 매출구분(카드결제 분류 + 최대매수) ──
+app.get('/api/system/config/sales-categories', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`SELECT value FROM app_settings WHERE key = 'sales_categories'`)
+    res.json({ ok: true, data: rows[0]?.value ?? '' })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+app.patch('/api/system/config/sales-categories', async (req, res) => {
+  try {
+    const value = req.body?.value ?? ''
+    await pool.query(
+      `INSERT INTO app_settings (key, value) VALUES ('sales_categories', $1)
+       ON CONFLICT (key) DO UPDATE SET value = $1`,
+      [value],
+    )
+    res.json({ ok: true, data: value })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// ── 정산 수수료율 ──
+app.get('/api/system/config/settlement-fee-rate', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`SELECT value FROM app_settings WHERE key = 'settlement_fee_rate'`)
+    res.json({ ok: true, data: rows[0]?.value ?? '' })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+app.patch('/api/system/config/settlement-fee-rate', async (req, res) => {
+  try {
+    const value = req.body?.value ?? ''
+    await pool.query(
+      `INSERT INTO app_settings (key, value) VALUES ('settlement_fee_rate', $1)
        ON CONFLICT (key) DO UPDATE SET value = $1`,
       [value],
     )

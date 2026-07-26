@@ -1,16 +1,18 @@
 import { useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import {
   addCode,
+  moveCode,
   removeCode,
   useCodes,
   type CodeKind,
 } from '../../lib/codeStore'
-import { addBank, removeBank, useBanks } from '../appointment/bankStore'
+import { addBank, moveBank, removeBank, useBanks } from '../appointment/bankStore'
 import { addBranch, removeBranch, useBranches } from '../appointment/branchStore'
 import {
   addDocType,
+  moveDocType,
   removeDocType,
   useDocTypes,
 } from '../appointment/docTypeStore'
@@ -23,6 +25,7 @@ import {
 } from './userStore'
 import {
   addSalesCategory,
+  moveSalesCategory,
   removeSalesCategory,
   useSalesCategories,
 } from '../sales/salesCategoryStore'
@@ -130,7 +133,7 @@ function CommonCodeAdmin() {
         계약등록에서 사용하는 소속·계약구분·상태, 은행/기관, 제출서류 종류와
         매출관리(일일보고 수신 이메일·카드결제 분류)를 관리합니다.
       </p>
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-6 gap-4">
         {GROUPS.map((g) => (
           <CodeCard
             key={g.kind}
@@ -240,12 +243,18 @@ function SalesCategoryCard() {
         </button>
       </div>
       <ul className="space-y-1.5 max-h-[280px] overflow-y-auto">
-        {categories.map((c) => (
+        {categories.map((c, i) => (
           <li
             key={c.name}
-            className="flex items-center justify-between rounded-[8px] border border-border px-3 py-1.5 text-[13px]"
+            className="flex items-center justify-between gap-2 rounded-[8px] border border-border px-3 py-1.5 text-[13px]"
           >
-            <span className="text-[#c2cde0]">{c.name}</span>
+            <span className="flex-1 min-w-0 truncate text-[#c2cde0]">{c.name}</span>
+            <MoveBtns
+              onUp={() => moveSalesCategory(c.name, 'up')}
+              onDown={() => moveSalesCategory(c.name, 'down')}
+              disableUp={i === 0}
+              disableDown={i === categories.length - 1}
+            />
             <DeleteBtn onClick={() => removeSalesCategory(c.name)} />
           </li>
         ))}
@@ -549,6 +558,40 @@ function DeleteBtn({ onClick }: { onClick: () => void }) {
   )
 }
 
+/** 목록 순서 위/아래 이동 버튼 */
+function MoveBtns({
+  onUp,
+  onDown,
+  disableUp,
+  disableDown,
+}: {
+  onUp: () => void
+  onDown: () => void
+  disableUp: boolean
+  disableDown: boolean
+}) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <button
+        onClick={onUp}
+        disabled={disableUp}
+        title="위로 이동"
+        className="inline-flex items-center justify-center text-[#94a3b8] hover:text-white disabled:opacity-25 disabled:pointer-events-none"
+      >
+        <ChevronUp size={13} />
+      </button>
+      <button
+        onClick={onDown}
+        disabled={disableDown}
+        title="아래로 이동"
+        className="inline-flex items-center justify-center text-[#94a3b8] hover:text-white disabled:opacity-25 disabled:pointer-events-none"
+      >
+        <ChevronDown size={13} />
+      </button>
+    </div>
+  )
+}
+
 function EmptySlot() {
   return (
     <div className="rounded-[14px] border border-dashed border-border/60 min-h-[180px] flex items-center justify-center text-center text-[12px] text-[#3f5983] px-3">
@@ -582,12 +625,18 @@ function DocTypeCard() {
         </button>
       </div>
       <ul className="space-y-1.5 max-h-[280px] overflow-y-auto">
-        {types.map((t) => (
+        {types.map((t, i) => (
           <li
             key={t}
-            className="flex items-center justify-between rounded-[8px] border border-border px-3 py-1.5 text-[13px]"
+            className="flex items-center justify-between gap-2 rounded-[8px] border border-border px-3 py-1.5 text-[13px]"
           >
-            <span className="text-[#c2cde0]">{t}</span>
+            <span className="flex-1 min-w-0 truncate text-[#c2cde0]">{t}</span>
+            <MoveBtns
+              onUp={() => moveDocType(t, 'up')}
+              onDown={() => moveDocType(t, 'down')}
+              disableUp={i === 0}
+              disableDown={i === types.length - 1}
+            />
             <DeleteBtn onClick={() => removeDocType(t)} />
           </li>
         ))}
@@ -678,12 +727,18 @@ function BankCard() {
         </button>
       </div>
       <ul className="space-y-1.5 max-h-[280px] overflow-y-auto">
-        {banks.map((b) => (
+        {banks.map((b, i) => (
           <li
             key={b}
-            className="flex items-center justify-between rounded-[8px] border border-border px-3 py-1.5 text-[13px]"
+            className="flex items-center justify-between gap-2 rounded-[8px] border border-border px-3 py-1.5 text-[13px]"
           >
-            <span className="text-[#c2cde0]">{b}</span>
+            <span className="flex-1 min-w-0 truncate text-[#c2cde0]">{b}</span>
+            <MoveBtns
+              onUp={() => moveBank(b, 'up')}
+              onDown={() => moveBank(b, 'down')}
+              disableUp={i === 0}
+              disableDown={i === banks.length - 1}
+            />
             <DeleteBtn onClick={() => removeBank(b)} />
           </li>
         ))}
@@ -707,8 +762,8 @@ function CodeCard({
   items: string[]
 }) {
   const [input, setInput] = useState('')
-  const submit = () => {
-    if (addCode(kind, input)) setInput('')
+  const submit = async () => {
+    if (await addCode(kind, input)) setInput('')
   }
   return (
     <div className="rounded-[14px] border border-border bg-card p-4">
@@ -728,13 +783,19 @@ function CodeCard({
           추가
         </button>
       </div>
-      <ul className="space-y-1.5">
-        {items.map((it) => (
+      <ul className="space-y-1.5 max-h-[280px] overflow-y-auto">
+        {items.map((it, i) => (
           <li
             key={it}
-            className="flex items-center justify-between rounded-[8px] border border-border px-3 py-1.5 text-[13px]"
+            className="flex items-center justify-between gap-2 rounded-[8px] border border-border px-3 py-1.5 text-[13px]"
           >
-            <span className="text-[#c2cde0]">{it}</span>
+            <span className="flex-1 min-w-0 truncate text-[#c2cde0]">{it}</span>
+            <MoveBtns
+              onUp={() => moveCode(kind, it, 'up')}
+              onDown={() => moveCode(kind, it, 'down')}
+              disableUp={i === 0}
+              disableDown={i === items.length - 1}
+            />
             <DeleteBtn onClick={() => removeCode(kind, it)} />
           </li>
         ))}
