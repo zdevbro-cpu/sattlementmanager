@@ -615,6 +615,8 @@ export interface CodeSetApi {
   appointmentStatuses: string[]
   /** 택배사 — 값이 배송조회 링크 매핑 키다(features/delivery/trackingUrl.ts) */
   carriers: string[]
+  /** 구독·관리회원 상품 (K2~K7, S2~S7) */
+  subscriptionProducts: string[]
 }
 export function fetchCodes(): Promise<CodeSetApi> {
   return getData('/api/codes')
@@ -718,4 +720,22 @@ export function sendShipmentListApi(ids: string[]): Promise<{ batchId: string; s
  */
 export function verifyOwnerApi(referralCode: string, name: string): Promise<{ message: string; sentTo: string }> {
   return sendJson('/api/owner/verify', 'POST', { referralCode, name })
+}
+
+/* ── 구독 정기발송 (구독·관리회원) ──────────────────────────
+ * 신청 시 1년치를 한 번에 결제하므로 매출은 1건이고, 배송만 회차마다 생성된다.
+ */
+export function startSubscriptionApi(
+  id: string,
+  data: { product: string; intervalDays?: number; total?: number },
+): Promise<TextbookApplication> {
+  return sendJson(`/api/textbook-applications/${encodeURIComponent(id)}/subscription`, 'POST', data)
+}
+
+export function pauseSubscriptionApi(id: string, paused: boolean): Promise<TextbookApplication> {
+  return sendJson(`/api/textbook-applications/${encodeURIComponent(id)}/subscription/pause`, 'POST', { paused })
+}
+
+export function cancelSubscriptionApi(id: string): Promise<TextbookApplication> {
+  return sendJson(`/api/textbook-applications/${encodeURIComponent(id)}/subscription/cancel`, 'POST')
 }

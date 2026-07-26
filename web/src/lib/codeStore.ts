@@ -12,6 +12,7 @@ export type CodeKind =
   | 'businessUnits'
   | 'appointmentStatuses'
   | 'carriers'
+  | 'subscriptionProducts'
 export type CodeSet = CodeSetApi
 
 const DEFAULTS: CodeSet = {
@@ -21,6 +22,7 @@ const DEFAULTS: CodeSet = {
   businessUnits: ['교육선교위원회', '교육사업부', 'LAS-On', '구독'],
   appointmentStatuses: ['정상', '휴직', '해지'],
   carriers: ['CJ대한통운', '롯데택배', '한진택배', '우체국택배', '로젠택배'],
+  subscriptionProducts: ['K2','K3','K4','K5','K6','K7','S2','S3','S4','S5','S6','S7'],
 }
 
 let state: CodeSet = { ...DEFAULTS }

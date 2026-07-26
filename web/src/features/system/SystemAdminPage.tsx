@@ -81,6 +81,11 @@ const GROUPS: { kind: CodeKind; title: string; desc: string }[] = [
     title: '택배사',
     desc: '배송관리 택배사 선택 (값이 배송조회 링크와 연결됨)',
   },
+  {
+    kind: 'subscriptionProducts',
+    title: '구독 상품',
+    desc: '구독·관리회원 상품 (K2~K7 / S2~S7) — 1년 정기발송 대상',
+  },
 ]
 
 type Tab = 'codes' | 'users' | 'partners'

@@ -1,7 +1,7 @@
 // 시스템관리 공통코드(소속/계약구분/상태/사업부/임용상태) — 로그인 없는 공개 페이지에서도 읽어야 해서 DB에 둔다
 const { pool } = require('./db')
 
-const KINDS = ['orgs', 'contractTypes', 'statuses', 'businessUnits', 'appointmentStatuses', 'carriers']
+const KINDS = ['orgs', 'contractTypes', 'statuses', 'businessUnits', 'appointmentStatuses', 'carriers', 'subscriptionProducts']
 
 const DEFAULTS = {
   orgs: ['A', 'B'],
@@ -12,6 +12,11 @@ const DEFAULTS = {
   // 택배사 — 배송 상세에서 선택한다. 값이 배송조회 링크 매핑 키라서 표기를 임의로 바꾸면 링크가 끊긴다
   // (web/src/features/delivery/trackingUrl.ts 의 키와 일치해야 한다).
   carriers: ['CJ대한통운', '롯데택배', '한진택배', '우체국택배', '로젠택배'],
+  // 구독·관리회원 상품 — 신청 시 고른 상품이 1년(2주 간격 26회) 동안 동일하게 발송된다
+  subscriptionProducts: [
+    'K2', 'K3', 'K4', 'K5', 'K6', 'K7',
+    'S2', 'S3', 'S4', 'S5', 'S6', 'S7',
+  ],
 }
 
 /**
@@ -40,7 +45,7 @@ async function seedIfEmpty() {
 async function listCodes() {
   await seedIfEmpty()
   const { rows } = await pool.query(`SELECT kind, value FROM system_codes ORDER BY sort_order ASC, id ASC`)
-  const result = { orgs: [], contractTypes: [], statuses: [], businessUnits: [], appointmentStatuses: [], carriers: [] }
+  const result = { orgs: [], contractTypes: [], statuses: [], businessUnits: [], appointmentStatuses: [], carriers: [], subscriptionProducts: [] }
   for (const r of rows) {
     if (result[r.kind]) result[r.kind].push(r.value)
   }

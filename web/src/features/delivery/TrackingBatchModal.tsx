@@ -47,6 +47,10 @@ export default function TrackingBatchModal({
 
   const current = shipments[index]
   const finished = index >= shipments.length
+  // 목록이 교재별로 정렬돼 오므로, 앞 건과 교재가 같으면 책을 바꿀 필요가 없다는 표시를 준다
+  const bookKey = (i: number) =>
+    i >= 0 && i < shipments.length ? `${shipments[i].book1Name || ''}|${shipments[i].book2Name || ''}` : null
+  const sameAsPrev = !finished && index > 0 && bookKey(index) === bookKey(index - 1)
 
   // 다음 건으로 넘어갈 때마다 입력창에 포커스를 돌려준다 — 스캔만 반복하면 되도록
   useEffect(() => {
@@ -143,16 +147,19 @@ export default function TrackingBatchModal({
           {!finished ? (
             <>
               <div className="rounded-[10px] border border-primary/50 bg-hover p-3">
-                <div className="flex items-center gap-2">
+                {/* 교재를 가장 크게 보여준다 — 목록이 교재별로 정렬돼 있어, 같은 교재가 이어지는 동안
+                    담당자는 책을 바꾸지 않고 스캔만 반복하면 된다. 교재가 바뀌는 지점이 눈에 띄어야 한다. */}
+                <div className="text-[16px] font-extrabold text-primary">
+                  {[current.book1Name, current.book2Name].filter(Boolean).join(' + ') || '교재 미지정'}
+                  {sameAsPrev && <span className="ml-2 text-[11.5px] font-semibold text-[#94a3b8]">이전과 동일</span>}
+                </div>
+                <div className="mt-1.5 flex items-center gap-2">
                   <span className="text-[15px] font-bold text-text-strong">{current.recipientName || '(수령인 미정)'}</span>
                   <Badge tone={shipmentStatusTone(current.status)}>{current.status}</Badge>
                   <span className="text-[12px] text-[#64748b]">#{current.id}</span>
                 </div>
                 <div className="mt-1 text-[12.5px] text-[#c2cde0]">{current.phone || '-'}</div>
                 <div className="mt-0.5 text-[12.5px] text-[#94a3b8] break-all">{current.address || '-'}</div>
-                <div className="mt-0.5 text-[12px] text-[#94a3b8]">
-                  {[current.book1Name, current.book2Name].filter(Boolean).join(', ') || '교재 미지정'}
-                </div>
               </div>
 
               <div>

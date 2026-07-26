@@ -771,6 +771,40 @@ app.post('/api/shipments/:id/status', async (req, res) => {
   }
 })
 
+// ── 구독 정기발송 (구독·관리회원 — 2주 간격 1년) ──
+// 신청 시 1년치를 한 번에 결제하므로 매출은 1건이고, 배송만 회차마다 생성된다.
+app.post('/api/textbook-applications/:id/subscription', async (req, res) => {
+  try {
+    const a = await textbookRepo.startSubscription(req.params.id, req.body || {})
+    if (!a) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: a })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// 일시정지·재개 — 재개하면 다음 예정일을 오늘 기준으로 다시 잡는다(밀린 회차를 몰아 보내지 않는다)
+app.post('/api/textbook-applications/:id/subscription/pause', async (req, res) => {
+  try {
+    const a = await textbookRepo.pauseSubscription(req.params.id, !!req.body?.paused)
+    if (!a) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: a })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// 해지 — 이후 회차를 만들지 않는다. 이미 나간 배송건은 건드리지 않는다.
+app.post('/api/textbook-applications/:id/subscription/cancel', async (req, res) => {
+  try {
+    const a = await textbookRepo.cancelSubscription(req.params.id)
+    if (!a) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: a })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 // ── 본인 신청·배송 조회 (모바일) ──
 // 점주는 본인이 올린 건만, 점장은 자기 지점 건까지 본다. 범위는 서버가 강제한다(textbookRepo.scopeFor).
 // 구매자가 배송을 문의하면 점주가 여기서 확인해 알려주는 흐름이라, 배송 상태는 요약해서 내려준다.
@@ -1569,6 +1603,26 @@ app.post('/api/shipments/send-list', async (req, res) => {
     const sent = await shipmentRepo.markSent(targets.map((s) => s.id), batchId, req.user?.email || '')
     res.json({ ok: true, data: { batchId, sent: sent.length, to: emails } })
   } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// ── 구독 정기발송 생성 (매일) ──
+// 예정일이 도래한 구독의 다음 회차 배송건을 만든다. 26회차를 미리 만들지 않는 이유는
+// 하루 20건이면 520행이 한꺼번에 쌓여 배송 대장을 쓸 수 없기 때문이다.
+// 회차 번호에 유니크 제약이 있어 두 번 돌아도 중복 생성되지 않는다.
+app.post('/api/cron/create-subscription-shipments', async (req, res) => {
+  try {
+    if (req.headers['x-cron-secret'] !== process.env.CRON_SECRET) {
+      return res.status(403).json({ ok: false, error: 'forbidden' })
+    }
+    const r = await textbookRepo.createDueSubscriptionShipments()
+    console.log(
+      `[cron/subscription] 대상 ${r.targets} · 생성 ${r.created} · 종료 ${r.finished} · 실패 ${r.failed}`,
+    )
+    res.json({ ok: true, data: r })
+  } catch (e) {
+    console.error('[cron/create-subscription-shipments] 실패:', e.message)
     res.status(500).json({ ok: false, error: e.message })
   }
 })

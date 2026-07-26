@@ -33,6 +33,14 @@ function mapApplication(a) {
     drivePdfViewUrl: a.drive_pdf_view_url || '',
     createdByEmail: a.created_by_email || '',
     createdByBranch: a.created_by_branch || '',
+    // 구독 정기발송 — 걸려 있지 않으면 shipProduct 가 빈 값이다
+    shipProduct: a.ship_product || '',
+    shipIntervalDays: a.ship_interval_days || 0,
+    shipTotal: a.ship_total || 0,
+    shipSeq: a.ship_seq || 0,
+    shipNextDate: isoDate(a.ship_next_date),
+    shipPaused: !!a.ship_paused,
+    shipCanceledAt: isoDate(a.ship_canceled_at),
     createdAt: isoDate(a.created_at),
   }
 }
@@ -72,8 +80,14 @@ async function listApplications(filter = {}, user = null) {
             sh.id  AS shipment_id,
             sh.status AS shipment_status
        FROM textbook_applications a
-       LEFT JOIN sales     sa ON sa.textbook_application_id = a.id
-       LEFT JOIN shipments sh ON sh.textbook_application_id = a.id
+       LEFT JOIN sales sa ON sa.textbook_application_id = a.id
+       -- 구독은 신청 1건에 배송이 여러 회차 생긴다. 그냥 조인하면 신청이 회차 수만큼
+       -- 중복 표시되므로, 가장 최근 배송건 하나만 붙인다.
+       LEFT JOIN LATERAL (
+         SELECT id, status FROM shipments
+          WHERE textbook_application_id = a.id
+          ORDER BY created_at DESC, id DESC LIMIT 1
+       ) sh ON TRUE
       ${scope.sql ? 'WHERE ' + scope.sql : ''}
       ORDER BY a.created_at DESC`,
     scope.params,
@@ -198,7 +212,12 @@ async function listMyApplications(user, filter = {}) {
             a.book1_name, a.book2_name, a.created_at,
             s.id AS shipment_id, s.status AS shipment_status, s.carrier, s.tracking_no
        FROM textbook_applications a
-       LEFT JOIN shipments s ON s.textbook_application_id = a.id
+       -- 구독 다회차 대비 — 최신 배송건 하나만 붙인다(중복행 방지)
+       LEFT JOIN LATERAL (
+         SELECT id, status, carrier, tracking_no FROM shipments
+          WHERE textbook_application_id = a.id
+          ORDER BY created_at DESC, id DESC LIMIT 1
+       ) s ON TRUE
       ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
       ORDER BY a.created_at DESC, a.id DESC`,
     params,
@@ -219,6 +238,113 @@ async function listMyApplications(user, filter = {}) {
     carrier: r.carrier || '',
     trackingNo: r.tracking_no || '',
   }))
+}
+
+/* ══════════════════════════════════════════════════════════
+ * 구독 정기발송 — 상품 K2~K7 / S2~S7, 2주 간격 1년(26회)
+ *   · 1년치를 신청 시 한 번에 결제하므로 매출은 1건뿐이다.
+ *   · 회차를 미리 만들지 않고, 예정일이 도래할 때 크론이 한 건씩 만든다.
+ * ══════════════════════════════════════════════════════════ */
+
+const SHIP_INTERVAL_DAYS = 14
+const SHIP_TOTAL = 26 // 1년 ÷ 2주
+
+/** 구독 시작 — 신청에 정기발송 일정을 건다. 1회차는 신청 시 이미 생성되므로 seq=1 로 본다. */
+async function startSubscription(id, { product, intervalDays, total } = {}) {
+  const iv = Number(intervalDays) > 0 ? Number(intervalDays) : SHIP_INTERVAL_DAYS
+  const tt = Number(total) > 0 ? Number(total) : SHIP_TOTAL
+  const { rows } = await pool.query(
+    `UPDATE textbook_applications
+        SET ship_product = $2, ship_interval_days = $3, ship_total = $4,
+            ship_seq = GREATEST(ship_seq, 1),
+            ship_next_date = (CURRENT_DATE + ($3 || ' days')::interval)::date,
+            ship_paused = FALSE, ship_canceled_at = NULL
+      WHERE id = $1 RETURNING *`,
+    [id, product || '', String(iv), tt],
+  )
+  if (!rows.length) return null
+  // 1회차 배송건에 회차 번호를 채워준다(신청 시 생성분은 seq 가 비어 있다)
+  await pool.query(
+    `UPDATE shipments SET ship_seq = 1
+      WHERE textbook_application_id = $1 AND ship_seq IS NULL`,
+    [id],
+  )
+  return mapApplication(rows[0])
+}
+
+/** 일시정지 / 재개 — 재개하면 다음 예정일을 오늘 기준으로 다시 잡는다(밀린 회차를 몰아 보내지 않는다) */
+async function pauseSubscription(id, paused) {
+  const { rows } = await pool.query(
+    `UPDATE textbook_applications
+        SET ship_paused = $2,
+            ship_next_date = CASE
+              WHEN $2 = FALSE THEN (CURRENT_DATE + (COALESCE(ship_interval_days, 14) || ' days')::interval)::date
+              ELSE ship_next_date END
+      WHERE id = $1 RETURNING *`,
+    [id, !!paused],
+  )
+  return rows.length ? mapApplication(rows[0]) : null
+}
+
+/** 해지 — 이후 회차를 만들지 않는다. 이미 나간 배송건은 건드리지 않는다. */
+async function cancelSubscription(id) {
+  const { rows } = await pool.query(
+    `UPDATE textbook_applications
+        SET ship_canceled_at = now(), ship_next_date = NULL
+      WHERE id = $1 RETURNING *`,
+    [id],
+  )
+  return rows.length ? mapApplication(rows[0]) : null
+}
+
+/**
+ * 오늘 발송할 구독 회차 생성.
+ * 배송지는 신청서의 최신 값을 쓴다 — 1년이면 이사하는 경우가 반드시 생긴다.
+ * 회차 번호에 유니크 제약이 있어, 크론이 두 번 돌아도 같은 회차가 두 번 생기지 않는다.
+ */
+async function createDueSubscriptionShipments() {
+  const { rows } = await pool.query(
+    `SELECT * FROM textbook_applications
+      WHERE ship_next_date IS NOT NULL
+        AND ship_next_date <= CURRENT_DATE
+        AND ship_paused = FALSE
+        AND ship_canceled_at IS NULL
+        AND ship_seq < COALESCE(ship_total, $1)
+      ORDER BY ship_next_date ASC
+      LIMIT 500`,
+    [SHIP_TOTAL],
+  )
+
+  let created = 0
+  let done = 0
+  let failed = 0
+  for (const r of rows) {
+    const app = mapApplication(r)
+    const seq = (r.ship_seq || 0) + 1
+    try {
+      await shipmentRepo.createFromApplication(app, seq)
+      created += 1
+    } catch (e) {
+      // 유니크 제약 위반 = 이미 만들어진 회차. 오류가 아니라 정상 상황이므로 조용히 넘긴다.
+      if (!String(e.message).includes('uq_shipment_app_seq')) {
+        failed += 1
+        console.error('[cron/subscription] 회차 생성 실패', r.id, seq, e.message)
+        continue
+      }
+    }
+    const total = r.ship_total || SHIP_TOTAL
+    const finished = seq >= total
+    await pool.query(
+      `UPDATE textbook_applications
+          SET ship_seq = $2,
+              ship_next_date = CASE WHEN $3 THEN NULL
+                ELSE (ship_next_date + (COALESCE(ship_interval_days, 14) || ' days')::interval)::date END
+        WHERE id = $1`,
+      [r.id, seq, finished],
+    )
+    if (finished) done += 1
+  }
+  return { targets: rows.length, created, finished: done, failed }
 }
 
 async function deleteApplication(id) {
@@ -245,6 +371,10 @@ async function setPdf(id, driveFileId, driveViewUrl) {
 
 module.exports = {
   listApplications,
+  startSubscription,
+  pauseSubscription,
+  cancelSubscription,
+  createDueSubscriptionShipments,
   listMyApplications,
   getApplication,
   createApplication,

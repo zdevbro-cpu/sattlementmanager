@@ -490,3 +490,26 @@ CREATE TABLE IF NOT EXISTS owner_verify_attempts (
 CREATE INDEX IF NOT EXISTS idx_owner_attempt_time ON owner_verify_attempts(created_at);
 CREATE INDEX IF NOT EXISTS idx_owner_attempt_ip   ON owner_verify_attempts(ip, created_at);
 CREATE INDEX IF NOT EXISTS idx_owner_attempt_code ON owner_verify_attempts(referral_code, created_at);
+
+-- ══════════════════════════════════════════════════════════════
+-- 구독 정기발송 (구독·관리회원 — 상품 K2~K7 / S2~S7, 2주 간격 1년)
+--   · 신청 시 1년치를 한 번에 결제하므로 매출은 1건뿐이다(회차별 결제 아님).
+--   · 26회차를 미리 만들지 않는다. 하루 20건이면 520행이 한 번에 쌓여 대장을 못 쓴다.
+--     회차가 도래할 때 크론이 한 건씩 만든다.
+-- ══════════════════════════════════════════════════════════════
+ALTER TABLE textbook_applications ADD COLUMN IF NOT EXISTS ship_product      TEXT;    -- 구독 상품(K2~S7)
+ALTER TABLE textbook_applications ADD COLUMN IF NOT EXISTS ship_interval_days INT;    -- 발송 간격(기본 14)
+ALTER TABLE textbook_applications ADD COLUMN IF NOT EXISTS ship_total        INT;     -- 총 회차(1년 = 26)
+ALTER TABLE textbook_applications ADD COLUMN IF NOT EXISTS ship_seq          INT NOT NULL DEFAULT 0; -- 발송 완료 회차
+ALTER TABLE textbook_applications ADD COLUMN IF NOT EXISTS ship_next_date    DATE;    -- 다음 발송예정일
+ALTER TABLE textbook_applications ADD COLUMN IF NOT EXISTS ship_paused       BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE textbook_applications ADD COLUMN IF NOT EXISTS ship_canceled_at  TIMESTAMPTZ; -- 해지 시각(설정되면 더 만들지 않는다)
+CREATE INDEX IF NOT EXISTS idx_textbook_ship_next ON textbook_applications(ship_next_date)
+  WHERE ship_next_date IS NOT NULL;
+
+-- 회차 번호 — 크론이 두 번 돌거나 인스턴스가 둘이어도 같은 회차가 두 번 생기면 안 된다.
+-- 애플리케이션 로직이 아니라 DB 제약으로 막는다.
+ALTER TABLE shipments ADD COLUMN IF NOT EXISTS ship_seq INT;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_shipment_app_seq
+  ON shipments(textbook_application_id, ship_seq)
+  WHERE textbook_application_id IS NOT NULL AND ship_seq IS NOT NULL;
