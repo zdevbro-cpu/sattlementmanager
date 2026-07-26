@@ -72,8 +72,14 @@ async function listApplications(filter = {}, user = null) {
             sh.id  AS shipment_id,
             sh.status AS shipment_status
        FROM textbook_applications a
-       LEFT JOIN sales     sa ON sa.textbook_application_id = a.id
-       LEFT JOIN shipments sh ON sh.textbook_application_id = a.id
+       LEFT JOIN sales sa ON sa.textbook_application_id = a.id
+       -- 구독은 신청 1건에 배송이 여러 회차 생긴다. 그냥 조인하면 신청이 회차 수만큼
+       -- 중복 표시되므로, 가장 최근 배송건 하나만 붙인다.
+       LEFT JOIN LATERAL (
+         SELECT id, status FROM shipments
+          WHERE textbook_application_id = a.id
+          ORDER BY created_at DESC, id DESC LIMIT 1
+       ) sh ON TRUE
       ${scope.sql ? 'WHERE ' + scope.sql : ''}
       ORDER BY a.created_at DESC`,
     scope.params,
@@ -198,7 +204,12 @@ async function listMyApplications(user, filter = {}) {
             a.book1_name, a.book2_name, a.created_at,
             s.id AS shipment_id, s.status AS shipment_status, s.carrier, s.tracking_no
        FROM textbook_applications a
-       LEFT JOIN shipments s ON s.textbook_application_id = a.id
+       -- 구독 다회차 대비 — 최신 배송건 하나만 붙인다(중복행 방지)
+       LEFT JOIN LATERAL (
+         SELECT id, status, carrier, tracking_no FROM shipments
+          WHERE textbook_application_id = a.id
+          ORDER BY created_at DESC, id DESC LIMIT 1
+       ) s ON TRUE
       ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
       ORDER BY a.created_at DESC, a.id DESC`,
     params,

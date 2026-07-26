@@ -615,6 +615,8 @@ export interface CodeSetApi {
   appointmentStatuses: string[]
   /** 택배사 — 값이 배송조회 링크 매핑 키다(features/delivery/trackingUrl.ts) */
   carriers: string[]
+  /** 구독·관리회원 상품 (K2~K7, S2~S7) */
+  subscriptionProducts: string[]
 }
 export function fetchCodes(): Promise<CodeSetApi> {
   return getData('/api/codes')
