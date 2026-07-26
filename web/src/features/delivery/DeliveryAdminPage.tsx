@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ComponentType } from 'react'
-import { Barcode, CheckCircle2, Clock, Download, Eye, Mail, PackageCheck, Plus, Printer, RefreshCw, Truck } from 'lucide-react'
+import { Barcode, CheckCircle2, Clock, Download, Eye, Mail, PackageCheck, Plus, Printer, RefreshCw, Trash2, Truck } from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import Badge from '../../components/ui/Badge'
 import Pagination from '../../components/ui/Pagination'
@@ -14,7 +14,7 @@ import {
   type ShipmentFilter,
   type ShipmentSummary,
 } from '../../types/delivery'
-import { listShipments, sendShipmentList, summarizeShipments } from './deliveryStore'
+import { deleteShipment, listShipments, sendShipmentList, summarizeShipments } from './deliveryStore'
 import DeliveryDetailDrawer from './DeliveryDetailDrawer'
 import DeliveryCreateModal from './DeliveryCreateModal'
 import TrackingBatchModal from './TrackingBatchModal'
@@ -96,6 +96,25 @@ export default function DeliveryAdminPage() {
 
   /** 선택 건이 있으면 선택 건만, 없으면 현재 필터링된 전체 목록 대상 */
   // 엑셀·송장인쇄·일괄입력은 모두 교재별로 정렬해 내보낸다 — 창고 피킹 동선을 줄이기 위함
+  /**
+   * 배송건 삭제 — 잘못 등록한 건 정리용.
+   * 발송 이후 상태는 서버가 거부하므로(이력이 남아야 한다) 여기서는 사유만 그대로 보여준다.
+   */
+  const removeRow = async (s: Shipment) => {
+    if (!confirm(`${s.recipientName || s.id} 배송건을 삭제할까요? 되돌릴 수 없습니다.`)) return
+    try {
+      await deleteShipment(s.id)
+      setSelected((prev) => {
+        const next = new Set(prev)
+        next.delete(s.id)
+        return next
+      })
+      setRefresh((n) => n + 1)
+    } catch (e) {
+      alert((e as Error).message)
+    }
+  }
+
   const targetRows = sortByBook(selected.size > 0 ? rows.filter((r) => selected.has(r.id)) : rows)
 
   /**
@@ -229,7 +248,7 @@ export default function DeliveryAdminPage() {
       </div>
 
       <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
-        <div className="grid grid-cols-[repeat(4,minmax(150px,1fr))] gap-2 items-end">
+        <div className="grid grid-cols-[repeat(5,minmax(140px,1fr))] gap-2 items-end">
           <Field label="접수 시작일">
             <DateTextInput value={filter.startDate} onChange={(v) => setFilter({ ...filter, startDate: v })} className={inputCls} />
           </Field>
@@ -249,6 +268,14 @@ export default function DeliveryAdminPage() {
                 </option>
               ))}
             </select>
+          </Field>
+          <Field label="교재">
+            <input
+              value={filter.book}
+              onChange={(e) => setFilter({ ...filter, book: e.target.value })}
+              placeholder="교재명 일부"
+              className={inputCls}
+            />
           </Field>
           <Field label="검색">
             <input
@@ -277,7 +304,7 @@ export default function DeliveryAdminPage() {
                 <th className="px-3 py-2 font-semibold">교재</th>
                 <th className="px-3 py-2 font-semibold">송장</th>
                 <th className="px-3 py-2 font-semibold text-center">상태</th>
-                <th className="px-3 py-2 font-semibold text-center">상세</th>
+                <th className="px-3 py-2 font-semibold text-center">관리</th>
               </tr>
             </thead>
             <tbody>
@@ -305,13 +332,22 @@ export default function DeliveryAdminPage() {
                     <Badge tone={shipmentStatusTone(s.status)}>{s.status}</Badge>
                   </td>
                   <td className="px-3 py-1.5 text-center whitespace-nowrap">
-                    <button
-                      onClick={() => setDetailId(s.id)}
-                      title="상세"
-                      className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover"
-                    >
-                      <Eye size={15} />
-                    </button>
+                    <div className="inline-flex gap-1">
+                      <button
+                        onClick={() => setDetailId(s.id)}
+                        title="상세"
+                        className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover"
+                      >
+                        <Eye size={15} />
+                      </button>
+                      <button
+                        onClick={() => removeRow(s)}
+                        title="삭제"
+                        className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover hover:text-danger"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

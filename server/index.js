@@ -711,6 +711,7 @@ app.get('/api/shipments', async (req, res) => {
       endDate: req.query.endDate || '',
       status: req.query.status || '',
       keyword: req.query.keyword || '',
+      book: req.query.book || '',
       batchId: req.query.batchId || '',
     })
     res.json({ ok: true, data: list })
@@ -754,6 +755,17 @@ app.patch('/api/shipments/:id', async (req, res) => {
     res.json({ ok: true, data: s })
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// 삭제 — 발송 전(접수·추후배송·취소) 건만 허용한다. 나간 건은 이력이 남아야 한다.
+app.delete('/api/shipments/:id', async (req, res) => {
+  try {
+    const r = await shipmentRepo.deleteShipment(req.params.id)
+    if (!r) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: r })
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message })
   }
 })
 

@@ -2,6 +2,7 @@
 import type { Shipment, ShipmentFilter, ShipmentSummary } from '../../types/delivery'
 import {
   createShipmentApi,
+  deleteShipmentApi,
   sendShipmentListApi,
   fetchShipment,
   fetchShipmentSummary,
@@ -49,4 +50,9 @@ export function setShipmentStatus(id: string, toStatus: string, memo?: string): 
 /** 배송목록 전송 — '목록확정' 건만 대상이며, 메일 발송에 성공해야 전송완료로 바뀐다 */
 export function sendShipmentList(ids: string[]) {
   return sendShipmentListApi(ids)
+}
+
+/** 배송건 삭제 — 잘못 등록한 건 정리용. 발송 전 상태만 가능하다(서버가 판정한다) */
+export function deleteShipment(id: string) {
+  return deleteShipmentApi(id)
 }

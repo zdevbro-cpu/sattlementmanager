@@ -71,6 +71,8 @@ export interface ShipmentFilter {
   startDate: string
   endDate: string
   status: string
+  /** 교재명 — 교재1/교재2 부분일치 */
+  book: string
   keyword: string
 }
 
@@ -78,6 +80,7 @@ export const EMPTY_SHIPMENT_FILTER: ShipmentFilter = {
   startDate: '',
   endDate: '',
   status: '전체',
+  book: '',
   keyword: '',
 }
 
