@@ -5,6 +5,8 @@ import {
   fetchStaff,
   fetchStaffRequests,
   rejectStaffRequestApi,
+  linkAllStaffPhonesApi,
+  linkStaffPhoneApi,
   resetStaffPasswordApi,
   setStaffStatusApi,
   submitStaffRequestApi,
@@ -66,4 +68,14 @@ export function approveStaffRequest(id: string): Promise<Staff> {
 
 export function rejectStaffRequest(id: string): Promise<StaffRequest> {
   return rejectStaffRequestApi(id)
+}
+
+/** 문자 로그인 준비 — 계정에 전화번호를 연결한다. 이메일 로그인은 그대로 유지된다 */
+export function linkStaffPhone(id: string) {
+  return linkStaffPhoneApi(id)
+}
+
+/** 전체 일괄 연결 — 실패 건은 사유와 함께 돌아온다 */
+export function linkAllStaffPhones() {
+  return linkAllStaffPhonesApi()
 }

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Check, Eye, KeyRound, Trash2, UserCheck, UserX, X } from 'lucide-react'
+import { Check, Eye, KeyRound, Smartphone, Trash2, UserCheck, UserX, X } from 'lucide-react'
 import Badge, { branchTone, type Tone } from '../../components/ui/Badge'
 import { dateText } from '../../lib/format'
 import { FIELD_ROLES, STAFF_ROLE_LABEL, STORE_ROLES, type Staff, type StaffRequest, type StaffRole } from '../../types/staff'
 import {
   approveStaffRequest,
   deleteStaff,
+  linkAllStaffPhones,
   listStaff,
   listStaffRequests,
   rejectStaffRequest,
@@ -88,6 +89,33 @@ export default function StaffManagePage() {
     if (!confirm(`${s.name} 계정을 완전히 삭제할까요? 되돌릴 수 없습니다.`)) return
     await deleteStaff(s.id)
     setRefresh((n) => n + 1)
+  }
+
+  /**
+   * 문자 로그인 준비 — 활성 계정 전체에 전화번호를 연결한다.
+   * 계정을 새로 만들지 않고 로그인 수단만 더하는 것이라 이메일 로그인은 그대로 남는다.
+   * 번호 형식 오류·중복처럼 사람이 확인해야 하는 실패는 사유를 모아 보여준다.
+   */
+  const [linking, setLinking] = useState(false)
+  const onLinkPhones = async () => {
+    if (!confirm('활성 계정 전체에 휴대폰 번호를 연결할까요?\n연결되면 문자로도 로그인할 수 있고, 기존 이메일 로그인도 그대로 됩니다.'))
+      return
+    setLinking(true)
+    try {
+      const r = await linkAllStaffPhones()
+      const head = `연결 완료 ${r.linked.length}건`
+      if (!r.failed.length) alert(head)
+      else
+        alert(
+          `${head}\n실패 ${r.failed.length}건 — 아래는 번호를 확인해 주세요.\n\n` +
+            r.failed.map((f) => `· ${f.name}: ${f.reason}`).join('\n'),
+        )
+      setRefresh((n) => n + 1)
+    } catch (e) {
+      alert((e as Error).message)
+    } finally {
+      setLinking(false)
+    }
   }
 
   const onResetPassword = async (s: Staff) => {
@@ -187,9 +215,19 @@ export default function StaffManagePage() {
       </section>
 
       <section>
-        <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">
-          등록된 계정 ({visibleStaff.length})
-        </h3>
+        <div className="mb-2.5 flex items-center justify-between">
+          <h3 className="text-[13px] font-extrabold text-text-strong">
+            등록된 계정 ({visibleStaff.length})
+          </h3>
+          <button
+            onClick={onLinkPhones}
+            disabled={linking}
+            title="활성 계정에 휴대폰 번호를 연결해 문자 로그인을 쓸 수 있게 합니다"
+            className="inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-border px-3 text-[12.5px] font-bold text-[#c2cde0] hover:bg-hover disabled:opacity-60"
+          >
+            <Smartphone size={14} /> {linking ? '연결 중…' : '휴대폰 번호 일괄 연결'}
+          </button>
+        </div>
         <div className="rounded-[14px] border border-border bg-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-[13px]">

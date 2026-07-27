@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import InstallPrompt from '../../components/ui/InstallPrompt'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, MapPin, Search, Store as StoreIcon } from 'lucide-react'
 import Badge, { dDayTone, storeStatusTone } from '../../components/ui/Badge'
@@ -81,6 +82,8 @@ export default function MobileStoreListPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] px-4 py-5">
+      {/* 홈 화면에 추가 안내 — 파트너가 매번 주소를 치지 않게 하는 것이 목적이라 진입 화면 맨 위에 둔다 */}
+      <InstallPrompt />
       <div className="mb-3">
         <button onClick={() => navigate('/')} className="inline-flex items-center gap-0.5 text-[12px] text-[#94a3b8] hover:text-white">
           <ChevronLeft size={14} /> 처음으로
