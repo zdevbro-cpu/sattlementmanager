@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import type { ConfirmationResult } from 'firebase/auth'
+import { phoneFmt } from '../../lib/format'
 import { useAuth } from './AuthContext'
 
 function friendlyError(code: string): string {
@@ -139,7 +140,7 @@ export default function LoginPage() {
                 type="tel"
                 inputMode="numeric"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => setPhone(phoneFmt(e.target.value))}
                 disabled={!!confirmation}
                 placeholder="010-1234-5678"
                 autoComplete="tel"
