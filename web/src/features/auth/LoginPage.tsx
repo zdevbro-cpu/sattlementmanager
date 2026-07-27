@@ -24,9 +24,34 @@ function friendlyError(code: string): string {
       return '인증번호가 만료되었습니다. 다시 받아주세요.'
     case 'auth/quota-exceeded':
       return '인증문자 발송이 일시적으로 제한되었습니다. 잠시 후 다시 시도해주세요.'
+    case 'auth/missing-phone-number':
+      return '휴대폰 번호를 입력하세요.'
+    case 'auth/operation-not-allowed':
+      return '문자 로그인이 아직 켜져 있지 않습니다. 관리자에게 문의해주세요.'
+    case 'auth/billing-not-enabled':
+      return '문자 발송 설정이 완료되지 않았습니다. 관리자에게 문의해주세요.'
+    // reCAPTCHA 확인 실패 — 대부분 도메인·API 키 설정 문제라 사용자가 할 수 있는 게 없다
+    case 'auth/invalid-app-credential':
+    case 'auth/captcha-check-failed':
+    case 'auth/argument-error':
+      return '인증 확인에 실패했습니다. 관리자에게 문의해주세요.'
+    case 'auth/network-request-failed':
+      return '네트워크 연결을 확인해주세요.'
     default:
-      return '로그인에 실패했습니다.'
+      return ''
   }
+}
+
+/**
+ * 화면에 보여줄 오류 문구.
+ * 아는 코드는 사람 말로 바꾸고, 모르는 코드는 코드 자체를 함께 남긴다 —
+ * "로그인에 실패했습니다" 만 뜨면 담당자도 원인을 못 찾는다.
+ */
+function errorText(code: string, raw: string): string {
+  const known = friendlyError(code)
+  if (known) return known
+  if (code) return `로그인에 실패했습니다. (${code})`
+  return raw || '로그인에 실패했습니다.'
 }
 
 /** 문자 인증에서 등록되지 않은 번호는 새 계정을 만들어버린다 — 그 상황을 사람 말로 알린다 */
@@ -56,8 +81,9 @@ export default function LoginPage() {
       await fn()
     } catch (e) {
       const c = (e as { code?: string }).code || ''
-      // toE164 가 던지는 메시지는 코드가 없으므로 그대로 보여준다
-      setErr(c ? friendlyError(c) : (e as Error).message || '로그인에 실패했습니다.')
+      // 원인 추적용 — 화면 문구만으로는 부족한 경우가 있어 콘솔에 원본을 남긴다
+      console.error('[login]', c, e)
+      setErr(errorText(c, (e as Error).message))
     } finally {
       setBusy(false)
     }

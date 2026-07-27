@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import InstallPrompt from '../../components/ui/InstallPrompt'
 import { useNavigate } from 'react-router-dom'
 import DropZone from '../../components/ui/DropZone'
 import DateTextInput from '../../components/ui/DateTextInput'
@@ -142,6 +143,8 @@ export default function TextbookApplyMobilePage() {
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] px-4 py-5">
+      {/* 홈 화면에 추가 안내 — 점주·점장도 매번 주소를 치지 않게 진입 화면 맨 위에 둔다 */}
+      <InstallPrompt />
       <div className="mb-3 flex items-center justify-between">
         <button onClick={() => navigate('/')} className="inline-flex items-center gap-0.5 text-[12px] text-[#94a3b8] hover:text-white">
           <ChevronLeft size={14} /> 처음으로
