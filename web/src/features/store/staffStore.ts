@@ -32,7 +32,6 @@ export function updateStaff(
     role: string
     part: string
     branch?: string
-    canRegisterStore: boolean
   },
 ): Promise<Staff> {
   return updateStaffApi(id, data)

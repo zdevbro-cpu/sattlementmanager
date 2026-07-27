@@ -152,9 +152,11 @@ async function rejectRequest(id) {
   return mapRequest(rows[0])
 }
 
-/** 등록정보 수정 — 이름/전화번호/사업부/역할/소속 파트/매장 등록 권한
- *  role 변경 시 roles 의 '섭외축'만 교체하고 다른 축(store_owner 등)은 보존한다. */
-async function updateStaff(id, { name, phone, businessUnit, role, part, branch, canRegisterStore }) {
+/** 등록정보 수정 — 이름/전화번호/사업부/역할/소속 파트
+ *  role 변경 시 roles 의 '섭외축'만 교체하고 다른 축(store_owner 등)은 보존한다.
+ *  매장 등록 권한(can_register_store)은 더 이상 화면에서 개별 부여하지 않는다(승인된 섭외조직 전원 등록 가능) —
+ *  기존 값은 그대로 둔다. */
+async function updateStaff(id, { name, phone, businessUnit, role, part, branch }) {
   const { rows: cur } = await pool.query(`SELECT roles, role FROM staff_accounts WHERE id = $1`, [id])
   if (!cur.length) return null
   const prev = Array.isArray(cur[0].roles) && cur[0].roles.length ? cur[0].roles : [cur[0].role]
@@ -163,9 +165,9 @@ async function updateStaff(id, { name, phone, businessUnit, role, part, branch, 
   const nextRoles = [...new Set([...prev.filter((r) => !axis.includes(r)), role])]
 
   const { rows } = await pool.query(
-    `UPDATE staff_accounts SET name = $2, phone = $3, business_unit = $4, role = $5, roles = $6, part = $7, branch = $8, can_register_store = $9
+    `UPDATE staff_accounts SET name = $2, phone = $3, business_unit = $4, role = $5, roles = $6, part = $7, branch = $8
        WHERE id = $1 RETURNING *`,
-    [id, name, phone || '', businessUnit || '', role, nextRoles, part || '', branch || '', !!canRegisterStore],
+    [id, name, phone || '', businessUnit || '', role, nextRoles, part || '', branch || ''],
   )
   if (!rows.length) return null
   if (name) await auth.updateUser(id, { displayName: name }).catch(() => {})

@@ -3,7 +3,7 @@ import { ExternalLink, Paperclip, Pencil, X } from 'lucide-react'
 import Badge, { storeStatusTone } from '../../components/ui/Badge'
 import { dateText } from '../../lib/format'
 import { phoneFmt } from '../../lib/format'
-import { STORE_STATUSES, type Store } from '../../types/store'
+import { STORE_PHOTO_KINDS, STORE_STATUSES, type Store } from '../../types/store'
 import { addRecruitmentLog, getStore, updateStore, uploadPhoto } from './storeStore'
 import { fetchMe, fetchPartLeaders } from '../../lib/api'
 import DateTextInput from '../../components/ui/DateTextInput'
@@ -198,19 +198,31 @@ export default function StoreDetailDrawer({
 
           <section>
             <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">매장 사진</h3>
-            <PhotoUpload storeId={store.id} onUploaded={refresh} />
-            <div className="mt-2 grid grid-cols-3 gap-2">
-              {store.photos.map((p) => (
-                <a
-                  key={p.id}
-                  href={p.driveViewUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1 rounded-[8px] border border-border px-2 py-1.5 text-[11.5px] text-primary hover:bg-hover"
-                >
-                  <Paperclip size={11} /> 사진 보기 <ExternalLink size={11} />
-                </a>
-              ))}
+            <div className="space-y-3">
+              {STORE_PHOTO_KINDS.map((kind) => {
+                const kindPhotos = store.photos.filter((p) => (p.kind || '건물외관') === kind)
+                return (
+                  <div key={kind}>
+                    <div className="mb-1 text-[12px] font-semibold text-[#94a3b8]">{kind}</div>
+                    <PhotoUpload storeId={store.id} kind={kind} onUploaded={refresh} />
+                    {kindPhotos.length > 0 && (
+                      <div className="mt-2 grid grid-cols-3 gap-2">
+                        {kindPhotos.map((p) => (
+                          <a
+                            key={p.id}
+                            href={p.driveViewUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-1 rounded-[8px] border border-border px-2 py-1.5 text-[11.5px] text-primary hover:bg-hover"
+                          >
+                            <Paperclip size={11} /> 사진 보기 <ExternalLink size={11} />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </section>
         </div>
@@ -237,19 +249,19 @@ function RowInline({ label, value }: { label: string; value: string }) {
   )
 }
 
-function PhotoUpload({ storeId, onUploaded }: { storeId: string; onUploaded: () => void }) {
+function PhotoUpload({ storeId, kind, onUploaded }: { storeId: string; kind: string; onUploaded: () => void }) {
   const [busy, setBusy] = useState(false)
   const onFile = async (file: File) => {
     setBusy(true)
     try {
-      await uploadPhoto(storeId, file)
+      await uploadPhoto(storeId, file, kind)
       onUploaded()
     } finally {
       setBusy(false)
     }
   }
   return (
-    <DropZone onFile={onFile} accept="image/*" hint="매장 사진">
+    <DropZone onFile={onFile} accept="image/*" hint={`${kind} 사진`}>
       <div className="text-[12.5px] text-[#94a3b8]">
         {busy ? '업로드 중…' : (
           <>

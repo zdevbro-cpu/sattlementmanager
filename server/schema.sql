@@ -338,9 +338,11 @@ CREATE TABLE IF NOT EXISTS store_photos (
   store_id       TEXT NOT NULL REFERENCES store_master(id) ON DELETE CASCADE,
   drive_file_id  TEXT NOT NULL,
   drive_view_url TEXT NOT NULL,
+  kind           TEXT NOT NULL DEFAULT '건물외관',   -- 건물외관/라스온설치공간/겨냥도/완성이미지
   uploaded_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_store_photos_store ON store_photos(store_id);
+ALTER TABLE store_photos ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT '건물외관';
 
 -- 파트너 계정(현장 파트장/파트너) — Firebase Auth 이메일/비밀번호 계정 + 역할·소속 정보
 -- 파트너 가입 요청 (본인 제출 → 관리자 승인/거절)

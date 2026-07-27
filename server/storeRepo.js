@@ -114,6 +114,7 @@ function mapStore(s, log, photos) {
       id: String(p.id),
       driveFileId: p.drive_file_id,
       driveViewUrl: p.drive_view_url,
+      kind: p.kind || '건물외관',
       uploadedAt: isoDate(p.uploaded_at),
     })),
   }
@@ -334,8 +335,8 @@ async function addRecruitmentLog(storeId, log) {
 /** 매장 사진 1건 추가 (Drive 업로드 후 링크 저장) */
 async function addStorePhoto(storeId, photo) {
   await pool.query(
-    `INSERT INTO store_photos (store_id, drive_file_id, drive_view_url) VALUES ($1,$2,$3)`,
-    [storeId, photo.driveFileId, photo.driveViewUrl],
+    `INSERT INTO store_photos (store_id, drive_file_id, drive_view_url, kind) VALUES ($1,$2,$3,$4)`,
+    [storeId, photo.driveFileId, photo.driveViewUrl, photo.kind || '건물외관'],
   )
   return getStore(storeId)
 }

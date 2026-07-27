@@ -8,8 +8,7 @@ import { EMPTY_STORE_FILTER, RELEASED_FILTER_VALUE, STORE_STATUSES, type Store, 
 import { deleteStore, listStores, summarizeStores } from './storeStore'
 import StoreRegisterModal from './StoreRegisterModal'
 import StoreDetailDrawer from './StoreDetailDrawer'
-import { fetchMe, fetchPartLeaders } from '../../lib/api'
-import { useAuth } from '../auth/AuthContext'
+import { fetchPartLeaders } from '../../lib/api'
 import { listStaff } from './staffStore'
 
 const inputCls =
@@ -44,24 +43,8 @@ export default function StoreListPage() {
   const [perPage, setPerPage] = useState(20)
   const [page, setPage] = useState(1)
   const [partLeaders, setPartLeaders] = useState<string[]>([])
-  const { user } = useAuth()
-  // 파트너 계정(staff_accounts)으로 로그인한 경우만 매장 등록 권한 여부를 확인한다 — 못 찾으면(=관리자 계정) 제한 없이 허용
-  const [canRegister, setCanRegister] = useState(true)
   // 선점담당 연락처·사업부 표시용 — 이름으로 파트너 계정 정보를 찾는다
   const [staffInfoByName, setStaffInfoByName] = useState<Record<string, { phone: string; businessUnit: string }>>({})
-
-  useEffect(() => {
-    let alive = true
-    if (!user?.email) return
-    fetchMe().then((me) => {
-      if (!alive) return
-      // 파트너 계정이 아니면(관리자) 제한 없음
-      setCanRegister(!me.isStaff || me.canRegisterStore)
-    })
-    return () => {
-      alive = false
-    }
-  }, [user?.email])
 
   // 선점담당 연락처·사업부 표시용 — /api/staff는 관리자 전용이라 관리자가 아니면 조용히 비워둔다(권한 오류 무시)
   useEffect(() => {
@@ -153,14 +136,12 @@ export default function StoreListPage() {
           >
             <RefreshCw size={14} /> 새로고침
           </button>
-          {canRegister && (
-            <button
-              onClick={() => setRegisterOpen(true)}
-              className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110"
-            >
-              <Plus size={15} /> 매장 등록
-            </button>
-          )}
+          <button
+            onClick={() => setRegisterOpen(true)}
+            className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-primary px-4 text-sm font-bold text-white hover:brightness-110"
+          >
+            <Plus size={15} /> 매장 등록
+          </button>
         </div>
       </div>
 

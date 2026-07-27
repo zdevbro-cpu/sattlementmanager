@@ -43,8 +43,8 @@ export function addRecruitmentLog(
   return addRecruitmentLogApi(storeId, log)
 }
 
-export function uploadPhoto(storeId: string, file: File): Promise<Store> {
-  return uploadStorePhoto(storeId, file)
+export function uploadPhoto(storeId: string, file: File, kind: string): Promise<Store> {
+  return uploadStorePhoto(storeId, file, kind)
 }
 
 /** 요약 카드용 집계 */

@@ -417,7 +417,7 @@ app.post('/api/stores/:id/log', async (req, res) => {
 // 매장 사진 → Google Drive 업로드 + DB 기록 (JSON base64 방식)
 app.post('/api/stores/:id/photo', async (req, res) => {
   try {
-    const { filename, data, mimeType } = req.body || {}
+    const { filename, data, mimeType, kind } = req.body || {}
     if (!data) return res.status(400).json({ ok: false, error: 'no data' })
     const base64 = data.includes(',') ? data.split(',')[1] : data
     const buffer = Buffer.from(base64, 'base64')
@@ -430,6 +430,7 @@ app.post('/api/stores/:id/photo', async (req, res) => {
     const s = await storeRepo.addStorePhoto(req.params.id, {
       driveFileId: up.driveFileId,
       driveViewUrl: up.driveViewUrl,
+      kind,
     })
     res.json({ ok: true, data: s })
   } catch (e) {

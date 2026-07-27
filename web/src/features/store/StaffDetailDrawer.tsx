@@ -39,7 +39,6 @@ export default function StaffDetailDrawer({
   const [role, setRole] = useState(staff.roles.find((r) => (axisRoles as string[]).includes(r)) ?? axisRoles[0])
   const [part, setPart] = useState(staff.part)
   const [branch, setBranch] = useState(staff.branch ?? '')
-  const [canRegisterStore, setCanRegisterStore] = useState(staff.canRegisterStore)
   const [partLeaders, setPartLeaders] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
@@ -72,7 +71,6 @@ export default function StaffDetailDrawer({
         role,
         part: isStoreAxis ? '' : part,
         branch: isStoreAxis ? branch : '',
-        canRegisterStore: isStoreAxis ? false : canRegisterStore,
       })
       onSaved()
     } catch (e) {
@@ -154,15 +152,6 @@ export default function StaffDetailDrawer({
                   ))}
                 </select>
               </Field>
-              <label className="flex items-center gap-2 text-[13px] text-[#c2cde0]">
-                <input
-                  type="checkbox"
-                  checked={canRegisterStore}
-                  onChange={(e) => setCanRegisterStore(e.target.checked)}
-                  className="h-4 w-4 accent-primary"
-                />
-                매장섭외관리 신규 매장 등록 권한 (본부 담당자로 지정)
-              </label>
             </>
           )}
           <Field label="등록일">

@@ -26,10 +26,15 @@ export interface RecruitmentLog {
   createdAt: string
 }
 
+/** 매장 사진 분류 */
+export const STORE_PHOTO_KINDS = ['건물외관', '라스온설치공간', '겨냥도', '완성이미지'] as const
+export type StorePhotoKind = (typeof STORE_PHOTO_KINDS)[number]
+
 export interface StorePhoto {
   id: string
   driveFileId: string
   driveViewUrl: string
+  kind: string
   uploadedAt: string
 }
 

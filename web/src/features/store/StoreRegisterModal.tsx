@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, Paperclip, X } from 'lucide-react'
-import { STORE_STATUSES, type Store } from '../../types/store'
+import { STORE_PHOTO_KINDS, STORE_STATUSES, type Store, type StorePhotoKind } from '../../types/store'
 import { createStore, findDuplicates, uploadPhoto } from './storeStore'
 import { listStaff } from './staffStore'
 import { fetchMe, fetchPartLeaders } from '../../lib/api'
@@ -82,7 +82,12 @@ export default function StoreRegisterModal({
   const [checking, setChecking] = useState(false)
   const [partLeaders, setPartLeaders] = useState<string[]>([])
   const [staffInfoByName, setStaffInfoByName] = useState<Record<string, { phone: string; businessUnit: string }>>({})
-  const [photoFiles, setPhotoFiles] = useState<File[]>([])
+  const [photosByKind, setPhotosByKind] = useState<Record<StorePhotoKind, File[]>>({
+    건물외관: [],
+    라스온설치공간: [],
+    겨냥도: [],
+    완성이미지: [],
+  })
   const { user } = useAuth()
   const codes = useCodes()
 
@@ -172,9 +177,11 @@ export default function StoreRegisterModal({
         surveyDate: f.surveyDate,
         memo: f.memo,
       })
-      // 등록 시점엔 매장 id가 없어 로컬에 담아뒀던 사진을, 매장 생성 직후 순서대로 업로드해 Drive·목록과 연계한다
-      for (const file of photoFiles) {
-        await uploadPhoto(created.id, file)
+      // 등록 시점엔 매장 id가 없어 로컬에 담아뒀던 사진을, 매장 생성 직후 분류별로 순서대로 업로드해 Drive·목록과 연계한다
+      for (const kind of STORE_PHOTO_KINDS) {
+        for (const file of photosByKind[kind]) {
+          await uploadPhoto(created.id, file, kind)
+        }
       }
       onCreated()
     } catch (e) {
@@ -212,7 +219,7 @@ export default function StoreRegisterModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-6 overflow-y-auto">
-      <div className="w-full max-w-[860px] rounded-[14px] border border-border bg-card shadow-xl">
+      <div className="w-full max-w-[1080px] rounded-[14px] border border-border bg-card shadow-xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-[17px] font-extrabold text-text-strong">매장 등록</h2>
           <button onClick={onClose} className="text-[#94a3b8] hover:text-white">
@@ -220,12 +227,12 @@ export default function StoreRegisterModal({
           </button>
         </div>
 
-        <div className="px-6 py-4 space-y-3 max-h-[74vh] overflow-y-auto">
+        <div className="px-6 py-4 space-y-2.5 max-h-[74vh] overflow-y-auto">
           <section>
-            <h3 className="mb-1.5 text-[13px] font-extrabold text-text-strong">
+            <h3 className="mb-1 text-[13px] font-extrabold text-text-strong">
               1. 매장 기본정보
             </h3>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-x-2 gap-y-1.5">
               <Field label="매장명 *">
                 <input value={f.storeName} onChange={(e) => set('storeName', e.target.value)} className={inputCls} />
               </Field>
@@ -260,8 +267,8 @@ export default function StoreRegisterModal({
           </section>
 
           <section>
-            <h3 className="mb-1.5 text-[13px] font-extrabold text-text-strong">2. 공간 · 상권</h3>
-            <div className="grid grid-cols-3 gap-2">
+            <h3 className="mb-1 text-[13px] font-extrabold text-text-strong">2. 공간 · 상권</h3>
+            <div className="grid grid-cols-4 gap-x-2 gap-y-1.5">
               <Field label="층/위치">
                 <input value={f.floorLocation} onChange={(e) => set('floorLocation', e.target.value)} className={inputCls} placeholder="예: 1층 입구" />
               </Field>
@@ -283,8 +290,8 @@ export default function StoreRegisterModal({
           </section>
 
           <section>
-            <h3 className="mb-1.5 text-[13px] font-extrabold text-text-strong">3. 매장 담당자 (의사결정 라인)</h3>
-            <div className="grid grid-cols-3 gap-2">
+            <h3 className="mb-1 text-[13px] font-extrabold text-text-strong">3. 매장 담당자 (의사결정 라인)</h3>
+            <div className="grid grid-cols-4 gap-x-2 gap-y-1.5">
               <Field label="담당자명">
                 <input value={f.contactName} onChange={(e) => set('contactName', e.target.value)} className={inputCls} />
               </Field>
@@ -301,8 +308,8 @@ export default function StoreRegisterModal({
           </section>
 
           <section>
-            <h3 className="mb-1.5 text-[13px] font-extrabold text-text-strong">4. 선점 관리</h3>
-            <div className="grid grid-cols-3 gap-2">
+            <h3 className="mb-1 text-[13px] font-extrabold text-text-strong">4. 선점 관리</h3>
+            <div className="grid grid-cols-4 gap-x-2 gap-y-1.5">
               <Field label="사업부">
                 <select value={f.businessUnit} onChange={(e) => set('businessUnit', e.target.value)} className={inputCls}>
                   <option value="">선택 안 함</option>
@@ -346,38 +353,20 @@ export default function StoreRegisterModal({
           </section>
 
           <section>
-            <h3 className="mb-1.5 text-[13px] font-extrabold text-text-strong">5. 매장 사진</h3>
-            <DropZone
-              onFile={(file) => setPhotoFiles((prev) => [...prev, file])}
-              accept="image/*"
-              hint="매장 외관/내부/입점 예정 위치 등 — 등록 시 Drive에 저장되어 목록과 연계됩니다"
-            >
-              <div className="text-[12.5px] text-[#94a3b8]">
-                <span className="text-primary font-bold">클릭(탐색기)</span> 또는{' '}
-                <span className="text-primary font-bold">드래그드롭</span>으로 사진 추가 (여러 장 가능)
-              </div>
-            </DropZone>
-            {photoFiles.length > 0 && (
-              <ul className="mt-2 space-y-1">
-                {photoFiles.map((file, i) => (
-                  <li
-                    key={`${file.name}-${i}`}
-                    className="flex items-center justify-between rounded-[8px] border border-border px-3 py-1.5 text-[12.5px]"
-                  >
-                    <span className="inline-flex items-center gap-1.5 text-[#c2cde0]">
-                      <Paperclip size={12} /> {file.name}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setPhotoFiles((prev) => prev.filter((_, idx) => idx !== i))}
-                      className="text-[11.5px] text-danger hover:underline"
-                    >
-                      제거
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <h3 className="mb-1 text-[13px] font-extrabold text-text-strong">5. 매장 사진</h3>
+            <div className="grid grid-cols-4 gap-x-2 gap-y-1.5">
+              {STORE_PHOTO_KINDS.map((kind) => (
+                <PhotoKindDropZone
+                  key={kind}
+                  kind={kind}
+                  files={photosByKind[kind]}
+                  onAdd={(file) => setPhotosByKind((prev) => ({ ...prev, [kind]: [...prev[kind], file] }))}
+                  onRemove={(i) =>
+                    setPhotosByKind((prev) => ({ ...prev, [kind]: prev[kind].filter((_, idx) => idx !== i) }))
+                  }
+                />
+              ))}
+            </div>
           </section>
 
           {err && <div className="text-[13px] text-danger">{err}</div>}
@@ -449,5 +438,50 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-0.5 block text-[11.5px] font-semibold text-[#94a3b8]">{label}</span>
       {children}
     </label>
+  )
+}
+
+function PhotoKindDropZone({
+  kind,
+  files,
+  onAdd,
+  onRemove,
+}: {
+  kind: string
+  files: File[]
+  onAdd: (file: File) => void
+  onRemove: (index: number) => void
+}) {
+  return (
+    <div>
+      <span className="mb-0.5 block text-[11.5px] font-semibold text-[#94a3b8]">{kind}</span>
+      <DropZone onFile={onAdd} accept="image/*" hint={`${kind} 사진`}>
+        <div className="text-[12px] text-[#94a3b8]">
+          <span className="text-primary font-bold">클릭</span> 또는{' '}
+          <span className="text-primary font-bold">드래그드롭</span> (여러 장 가능)
+        </div>
+      </DropZone>
+      {files.length > 0 && (
+        <ul className="mt-1.5 space-y-1">
+          {files.map((file, i) => (
+            <li
+              key={`${file.name}-${i}`}
+              className="flex items-center justify-between rounded-[8px] border border-border px-3 py-1.5 text-[12px]"
+            >
+              <span className="inline-flex items-center gap-1.5 text-[#c2cde0] truncate">
+                <Paperclip size={12} /> {file.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => onRemove(i)}
+                className="shrink-0 text-[11px] text-danger hover:underline"
+              >
+                제거
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }

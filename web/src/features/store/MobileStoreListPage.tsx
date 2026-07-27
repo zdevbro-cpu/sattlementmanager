@@ -4,7 +4,13 @@ import { ChevronLeft, MapPin, Search, Store as StoreIcon } from 'lucide-react'
 import Badge, { dDayTone, storeStatusTone } from '../../components/ui/Badge'
 import { dateText } from '../../lib/format'
 import { useAuth } from '../auth/AuthContext'
-import { EMPTY_STORE_FILTER, RELEASED_FILTER_VALUE, STORE_STATUSES, type Store } from '../../types/store'
+import {
+  EMPTY_STORE_FILTER,
+  RELEASED_FILTER_VALUE,
+  STORE_PHOTO_KINDS,
+  STORE_STATUSES,
+  type Store,
+} from '../../types/store'
 import { fetchPartLeaders } from '../../lib/api'
 import { getStore, listStores } from './storeStore'
 
@@ -252,18 +258,30 @@ function MobileStoreDetail({ store, onClose }: { store: Store; onClose: () => vo
         {store.photos.length > 0 && (
           <section className="rounded-[12px] border border-border bg-card p-3.5">
             <h3 className="mb-2 text-[12.5px] font-extrabold text-text-strong">매장 사진</h3>
-            <div className="grid grid-cols-3 gap-2">
-              {store.photos.map((p) => (
-                <a
-                  key={p.id}
-                  href={p.driveViewUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-[8px] border border-border px-2 py-1.5 text-center text-[11px] text-primary hover:bg-hover"
-                >
-                  사진 보기
-                </a>
-              ))}
+            <div className="space-y-2.5">
+              {STORE_PHOTO_KINDS.map((kind) => {
+                // 분류 이전에 등록된 사진은 kind 가 비어 있어 '건물외관'으로 본다(서버 기본값과 동일)
+                const kindPhotos = store.photos.filter((p) => (p.kind || '건물외관') === kind)
+                if (kindPhotos.length === 0) return null
+                return (
+                  <div key={kind}>
+                    <div className="mb-1 text-[11.5px] font-semibold text-[#94a3b8]">{kind}</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {kindPhotos.map((p) => (
+                        <a
+                          key={p.id}
+                          href={p.driveViewUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-[8px] border border-border px-2 py-1.5 text-center text-[11px] text-primary hover:bg-hover"
+                        >
+                          사진 보기
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </section>
         )}

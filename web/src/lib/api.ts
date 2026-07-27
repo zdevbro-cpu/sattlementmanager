@@ -370,12 +370,12 @@ export function addRecruitmentLogApi(
 ): Promise<Store> {
   return sendJson(`/api/stores/${encodeURIComponent(storeId)}/log`, 'POST', log)
 }
-export async function uploadStorePhoto(storeId: string, file: File): Promise<Store> {
+export async function uploadStorePhoto(storeId: string, file: File, kind: string): Promise<Store> {
   const data = await fileToBase64(file)
   const res = await authFetch(`/api/stores/${encodeURIComponent(storeId)}/photo`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ filename: file.name, data, mimeType: file.type || 'image/jpeg' }),
+    body: JSON.stringify({ filename: file.name, data, mimeType: file.type || 'image/jpeg', kind }),
   })
   if (!res.ok) throw new Error(`Drive 업로드 실패 (${res.status})`)
   const json = await res.json()
@@ -402,7 +402,6 @@ export function updateStaffApi(
     role: string
     part: string
     branch?: string
-    canRegisterStore: boolean
   },
 ): Promise<Staff> {
   return sendJson(`/api/staff/${encodeURIComponent(id)}`, 'PATCH', data)
