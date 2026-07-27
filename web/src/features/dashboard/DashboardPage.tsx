@@ -2,13 +2,27 @@
 import { useEffect, useState } from 'react'
 import type { ComponentType, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, BookOpen, Coins, FileText, HandCoins, Landmark, Network, ShoppingCart, Users } from 'lucide-react'
+import {
+  ArrowRight,
+  BookOpen,
+  Building2,
+  Coins,
+  FileText,
+  HandCoins,
+  Landmark,
+  Network,
+  ShoppingCart,
+  Truck,
+  Users,
+} from 'lucide-react'
 import AppLayout from '../../components/layout/AppLayout'
 import { comma, won } from '../../lib/format'
 import { listContracts, summarize } from '../contract/contractStore'
 import { listAppointments, summarizeAppointments, summarizeByPosition } from '../appointment/appointmentStore'
 import { listSales, summarizeSales } from '../sales/salesStore'
 import { listApplications, summarizeApplications } from '../textbook/textbookStore'
+import { listStores, summarizeStores } from '../store/storeStore'
+import { summarizeShipments } from '../delivery/deliveryStore'
 import { buildLasOnBonusRows } from '../payment/lasOnBonusEngine'
 import { usePositionSalaries } from '../appointment/positionSalaryStore'
 import { useSettlementSettings } from '../system/settlementSettingsStore'
@@ -16,6 +30,8 @@ import { EMPTY_FILTER, type Contract } from '../../types/contract'
 import { EMPTY_APPOINTMENT_FILTER, type Appointment } from '../../types/appointment'
 import { EMPTY_SALES_FILTER, type Sale } from '../../types/sales'
 import { EMPTY_TEXTBOOK_FILTER, type TextbookApplication } from '../../types/textbook'
+import { EMPTY_STORE_FILTER, type Store } from '../../types/store'
+import type { ShipmentSummary } from '../../types/delivery'
 
 const WITHHOLDING = 0.033 // 원천징수 3.3% (지급관리와 동일 기준)
 
@@ -34,6 +50,8 @@ export default function DashboardPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [sales, setSales] = useState<Sale[]>([])
   const [applications, setApplications] = useState<TextbookApplication[]>([])
+  const [stores, setStores] = useState<Store[]>([])
+  const [shipmentSummary, setShipmentSummary] = useState<ShipmentSummary | null>(null)
   const [, setLoading] = useState(true)
   const [loadErr, setLoadErr] = useState('')
   const positionSalaries = usePositionSalaries()
@@ -46,13 +64,17 @@ export default function DashboardPage() {
       listAppointments(EMPTY_APPOINTMENT_FILTER),
       listSales(EMPTY_SALES_FILTER),
       listApplications(EMPTY_TEXTBOOK_FILTER),
+      listStores(EMPTY_STORE_FILTER),
+      summarizeShipments(),
     ])
-      .then(([c, a, s, t]) => {
+      .then(([c, a, s, t, st, sh]) => {
         if (!alive) return
         setContracts(c)
         setAppointments(a)
         setSales(s)
         setApplications(t)
+        setStores(st)
+        setShipmentSummary(sh)
         setLoading(false)
       })
       .catch((e) => {
@@ -116,7 +138,12 @@ export default function DashboardPage() {
   const salesSummary = summarizeSales(sales)
   const appointmentSummary = summarizeAppointments(appointments)
   const positionSummary = summarizeByPosition(appointments)
+  const positionEntries = positionSummary.filter((p) => p.count > 0).map((p) => `${p.position} ${p.count}`)
+  const positionMid = Math.ceil(positionEntries.length / 2)
+  const positionLine1 = positionEntries.slice(0, positionMid).join(' · ') || '해당 없음'
+  const positionLine2 = positionEntries.slice(positionMid).join(' · ')
   const applicationSummary = summarizeApplications(applications)
+  const storeSummary = summarizeStores(stores)
 
   // 라스온수당지급 — PaymentListPage와 동일: 연번 단위 합계행만 집계
   const bonusRows = buildLasOnBonusRows(contracts, today10)
@@ -140,30 +167,15 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-4">
         <ModuleBlock title="계약관리" to={mobile ? undefined : '/contracts'} tint="#e0edff" fg="#2563eb" icon={FileText}>
           <Stat label="계약총액" value={won(contractSummary.depositTotal)} sub={`진행중 ${contractSummary.active}건`} />
           <Stat label="이번달 계약" value={won(contractSummary.monthTotal)} sub={`이번주 ${won(contractSummary.weekTotal)}`} />
         </ModuleBlock>
 
-        <ModuleBlock title="라스온현황" to={mobile ? undefined : '/contracts'} tint="#e2f7ec" fg="#16a34a" icon={Network}>
-          <Stat label="계약총액" value={won(lasOnSummary.depositTotal)} sub={`진행중 ${lasOnSummary.active}건`} />
-          <Stat label="이번달 계약" value={won(lasOnSummary.monthTotal)} sub={`이번주 ${won(lasOnSummary.weekTotal)}`} />
-        </ModuleBlock>
-
         <ModuleBlock title="결재관리" to={mobile ? undefined : '/sales'} tint="#fff1e0" fg="#f59e0b" icon={ShoppingCart}>
           <Stat label="매출 합계" value={won(salesSummary.cardTotal + salesSummary.cashTotal)} sub={`총 ${salesSummary.total}건`} />
           <Stat label="당월 매출" value={won(monthSales)} sub={`미확인 ${salesSummary.unverified}건`} />
-        </ModuleBlock>
-
-        <ModuleBlock title="교재신청관리" to={mobile ? undefined : '/textbook-apply'} tint="#f3e8ff" fg="#7c3aed" icon={BookOpen}>
-          <Stat label="신청 건수" value={`${applicationSummary.total}건`} sub={`오늘 ${applicationSummary.todayCount}건`} />
-          <Stat label="첨부 현황" value={`사진 ${applicationSummary.withPhoto} · PDF ${applicationSummary.withPdf}`} />
-        </ModuleBlock>
-
-        <ModuleBlock title="임용관리" to={mobile ? undefined : '/base'} tint="#e0edff" fg="#2563eb" icon={Users}>
-          <Stat label="정상운영" value={`${appointmentSummary.active}명`} sub={`휴직 ${appointmentSummary.paused} · 해지 ${appointmentSummary.ended}`} />
-          <Stat label="직급 구성" value={positionSummary.filter((p) => p.count > 0).map((p) => `${p.position} ${p.count}`).join(' · ') || '해당 없음'} />
         </ModuleBlock>
 
         <ModuleBlock title="수익금관리" to={mobile ? undefined : '/payment'} tint="#e2f7ec" fg="#16a34a" icon={Coins}>
@@ -176,9 +188,34 @@ export default function DashboardPage() {
           <Stat label="당월 수당" value={won(monthAllowance)} sub={`대상 ${allowanceTargets.length}건`} />
         </ModuleBlock>
 
+        <ModuleBlock title="임용관리" to={mobile ? undefined : '/base'} tint="#e0edff" fg="#2563eb" icon={Users}>
+          <Stat label="정상운영" value={`${appointmentSummary.active}명`} sub={`휴직 ${appointmentSummary.paused} · 해지 ${appointmentSummary.ended}`} />
+          <Stat label="직급 구성" value={positionLine1} sub={positionLine2 || undefined} />
+        </ModuleBlock>
+
+        <ModuleBlock title="라스온현황" to={mobile ? undefined : '/contracts'} tint="#e2f7ec" fg="#16a34a" icon={Network}>
+          <Stat label="계약총액" value={won(lasOnSummary.depositTotal)} sub={`진행중 ${lasOnSummary.active}건`} />
+          <Stat label="이번달 계약" value={won(lasOnSummary.monthTotal)} sub={`이번주 ${won(lasOnSummary.weekTotal)}`} />
+        </ModuleBlock>
+
         <ModuleBlock title="라스온수당지급" to={mobile ? undefined : '/payment'} tint="#f3e8ff" fg="#7c3aed" icon={HandCoins}>
           <Stat label="보증금 합계" value={won(bonusDepositSum)} sub="대상 계약 보증금" />
           <Stat label="지급예정금액" value={won(bonusTotal)} sub={`지급대상 ${bonusTargetCount}건`} />
+        </ModuleBlock>
+
+        <ModuleBlock title="교재신청관리" to={mobile ? undefined : '/textbook-apply'} tint="#f3e8ff" fg="#7c3aed" icon={BookOpen}>
+          <Stat label="신청 건수" value={`${applicationSummary.total}건`} sub={`오늘 ${applicationSummary.todayCount}건`} />
+          <Stat label="첨부 현황" value={`사진 ${applicationSummary.withPhoto} · PDF ${applicationSummary.withPdf}`} />
+        </ModuleBlock>
+
+        <ModuleBlock title="배송관리" to={mobile ? undefined : '/delivery'} tint="#e0edff" fg="#2563eb" icon={Truck}>
+          <Stat label="전체 배송" value={`${shipmentSummary?.total ?? 0}건`} sub={`추후배송 ${shipmentSummary?.deferred ?? 0}건`} />
+          <Stat label="배송중" value={`${shipmentSummary?.shipping ?? 0}건`} sub={`완료 ${shipmentSummary?.done ?? 0}건`} />
+        </ModuleBlock>
+
+        <ModuleBlock title="매장섭외관리" to={mobile ? undefined : '/stores'} tint="#e2f7ec" fg="#16a34a" icon={Building2}>
+          <Stat label="전체 매장" value={`${storeSummary.total}건`} sub={`진행중 ${storeSummary.active}건`} />
+          <Stat label="계약완료(오픈)" value={`${storeSummary.contracted}건`} sub={`선점만료임박 ${storeSummary.expiringSoon}건`} />
         </ModuleBlock>
       </div>
 
