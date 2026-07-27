@@ -409,6 +409,19 @@ export function updateStaffApi(
 export function resetStaffPasswordApi(id: string): Promise<Staff> {
   return sendJson(`/api/staff/${encodeURIComponent(id)}/reset-password`, 'POST')
 }
+/** 문자 로그인 준비 — 계정에 전화번호를 연결한다(계정을 새로 만들지 않는다) */
+export function linkStaffPhoneApi(id: string): Promise<{ id: string; name: string; phone: string }> {
+  return sendJson(`/api/staff/${encodeURIComponent(id)}/link-phone`, 'POST')
+}
+
+/** 전체 일괄 연결 — 실패 건은 사유와 함께 돌아온다 */
+export function linkAllStaffPhonesApi(): Promise<{
+  linked: { name: string; phone: string }[]
+  failed: { name: string; email: string; reason: string }[]
+}> {
+  return sendJson('/api/staff/link-phones', 'POST')
+}
+
 /** 본인 가입 요청 제출 — 로그인 없이 호출 가능 */
 export function submitStaffRequestApi(data: {
   name: string

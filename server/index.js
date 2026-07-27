@@ -576,6 +576,27 @@ app.post('/api/staff/:id/reset-password', async (req, res) => {
   }
 })
 
+// 전화번호 연결 — 문자 인증 로그인 준비. 계정을 새로 만들지 않고 로그인 수단만 더한다.
+app.post('/api/staff/:id/link-phone', async (req, res) => {
+  try {
+    const r = await staffRepo.linkPhone(req.params.id)
+    if (!r) return res.status(404).json({ ok: false, error: 'not found' })
+    res.json({ ok: true, data: r })
+  } catch (e) {
+    // 번호 형식 오류·중복은 사람이 고쳐야 하는 문제라 사유를 그대로 화면에 보낸다
+    res.status(400).json({ ok: false, error: e.message })
+  }
+})
+
+// 일괄 연결 — 실패한 건은 사유와 함께 돌려주고 나머지는 계속 진행한다
+app.post('/api/staff/link-phones', async (_req, res) => {
+  try {
+    res.json({ ok: true, data: await staffRepo.linkAllPhones() })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 app.patch('/api/staff/:id', async (req, res) => {
   try {
     const s = await staffRepo.updateStaff(req.params.id, req.body)

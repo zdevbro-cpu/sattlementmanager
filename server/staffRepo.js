@@ -113,7 +113,14 @@ async function approveRequest(id) {
     return { staff: mapStaff(upd[0]), resetLink: '', merged: true }
   }
 
-  const userRecord = await auth.createUser({ email: req.email, displayName: req.name })
+  // 전화번호가 정상이면 계정 생성 때 바로 붙인다 — 신규 계정은 따로 연결할 필요가 없어진다.
+  // 형식이 어긋나면 계정 생성 자체가 막히지 않도록 번호 없이 만들고 나중에 연결한다.
+  const e164 = toE164(req.phone)
+  const userRecord = await auth.createUser({
+    email: req.email,
+    displayName: req.name,
+    ...(e164 ? { phoneNumber: e164 } : {}),
+  })
   try {
     await pool.query(
       `INSERT INTO staff_accounts (id, name, phone, email, role, roles, part, business_unit, branch)
@@ -141,6 +148,61 @@ async function approveRequest(id) {
   const resetLink = await auth.generatePasswordResetLink(req.email)
   const { rows: acc } = await pool.query(`SELECT * FROM staff_accounts WHERE id = $1`, [userRecord.uid])
   return { staff: mapStaff(acc[0]), resetLink }
+}
+
+/**
+ * 국내 휴대폰 번호를 Firebase 가 요구하는 E.164 형식(+8210…)으로 바꾼다.
+ * 화면에서는 010-1234-5678 처럼 저장되므로 숫자만 남긴 뒤 국가번호를 붙인다.
+ * 휴대폰이 아니거나 자릿수가 맞지 않으면 null 을 돌려주고, 호출부가 사유를 남긴다.
+ */
+function toE164(phone) {
+  const d = String(phone || '').replace(/[^0-9]/g, '')
+  if (/^010\d{8}$/.test(d)) return '+82' + d.slice(1)
+  if (/^8210\d{8}$/.test(d)) return '+' + d
+  return null
+}
+
+/**
+ * 계정에 전화번호를 연결한다 — 문자 인증 로그인을 쓰기 위한 준비.
+ * 계정을 새로 만들지 않고 기존 Firebase 계정에 로그인 수단만 더한다.
+ * UID·이메일·비밀번호가 모두 그대로 남으므로 이메일 로그인도 계속 동작하고,
+ * 토큰에 이메일이 실려 오므로 서버 인가(resolveRoles)도 손댈 필요가 없다.
+ */
+async function linkPhone(id) {
+  const { rows } = await pool.query(`SELECT id, name, email, phone FROM staff_accounts WHERE id = $1`, [id])
+  if (!rows.length) return null
+  const s = rows[0]
+  const e164 = toE164(s.phone)
+  if (!e164) throw new Error(`휴대폰 번호 형식이 아닙니다: ${s.phone || '(없음)'}`)
+  await auth.updateUser(s.id, { phoneNumber: e164 })
+  return { id: s.id, name: s.name, phone: e164 }
+}
+
+/**
+ * 전체 일괄 연결 — 25명 안팎이라 한 번에 처리한다.
+ * 한 건이 실패해도 나머지를 계속 진행하고, 실패 사유를 모아 돌려준다
+ * (번호 중복처럼 사람이 확인해야 하는 문제는 화면에서 보여줘야 한다).
+ */
+async function linkAllPhones() {
+  const { rows } = await pool.query(
+    `SELECT id, name, email, phone FROM staff_accounts WHERE status = 'active' ORDER BY name`,
+  )
+  const linked = []
+  const failed = []
+  for (const s of rows) {
+    const e164 = toE164(s.phone)
+    if (!e164) {
+      failed.push({ name: s.name, email: s.email, reason: `번호 형식 오류(${s.phone || '없음'})` })
+      continue
+    }
+    try {
+      await auth.updateUser(s.id, { phoneNumber: e164 })
+      linked.push({ name: s.name, phone: e164 })
+    } catch (e) {
+      failed.push({ name: s.name, email: s.email, reason: e.message })
+    }
+  }
+  return { linked, failed }
 }
 
 async function rejectRequest(id) {
@@ -204,6 +266,9 @@ async function deleteStaff(id) {
 }
 
 module.exports = {
+  toE164,
+  linkPhone,
+  linkAllPhones,
   listStaff,
   listRequests,
   createRequest,
