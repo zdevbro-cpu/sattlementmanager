@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   RecaptchaVerifier,
   onAuthStateChanged,
@@ -52,18 +52,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * 파트너에게 "사진 고르기" 같은 화면이 뜨면 그 자체가 장벽이 되므로,
    * 정상적인 접속에서는 아무것도 보이지 않고 넘어가야 한다.
    *
-   * 검증기는 매번 새로 만든다 — 한 번 쓴 것을 재사용하면 재시도 시 실패한다.
+   * 【같은 요소에 두 번 붙이면 안 된다】
+   * reCAPTCHA 는 한 번 렌더된 DOM 요소를 기억하고 있어서, 같은 요소에 다시 붙이면
+   * "reCAPTCHA has already been rendered in this element" 로 실패한다.
+   * innerHTML 을 비우는 것만으로는 부족하다 — 위젯 등록이 남아 있기 때문이다.
+   * 그래서 ①이전 검증기를 clear() 로 확실히 해제하고 ②컨테이너 안에 매번
+   * 새 div 를 만들어 거기에 붙인다. 재시도·번호 다시입력·StrictMode 이중 렌더
+   * 어느 경우에도 항상 처음 쓰는 요소가 된다.
    */
+  const verifierRef = useRef<RecaptchaVerifier | null>(null)
+
+  const clearVerifier = () => {
+    if (!verifierRef.current) return
+    try {
+      verifierRef.current.clear()
+    } catch {
+      // 이미 정리된 경우 — 무시해도 다음 단계에서 새로 만든다
+    }
+    verifierRef.current = null
+  }
+
   const sendPhoneCode = async (phone: string, containerId: string) => {
     const e164 = toE164(phone)
     if (!e164) throw new Error('휴대폰 번호를 정확히 입력해주세요. (예: 010-1234-5678)')
-    const el = document.getElementById(containerId)
-    if (el) el.innerHTML = ''
-    const verifier = new RecaptchaVerifier(auth, containerId, { size: 'invisible' })
+
+    clearVerifier()
+    const wrapper = document.getElementById(containerId)
+    if (!wrapper) throw new Error('인증 준비에 실패했습니다. 새로고침 후 다시 시도해주세요.')
+    wrapper.innerHTML = ''
+    const host = document.createElement('div')
+    wrapper.appendChild(host)
+
+    const verifier = new RecaptchaVerifier(auth, host, { size: 'invisible' })
+    verifierRef.current = verifier
     try {
       return await signInWithPhoneNumber(auth, e164, verifier)
     } catch (e) {
-      verifier.clear()
+      clearVerifier()
       throw e
     }
   }
