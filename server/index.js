@@ -20,6 +20,7 @@ const extraPayoutRepo = require('./extraPayoutRepo')
 const textbookRepo = require('./textbookRepo')
 const shipmentRepo = require('./shipmentRepo')
 const drive = require('./services/driveService')
+const geocoding = require('./services/geocodingService')
 const ocr = require('./services/ocrService')
 const pdfService = require('./services/pdfService')
 const tracking = require('./services/trackingService')
@@ -376,10 +377,31 @@ app.get('/api/stores/:id', async (req, res) => {
   }
 })
 
+/**
+ * 주소로 좌표·행정구역을 채운다. 실패해도 등록/수정 자체는 성공 처리한다 —
+ * 지오코딩 오류로 현장의 매장 등록이 막히면 안 된다(누락 건은 일괄 지오코딩으로 사후 보정).
+ */
+async function fillGeocode(store) {
+  if (!store) return store
+  const address = [store.roadAddress, store.detailAddress].filter(Boolean).join(' ')
+  if (!address.trim()) return store
+  try {
+    const geo = await geocoding.geocodeAddress(address, store.storeName)
+    if (!geo) {
+      console.warn('[geocode] 좌표를 찾지 못함', store.id, address)
+      return store
+    }
+    return await storeRepo.setStoreGeocode(store.id, geo)
+  } catch (e) {
+    console.error('[geocode] 실패', store.id, e.message)
+    return store
+  }
+}
+
 app.post('/api/stores', async (req, res) => {
   try {
     const s = await storeRepo.createStore(req.body)
-    res.status(201).json({ ok: true, data: s })
+    res.status(201).json({ ok: true, data: await fillGeocode(s) })
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message })
   }
@@ -387,9 +409,46 @@ app.post('/api/stores', async (req, res) => {
 
 app.patch('/api/stores/:id', async (req, res) => {
   try {
+    const before = await storeRepo.getStore(req.params.id)
     const s = await storeRepo.updateStore(req.params.id, req.body)
     if (!s) return res.status(404).json({ ok: false, error: 'not found' })
-    res.json({ ok: true, data: s })
+    // 주소가 바뀌었거나 아직 좌표가 없을 때만 다시 지오코딩한다(불필요한 API 호출 방지)
+    const addressChanged =
+      !before ||
+      before.roadAddress !== s.roadAddress ||
+      before.detailAddress !== s.detailAddress
+    const needGeocode = addressChanged || s.lat == null || s.lng == null
+    res.json({ ok: true, data: needGeocode ? await fillGeocode(s) : s })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+/**
+ * 좌표가 없는 매장을 일괄 지오코딩한다 (관리자 전용).
+ * 네이버 API 호출이 연속으로 나가므로 건마다 간격을 둔다.
+ */
+app.post('/api/stores/geocode-all', async (_req, res) => {
+  try {
+    const pending = await storeRepo.listStoresMissingGeocode()
+    const done = []
+    const failed = []
+    for (const s of pending) {
+      const address = [s.roadAddress, s.detailAddress].filter(Boolean).join(' ')
+      try {
+        const geo = await geocoding.geocodeAddress(address, s.storeName)
+        if (geo) {
+          await storeRepo.setStoreGeocode(s.id, geo)
+          done.push({ id: s.id, storeName: s.storeName, sido: geo.sido, sigungu: geo.sigungu })
+        } else {
+          failed.push({ id: s.id, storeName: s.storeName, reason: '주소로 좌표를 찾지 못했습니다.' })
+        }
+      } catch (e) {
+        failed.push({ id: s.id, storeName: s.storeName, reason: e.message })
+      }
+      await new Promise((r) => setTimeout(r, 120)) // 호출 간격
+    }
+    res.json({ ok: true, data: { total: pending.length, done, failed } })
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message })
   }

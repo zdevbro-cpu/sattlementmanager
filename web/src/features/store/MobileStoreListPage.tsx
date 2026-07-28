@@ -14,6 +14,7 @@ import {
 } from '../../types/store'
 import { fetchPartLeaders } from '../../lib/api'
 import { getStore, listStores } from './storeStore'
+import StoreMapView from './StoreMapView'
 
 const inputCls =
   'h-11 w-full rounded-[8px] bg-input border border-border pl-9 pr-3 text-[14px] text-input-text outline-none focus:border-primary'
@@ -48,6 +49,7 @@ export default function MobileStoreListPage() {
   const [claimedStaff, setClaimedStaff] = useState('')
   const [partLeaders, setPartLeaders] = useState<string[]>([])
   const [detail, setDetail] = useState<Store | null>(null)
+  const [view, setView] = useState<'list' | 'map'>('list')
 
   useEffect(() => {
     listStores(EMPTY_STORE_FILTER).then((list) => {
@@ -101,6 +103,25 @@ export default function MobileStoreListPage() {
         </div>
       </div>
 
+      {/* 목록 / 지도 전환 — 지도는 조회 전용이라 검색·필터는 지도 안에서 따로 제공한다 */}
+      <div className="mb-3 flex gap-1 border-b border-border">
+        {(['list', 'map'] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className={`px-4 py-2 text-[14px] font-bold border-b-2 -mb-px ${
+              view === v ? 'border-primary text-text-strong' : 'border-transparent text-[#94a3b8]'
+            }`}
+          >
+            {v === 'list' ? '목록' : '지도'}
+          </button>
+        ))}
+      </div>
+
+      {view === 'map' && <StoreMapView stores={rows} compact />}
+
+      {view === 'list' && (
+      <>
       <div className="relative mb-2">
         <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b]" />
         <input
@@ -190,6 +211,8 @@ export default function MobileStoreListPage() {
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   )
 }

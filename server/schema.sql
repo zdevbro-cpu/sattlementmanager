@@ -320,6 +320,11 @@ CREATE TABLE IF NOT EXISTS store_master (
 CREATE INDEX IF NOT EXISTS idx_store_master_phone ON store_master(store_phone);
 CREATE INDEX IF NOT EXISTS idx_store_master_bizno ON store_master(business_reg_no);
 CREATE INDEX IF NOT EXISTS idx_store_master_status ON store_master(status);
+-- 행정구역 — 지도 화면의 시/도 → 시/군/구 필터 기준.
+-- 주소 문자열을 파싱하지 않고 지오코딩 응답의 행정구역 정보를 그대로 저장한다(표기 흔들림 방지).
+ALTER TABLE store_master ADD COLUMN IF NOT EXISTS sido    TEXT;
+ALTER TABLE store_master ADD COLUMN IF NOT EXISTS sigungu TEXT;
+CREATE INDEX IF NOT EXISTS idx_store_master_region ON store_master(sido, sigungu);
 
 -- 섭외 접촉이력 (매장 1 : 이력 N)
 CREATE TABLE IF NOT EXISTS store_recruitment_log (

@@ -71,6 +71,9 @@ function mapStore(s, log, photos) {
     detailAddress: s.detail_address || '',
     lat: s.lat != null ? Number(s.lat) : undefined,
     lng: s.lng != null ? Number(s.lng) : undefined,
+    // 행정구역 — 지도 화면의 시/도 → 시/군/구 필터 기준 (지오코딩 응답에서 채운다)
+    sido: s.sido || '',
+    sigungu: s.sigungu || '',
     storeName: s.store_name,
     businessType: s.business_type || '',
     totalArea: s.total_area || '',
@@ -247,8 +250,15 @@ async function createStore(data) {
 
 /** 매장 정보 수정 — 상태가 실제로 바뀐 경우, 선점 만료일(D-day)을 상태변경일+7일로 자동 재계산한다 */
 async function updateStore(id, data) {
-  const { rows: cur } = await pool.query(`SELECT status FROM store_master WHERE id = $1`, [id])
+  const { rows: cur } = await pool.query(
+    `SELECT status, lat, lng, sido, sigungu FROM store_master WHERE id = $1`,
+    [id],
+  )
   if (!cur.length) return null
+  // 좌표·행정구역은 지오코딩으로 채우는 값이라 편집 폼이 보내지 않는다.
+  // 넘어오지 않으면 기존 값을 유지한다 — null 로 덮으면 지도에서 매장이 사라진다.
+  const keepLat = data.lat ?? cur[0].lat ?? null
+  const keepLng = data.lng ?? cur[0].lng ?? null
   const nextStatus = data.status || '신규등록'
   const statusChanged = nextStatus !== cur[0].status
   const today = todayIso()
@@ -275,8 +285,8 @@ async function updateStore(id, data) {
       data.storePhone || '',
       data.roadAddress || '',
       data.detailAddress || '',
-      data.lat ?? null,
-      data.lng ?? null,
+      keepLat,
+      keepLng,
       data.storeName,
       data.businessType || '',
       data.totalArea || '',
@@ -332,6 +342,34 @@ async function addRecruitmentLog(storeId, log) {
   return getStore(storeId)
 }
 
+/**
+ * 지오코딩 결과 저장 — 좌표·행정구역만 갱신한다.
+ * 매장 정보 수정(updateStore)과 분리해, 지오코딩이 다른 필드를 건드리지 않게 한다.
+ */
+async function setStoreGeocode(id, geo) {
+  await pool.query(
+    `UPDATE store_master SET lat=$2, lng=$3, sido=$4, sigungu=$5, updated_at=now() WHERE id=$1`,
+    [id, geo.lat, geo.lng, geo.sido || '', geo.sigungu || ''],
+  )
+  return getStore(id)
+}
+
+/** 좌표가 없는 매장 목록 — 일괄 지오코딩 대상 */
+async function listStoresMissingGeocode() {
+  const { rows } = await pool.query(
+    `SELECT id, store_name, road_address, detail_address
+       FROM store_master
+      WHERE (lat IS NULL OR lng IS NULL) AND COALESCE(road_address,'') <> ''
+      ORDER BY id`,
+  )
+  return rows.map((r) => ({
+    id: r.id,
+    storeName: r.store_name || '',
+    roadAddress: r.road_address || '',
+    detailAddress: r.detail_address || '',
+  }))
+}
+
 /** 매장 사진 1건 추가 (Drive 업로드 후 링크 저장) */
 async function addStorePhoto(storeId, photo) {
   await pool.query(
@@ -350,4 +388,6 @@ module.exports = {
   deleteStore,
   addRecruitmentLog,
   addStorePhoto,
+  setStoreGeocode,
+  listStoresMissingGeocode,
 }

@@ -8,6 +8,7 @@ import { EMPTY_STORE_FILTER, RELEASED_FILTER_VALUE, STORE_STATUSES, type Store, 
 import { deleteStore, listStores, summarizeStores } from './storeStore'
 import StoreRegisterModal from './StoreRegisterModal'
 import StoreDetailDrawer from './StoreDetailDrawer'
+import StoreMapView from './StoreMapView'
 import { fetchPartLeaders } from '../../lib/api'
 import { listStaff } from './staffStore'
 
@@ -39,6 +40,7 @@ export default function StoreListPage() {
   const [loading, setLoading] = useState(true)
   const [refresh, setRefresh] = useState(0)
   const [registerOpen, setRegisterOpen] = useState(false)
+  const [view, setView] = useState<'list' | 'map'>('list')
   const [detailId, setDetailId] = useState<string | null>(null)
   const [perPage, setPerPage] = useState(20)
   const [page, setPage] = useState(1)
@@ -152,6 +154,20 @@ export default function StoreListPage() {
         <SummaryCard label="선점만료 임박(7일)" value={sum.expiringSoon} tint="#fee2e2" fg="#ef4444" icon={Timer} />
       </div>
 
+      {/* 목록 / 지도 전환 — 지도는 조회 전용이고, 등록·수정은 목록에서 한다 */}
+      <div className="flex gap-1 mb-4 border-b border-border">
+        <ViewTabButton active={view === 'list'} onClick={() => setView('list')}>
+          목록
+        </ViewTabButton>
+        <ViewTabButton active={view === 'map'} onClick={() => setView('map')}>
+          지도
+        </ViewTabButton>
+      </div>
+
+      {view === 'map' && <StoreMapView stores={rows} />}
+
+      {view === 'list' && (
+      <>
       <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
         <div className="grid grid-cols-[repeat(4,minmax(160px,1fr))_auto] gap-2 items-end">
           <Field label="검색">
@@ -309,6 +325,8 @@ export default function StoreListPage() {
           <Pagination page={safePage} totalPages={totalPages} perPage={perPage} onPageChange={setPage} onPerPageChange={setPerPage} />
         )}
       </div>
+      </>
+      )}
 
       {registerOpen && (
         <StoreRegisterModal
@@ -327,6 +345,27 @@ export default function StoreListPage() {
         />
       )}
     </AppLayout>
+  )
+}
+
+function ViewTabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-4 py-2 text-[14px] font-bold border-b-2 -mb-px transition-colors ${
+        active ? 'border-primary text-text-strong' : 'border-transparent text-[#94a3b8] hover:text-[#e2e8f0]'
+      }`}
+    >
+      {children}
+    </button>
   )
 }
 

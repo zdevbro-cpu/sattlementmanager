@@ -46,6 +46,9 @@ export interface Store {
   detailAddress: string
   lat?: number
   lng?: number
+  /** 행정구역 — 지도 화면의 시/도 → 시/군/구 필터 기준 (지오코딩으로 채워진다) */
+  sido?: string
+  sigungu?: string
   storeName: string
   businessType: string
   totalArea: string
