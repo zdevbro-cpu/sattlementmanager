@@ -86,6 +86,8 @@ export interface StoreFilter {
   status: string
   claimedPart: string
   claimedStaff: string
+  /** 사업부 — 매장 자체 값(store.businessUnit) 기준. 계정 조회에 의존하지 않아 파트너도 동작한다 */
+  businessUnit: string
 }
 
 /** 상태 필터 전용 특수값 — 실제 STORE_STATUSES 값이 아니라 "선점파트/선점담당이 비어있음(선점해지)"을 뜻한다 */
@@ -96,4 +98,5 @@ export const EMPTY_STORE_FILTER: StoreFilter = {
   status: '전체',
   claimedPart: '',
   claimedStaff: '',
+  businessUnit: '',
 }

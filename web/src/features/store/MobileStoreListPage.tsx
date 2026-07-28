@@ -15,6 +15,7 @@ import {
 import { fetchPartLeaders } from '../../lib/api'
 import { getStore, listStores } from './storeStore'
 import StoreMapView from './StoreMapView'
+import { useCodes } from '../../lib/codeStore'
 
 const inputCls =
   'h-11 w-full rounded-[8px] bg-input border border-border pl-9 pr-3 text-[14px] text-input-text outline-none focus:border-primary'
@@ -47,9 +48,11 @@ export default function MobileStoreListPage() {
   const [status, setStatus] = useState('전체')
   const [claimedPart, setClaimedPart] = useState('')
   const [claimedStaff, setClaimedStaff] = useState('')
+  const [businessUnit, setBusinessUnit] = useState('')
   const [partLeaders, setPartLeaders] = useState<string[]>([])
   const [detail, setDetail] = useState<Store | null>(null)
   const [view, setView] = useState<'list' | 'map'>('list')
+  const codes = useCodes()
 
   useEffect(() => {
     listStores(EMPTY_STORE_FILTER).then((list) => {
@@ -77,6 +80,8 @@ export default function MobileStoreListPage() {
     }
     if (claimedPart && s.claimedPart !== claimedPart) return false
     if (claimedStaff.trim() && !s.claimedStaff.includes(claimedStaff.trim())) return false
+    // 사업부는 매장 자체 값으로 거른다 — 계정 조회(/api/staff)는 관리자 전용이라 파트너 화면에선 쓸 수 없다
+    if (businessUnit && (s.businessUnit || 'LASON(본사)') !== businessUnit) return false
     return true
   })
 
@@ -166,6 +171,19 @@ export default function MobileStoreListPage() {
           className="h-11 w-full rounded-[8px] bg-input border border-border px-3 text-[14px] text-input-text outline-none focus:border-primary"
         />
       </div>
+
+      <select
+        value={businessUnit}
+        onChange={(e) => setBusinessUnit(e.target.value)}
+        className="mb-3 h-11 w-full rounded-[8px] bg-input border border-border px-3 text-[14px] text-input-text outline-none focus:border-primary"
+      >
+        <option value="">사업부 전체</option>
+        {codes.businessUnits.map((b) => (
+          <option key={b} value={b}>
+            {b}
+          </option>
+        ))}
+      </select>
 
       <div className="mb-2 text-[12.5px] text-[#94a3b8]">
         총 <span className="font-bold text-text-strong">{filtered.length}</span>건

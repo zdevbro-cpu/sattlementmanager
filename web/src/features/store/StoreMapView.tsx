@@ -110,8 +110,6 @@ export default function StoreMapView({
   const mapRef = useRef<any>(null)
   const markersRef = useRef<any[]>([])
   const infoRef = useRef<any>(null)
-  // 최초 1회만 기본 레벨로 맞춘다 — 이후 필터 변경은 결과에 맞춰 확대/축소한다
-  const didInitialFit = useRef(false)
   const [loaded, setLoaded] = useState(false)
   const [loadErr, setLoadErr] = useState('')
   const [sido, setSido] = useState('전체')
@@ -259,15 +257,9 @@ export default function StoreMapView({
       return
     }
 
-    // 처음 열 때는 매장이 몰려 있는 중심을 시/군/구 레벨로 보여준다.
-    // 전체를 fitBounds 하면 전국 레벨까지 축소돼 어느 지역인지 읽히지 않는다.
-    // 사용자가 지역·단계를 고른 뒤에는 그 결과가 모두 보이도록 fitBounds 한다.
-    if (!didInitialFit.current) {
-      didInitialFit.current = true
-      mapRef.current.setCenter(bounds.getCenter())
-      mapRef.current.setZoom(DEFAULT_ZOOM)
-      return
-    }
+    // 결과가 모두 화면에 들어오도록 맞춘다.
+    // 매장이 인천~여주처럼 넓게 퍼져 있으면 시/군/구 레벨(12)로는 일부가 화면 밖으로 밀려나
+    // 실제보다 적게 보인다. 시/군/구 레벨은 지역을 선택했을 때 fitBounds 로 자연히 적용된다.
     mapRef.current.fitBounds(bounds)
   }, [loaded, visible])
 

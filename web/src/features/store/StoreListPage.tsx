@@ -11,6 +11,7 @@ import StoreDetailDrawer from './StoreDetailDrawer'
 import StoreMapView from './StoreMapView'
 import { fetchPartLeaders } from '../../lib/api'
 import { listStaff } from './staffStore'
+import { useCodes } from '../../lib/codeStore'
 
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary'
@@ -41,6 +42,7 @@ export default function StoreListPage() {
   const [refresh, setRefresh] = useState(0)
   const [registerOpen, setRegisterOpen] = useState(false)
   const [view, setView] = useState<'list' | 'map'>('list')
+  const codes = useCodes()
   const [detailId, setDetailId] = useState<string | null>(null)
   const [perPage, setPerPage] = useState(20)
   const [page, setPage] = useState(1)
@@ -103,6 +105,8 @@ export default function StoreListPage() {
     if (filter.status === RELEASED_FILTER_VALUE && (s.claimedPart || s.claimedStaff)) return false
     if (filter.claimedPart && s.claimedPart !== filter.claimedPart) return false
     if (filter.claimedStaff && !s.claimedStaff.includes(filter.claimedStaff)) return false
+    // 사업부는 매장 자체 값으로 거른다 — 계정 조회(/api/staff)는 관리자 전용이라 파트너 화면에서 쓸 수 없다
+    if (filter.businessUnit && (s.businessUnit || 'LASON(본사)') !== filter.businessUnit) return false
     return true
   })
 
@@ -169,7 +173,7 @@ export default function StoreListPage() {
       {view === 'list' && (
       <>
       <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
-        <div className="grid grid-cols-[repeat(4,minmax(160px,1fr))_auto] gap-2 items-end">
+        <div className="grid grid-cols-[repeat(5,minmax(150px,1fr))_auto] gap-2 items-end">
           <Field label="검색">
             <input
               value={filter.keyword}
@@ -191,6 +195,20 @@ export default function StoreListPage() {
                 </option>
               ))}
               <option value={RELEASED_FILTER_VALUE}>{RELEASED_FILTER_VALUE}</option>
+            </select>
+          </Field>
+          <Field label="사업부">
+            <select
+              value={filter.businessUnit}
+              onChange={(e) => setFilter({ ...filter, businessUnit: e.target.value })}
+              className={inputCls}
+            >
+              <option value="">전체</option>
+              {codes.businessUnits.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
             </select>
           </Field>
           <Field label="선점 파트">
@@ -273,14 +291,14 @@ export default function StoreListPage() {
                     <td className="px-3 py-1.5 tabular whitespace-nowrap">{s.storePhone || '-'}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{s.contactName || '-'}</td>
                     <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{s.contactMobile || '-'}</td>
+                    {/* 매장 자체 값을 우선 쓴다 — 필터와 같은 기준이라야 표시값과 검색결과가 어긋나지 않는다.
+                        비어 있는 과거 데이터만 담당자 계정에서 보완한다(계정 조회는 관리자만 가능). */}
                     <td className="px-3 py-1.5 whitespace-nowrap">
-                      {s.claimedStaff ? (
-                        <Badge tone={branchTone(staffInfoByName[s.claimedStaff]?.businessUnit || 'LASON(본사)')}>
-                          {staffInfoByName[s.claimedStaff]?.businessUnit || 'LASON(본사)'}
-                        </Badge>
-                      ) : (
-                        '-'
-                      )}
+                      {(() => {
+                        const bu =
+                          s.businessUnit || staffInfoByName[s.claimedStaff]?.businessUnit || ''
+                        return bu ? <Badge tone={branchTone(bu)}>{bu}</Badge> : '-'
+                      })()}
                     </td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{s.claimedPart || '-'}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{s.claimedStaff || '-'}</td>
