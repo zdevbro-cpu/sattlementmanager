@@ -52,6 +52,10 @@ CREATE TABLE IF NOT EXISTS contract_history (
 );
 CREATE INDEX IF NOT EXISTS idx_history_contract ON contract_history(contract_id);
 CREATE INDEX IF NOT EXISTS idx_history_date ON contract_history(contract_date);
+-- 소득구분 — 수익금(수당) 지급 시 근로소득/사업소득 분리 기준.
+-- 4대보험 가입은 시점이 있는 사건이라 계약 단위가 아니라 이력(스냅샷) 단위로 남긴다.
+-- 계약 단위로 두면 오늘 값을 바꿀 때 이미 지급한 과거 건까지 소급 변경되어 보인다.
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS income_type TEXT NOT NULL DEFAULT '사업소득';
 
 -- 결재 분할 (카드 분할결제 / 현금 분할입금, 각 최대 6회)
 CREATE TABLE IF NOT EXISTS payment_installments (

@@ -6,6 +6,7 @@ import { correctHistory, listContracts } from './contractStore'
 import { BRANCHES, MANAGERS, RECRUITERS } from '../../data/mockContracts'
 import PaymentEditor from './PaymentEditor'
 import DateTextInput from '../../components/ui/DateTextInput'
+import IncomeTypeToggle, { LABOR_INCOME_MIN } from '../../components/ui/IncomeTypeToggle'
 import { comma, phoneFmt, residentNoFmt } from '../../lib/format'
 
 const inputCls =
@@ -55,6 +56,7 @@ export default function HistoryCorrectForm({
   const [deposit, setDeposit] = useState(base.deposit)
   const [allowance, setAllowance] = useState(base.allowance)
   const [allowancePayDay, setAllowancePayDay] = useState(base.allowancePayDay || 25)
+  const [incomeType, setIncomeType] = useState<ContractSnapshot['incomeType']>(base.incomeType)
   const [firstAllowancePayDate, setFirstAllowancePayDate] = useState(base.firstAllowancePayDate)
   const [contractEndDate, setContractEndDate] = useState(base.contractEndDate)
   const [phone, setPhone] = useState(base.phone)
@@ -93,6 +95,8 @@ export default function HistoryCorrectForm({
         deposit,
         allowance,
         allowancePayDay,
+        // 수당이 근로소득 기준액 미만이면 근로소득으로 둘 수 없다(공제가 정액이라 실지급이 비정상이 된다)
+        incomeType: allowance >= LABOR_INCOME_MIN ? incomeType : '사업소득',
         firstAllowancePayDate,
         contractEndDate,
         phone,
@@ -168,6 +172,9 @@ export default function HistoryCorrectForm({
               </option>
             ))}
           </select>
+        </Field>
+        <Field label="소득구분">
+          <IncomeTypeToggle value={incomeType} onChange={setIncomeType} allowance={allowance} />
         </Field>
         <Field label="종료일">
           <DateTextInput value={contractEndDate} onChange={setContractEndDate} className={inputCls} />

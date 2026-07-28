@@ -65,6 +65,8 @@ function mapSnapshot(h, installments, documents) {
     recipientResidentNo: h.recipient_resident_no || '',
     linkedContractId: h.linked_contract_id || '',
     transferAmount: Number(h.transfer_amount || 0),
+    // 소득구분 — 이력 시점의 값을 그대로 유지한다(과거 지급건 소급 변경 방지)
+    incomeType: h.income_type === '근로소득' ? '근로소득' : '사업소득',
     payment: {
       method,
       totalAmount: Number(h.payment_total || 0),
@@ -223,8 +225,8 @@ async function insertHistory(client, contractId, snap) {
         bank_name,account_no,account_owner,resident_no,phone,
         payment_method,payment_total,memo,is_draft,
         recipient_name,recipient_bank_name,recipient_account_no,recipient_account_owner,recipient_resident_no,
-        linked_contract_id,transfer_amount)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34)
+        linked_contract_id,transfer_amount,income_type)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35)
      RETURNING id`,
     [
       contractId,
@@ -261,6 +263,7 @@ async function insertHistory(client, contractId, snap) {
       snap.recipientResidentNo || '',
       snap.linkedContractId || null,
       snap.transferAmount || 0,
+      snap.incomeType === '근로소득' ? '근로소득' : '사업소득',
     ],
   )
   const historyId = rows[0].id
@@ -376,7 +379,7 @@ async function correctHistory(historyId, snap) {
          payment_method=$22, payment_total=$23, memo=$24, is_draft=$25,
          recipient_name=$26, recipient_bank_name=$27, recipient_account_no=$28,
          recipient_account_owner=$29, recipient_resident_no=$30,
-         linked_contract_id=$31, transfer_amount=$32
+         linked_contract_id=$31, transfer_amount=$32, income_type=$33
        WHERE id=$1`,
       [
         historyId,
@@ -411,6 +414,7 @@ async function correctHistory(historyId, snap) {
         snap.recipientResidentNo || '',
         snap.linkedContractId || null,
         snap.transferAmount || 0,
+        snap.incomeType === '근로소득' ? '근로소득' : '사업소득',
       ],
     )
     if (rowCount === 0) throw new Error('이력을 찾을 수 없습니다.')

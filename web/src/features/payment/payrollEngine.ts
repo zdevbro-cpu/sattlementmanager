@@ -156,6 +156,90 @@ export function calcPayroll(
   }
 }
 
+/* ══════════════════════════════════════════════════════════
+ * 수익금(수당) 지급 — 근로소득/사업소득 분리
+ *
+ * 급여관리와 계산 규칙이 같다. 다른 점은 기준 금액이 '연봉/12'가 아니라
+ * 계약 수당(allowance)이고, 직급이 없어 4대보험 등급을 하나로 고정한다는 것뿐이다.
+ * ══════════════════════════════════════════════════════════ */
+
+/** 수익금 지급자의 4대보험 등급 — 시스템관리 직급급여의 이 등급 값을 그대로 쓴다 */
+export const REVENUE_LABOR_GRADE = '점주'
+
+/** 계산에 필요한 지급대상 정보 (계약 스냅샷 / 추가지급 대상자 공통) */
+export interface RevenuePayoutInput {
+  name: string
+  residentNo: string
+  incomeType: IncomeType
+  /** 지급 기준 금액 — 계약은 수당, 추가지급은 등록 금액 */
+  amount: number
+  bankName: string
+  accountNo: string
+  accountOwner: string
+}
+
+/** 수익금 지급 계산 1행 — 목록/엑셀/보고서가 공유한다 */
+export interface RevenuePayoutRow extends RevenuePayoutInput {
+  laborIncome: number
+  insuranceDeduction: number
+  laborNet: number
+  businessIncome: number
+  incomeTax: number
+  businessNet: number
+  totalNet: number
+  pensionExempt: boolean
+  insurance: {
+    pension: number
+    healthCare: number
+    employment: number
+    laborTax: number
+  }
+}
+
+/**
+ * 수익금 1건 → 근로소득/사업소득 분리 결과.
+ * 사업소득이면 기존과 동일하게 전액 3.3% 원천징수만 한다(기존 지급액이 바뀌지 않는다).
+ */
+export function calcRevenuePayout(
+  input: RevenuePayoutInput,
+  table: PositionSalary[],
+  baseDateISO: string,
+): RevenuePayoutRow {
+  const p = table.find((x) => x.position === REVENUE_LABOR_GRADE)
+  const pensionExempt = isPensionExempt(input.residentNo, baseDateISO)
+
+  // 근로소득: 등급별 정해진 기본급여. 지급액을 넘지 않도록 clamp.
+  const laborBasic = p?.laborBasic || 0
+  const laborIncome =
+    input.incomeType === '근로소득' ? Math.min(laborBasic, input.amount) : 0
+
+  const hasLabor = laborIncome > 0
+  const pension = hasLabor && !pensionExempt ? p?.pension || 0 : 0
+  const healthCare = hasLabor ? p?.healthCare || 0 : 0
+  const employment = hasLabor ? p?.employment || 0 : 0
+  const laborTax = hasLabor ? p?.incomeTax || 0 : 0
+  const insuranceDeduction = pension + healthCare + employment + laborTax
+  const laborNet = laborIncome - insuranceDeduction
+
+  // 사업소득: 근로소득으로 떼지 않은 나머지
+  const businessIncome = Math.max(0, input.amount - laborIncome)
+  const incomeTax = Math.round(businessIncome * WITHHOLDING_RATE)
+  const businessNet = businessIncome - incomeTax
+
+  return {
+    ...input,
+    laborIncome,
+    insuranceDeduction,
+    laborNet,
+    businessIncome,
+    incomeTax,
+    businessNet,
+    totalNet: laborNet + businessNet,
+    pensionExempt,
+    insurance: { pension, healthCare, employment, laborTax },
+  }
+}
+
 /** 급여보고 텍스트 1줄 — 이름|금액|주민번호|은행|계좌번호|예금주 */
 export function payrollTextLine(
   r: PayrollRow,

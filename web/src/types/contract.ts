@@ -102,6 +102,12 @@ export interface ContractSnapshot {
   historyId: string
   status: string // 상태 (신규/증액/양수/양도/해지/폐기 등, 시스템관리에서 추가)
   eventDate: string // 이벤트 발생일 (계약일/변경일)
+  /**
+   * 소득구분 — 수익금(수당) 지급 시 근로소득/사업소득 분리 기준.
+   * 4대보험 가입은 시점이 있는 사건이라 이력(스냅샷) 단위로 관리한다.
+   * 임용관리의 IncomeType 과 같은 값을 쓴다.
+   */
+  incomeType: '사업소득' | '근로소득'
 
   // ── 목록 컬럼 값 ────────────────────────────
   org: string // 소속 (A/B, 시스템관리에서 추가)

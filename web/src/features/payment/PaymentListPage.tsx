@@ -10,11 +10,12 @@ import { type ExtraPayee, type PayoutCategory } from '../../types/payout'
 import { EMPTY_APPOINTMENT_FILTER, type Appointment } from '../../types/appointment'
 import { listAppointments } from '../appointment/appointmentStore'
 import { usePositionSalaries } from '../appointment/positionSalaryStore'
-import { calcPayroll, payrollTextLines, type PayrollRow } from './payrollEngine'
+import { calcPayroll, calcRevenuePayout, payrollTextLines, type PayrollRow } from './payrollEngine'
 import PayslipDrawer from './PayslipDrawer'
 import DateTextInput from '../../components/ui/DateTextInput'
 import { buildLasOnBonusRows, countLasOnPartners } from './lasOnBonusEngine'
 import { downloadLasOnBonusReport } from './lasOnBonusExcel'
+import { downloadListAsExcel } from '../../lib/excelExport'
 import {
   createExtraPayoutApi,
   deleteExtraPayoutApi,
@@ -27,7 +28,7 @@ function todayIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 const TODAY = todayIso()
-const WITHHOLDING = 0.033 // 원천징수 3.3%
+// 원천징수(3.3%)·4대보험 계산은 payrollEngine 에서만 수행한다 — 화면과 보고서 값이 어긋나지 않도록.
 
 /**
  * [startISO, endISO] 범위 안에서 매월 payDay(급여일)에 해당하는 실제 날짜를 찾는다.
@@ -109,14 +110,12 @@ function RevenuePayoutView() {
   const [extras, setExtras] = useState<ExtraPayee[]>([])
   const [addOpen, setAddOpen] = useState(false)
   const [contracts, setContracts] = useState<Contract[]>([])
+  const positionSalaries = usePositionSalaries()
 
   useEffect(() => {
     listContracts(EMPTY_FILTER).then(setContracts)
     fetchExtraPayouts().then(setExtras)
   }, [])
-
-  const payout = (allowance: number) =>
-    Math.round(allowance * (1 - WITHHOLDING))
 
   // 급여일(수당지급일) 기준 — 검색기간(시작일~종료일) 안에 실제로 급여일이 도래하는 계약만 표시.
   // 증액 등으로 이력이 여러 건인 계약은 "최신 스냅샷"이 아니라, 그 지급일 시점에
@@ -146,8 +145,32 @@ function RevenuePayoutView() {
     return result
   }, [contracts, filter])
 
+  // 근로소득/사업소득 분리 계산 — 계산은 payrollEngine 한 곳에서만 수행한다(급여관리와 같은 값을 쓰도록).
+  // 4대보험 면제(60세) 판정 기준일은 그 건의 지급일 — 오늘 날짜로 판정하면 과거 지급건을 다시 조회할 때 값이 달라진다.
+  const payoutRows = useMemo(
+    () =>
+      targets.map(({ s, payBaseDate }) => ({
+        s,
+        payBaseDate,
+        calc: calcRevenuePayout(
+          {
+            name: s.contractorName,
+            residentNo: s.residentNo,
+            incomeType: s.incomeType,
+            amount: s.allowance,
+            bankName: s.bankName,
+            accountNo: s.accountNo,
+            accountOwner: s.accountOwner,
+          },
+          positionSalaries,
+          payBaseDate,
+        ),
+      })),
+    [targets, positionSalaries],
+  )
+
   const extraTotal = extras.reduce((a, e) => a + e.amount, 0)
-  const sumPayout = targets.reduce((a, { s }) => a + payout(s.allowance), 0) + extraTotal
+  const sumPayout = payoutRows.reduce((a, { calc }) => a + calc.totalNet, 0) + extraTotal
   const heldCount = targets.filter(
     ({ s }) => s.status.includes('대기') || s.status.includes('변경'),
   ).length
@@ -184,18 +207,27 @@ function RevenuePayoutView() {
       [name, item, amountOnly(amount), residentNo, bankName, accountNo, accountOwner].join('|')
 
     const body = [
-      // 목록의 지급대상(계약 파생) — 지급내역은 '수당' 고정
-      ...targets.map(({ s }) =>
-        line(
-          s.contractorName,
-          '수당',
-          payout(s.allowance),
-          s.residentNo,
-          s.bankName,
-          s.accountNo,
-          s.contractorName,
-        ),
-      ),
+      // 목록의 지급대상(계약 파생) — 지급내역은 '수당' 고정.
+      // 근로소득 대상자는 소득 종류가 달라 원천징수 신고가 나뉘므로 근로/사업을 각각 1줄로 출력한다
+      // (급여관리의 payrollTextLines 와 동일 원칙). 사업소득만인 대상자는 기존과 같이 1줄이다.
+      ...payoutRows.flatMap(({ s, calc }) => {
+        const out: string[] = []
+        if (calc.laborNet > 0)
+          out.push(line(s.contractorName, '수당(근로소득)', calc.laborNet, s.residentNo, s.bankName, s.accountNo, s.contractorName))
+        if (calc.businessNet > 0)
+          out.push(
+            line(
+              s.contractorName,
+              calc.laborNet > 0 ? '수당(사업소득)' : '수당',
+              calc.businessNet,
+              s.residentNo,
+              s.bankName,
+              s.accountNo,
+              s.contractorName,
+            ),
+          )
+        return out
+      }),
       // 추가지급 대상자 — 등록 시 입력한 지급명목 (예: 활동비)
       ...extras.map((e) =>
         line(
@@ -220,6 +252,84 @@ function RevenuePayoutView() {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
+  }
+
+  /**
+   * 엑셀 다운로드 — 급여명세서와 동일한 항목을 한 사람당 한 행으로 펼친다.
+   * 계좌번호는 이체에 쓰이므로 화면 마스킹과 달리 전체 번호를 내보낸다.
+   * 국민연금 면제(60세 이상)는 금액 열을 0으로 두고 별도 열로 표기한다(합계·집계 유지).
+   */
+  const onExcelExport = () => {
+    if (totalCount === 0) {
+      alert('출력할 데이터가 없습니다.')
+      return
+    }
+    const headers = [
+      // 인적사항
+      '구분', '지급일', '계약자', '주민등록번호', '소득구분', '보증금(원)', '수당(원)',
+      // 근로소득
+      '근로소득(원)', '국민연금(원)', '국민연금 면제', '건강.요양(원)', '고용보험(원)',
+      '소득세(근로,원)', '소득공제 합계(원)', '실지급액(근로,원)',
+      // 사업소득
+      '사업소득(원)', '소득세(3.3%,원)', '실지급액(사업,원)',
+      // 총액·계좌·계약
+      '지급총액(원)', '은행명', '계좌번호', '예금주', '계약일자', '계약종료일', '추천인',
+    ]
+    const rows: (string | number)[][] = [
+      ...payoutRows.map(({ s, payBaseDate, calc }) => [
+        '정기',
+        dateText(payBaseDate),
+        s.contractorName,
+        s.residentNo || '-',
+        calc.incomeType,
+        s.deposit,
+        s.allowance,
+        calc.laborIncome,
+        calc.insurance.pension,
+        calc.pensionExempt ? '면제 (60세 이상)' : '-',
+        calc.insurance.healthCare,
+        calc.insurance.employment,
+        calc.insurance.laborTax,
+        calc.insuranceDeduction,
+        calc.laborNet,
+        calc.businessIncome,
+        calc.incomeTax,
+        calc.businessNet,
+        calc.totalNet,
+        s.bankName || '-',
+        s.accountNo || '-',
+        s.accountOwner || '-',
+        dateText(s.contractDate),
+        dateText(s.contractEndDate),
+        s.recruiter || '-',
+      ]),
+      // 추가지급 대상자 — 계약 파생이 아니라 소득 분리 대상이 아니다(입력 금액 그대로 지급)
+      ...extras.map((e) => [
+        '추가',
+        '-',
+        e.name,
+        e.residentNo || '-',
+        '사업소득',
+        '-', '-',
+        0, 0, '-', 0, 0, 0, 0, 0,
+        e.amount,
+        0,
+        e.amount,
+        e.amount,
+        e.bankName || '-',
+        e.accountNo || '-',
+        e.accountOwner || '-',
+        '-', '-',
+        e.memo || '-',
+      ]),
+    ]
+    downloadListAsExcel(
+      `수익금지급목록_${filter.endDate}_${filter.startDate}.xlsx`,
+      headers,
+      rows,
+      undefined,
+      [5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18], // 금액 열 (국민연금 면제 열 제외)
+    )
   }
 
   return (
@@ -247,7 +357,7 @@ function RevenuePayoutView() {
 
       {/* 필터 · 출력 */}
       <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
-        <div className="grid grid-cols-[1fr_1fr_2fr_auto_auto] gap-3 items-end">
+        <div className="grid grid-cols-[1fr_1fr_2fr_auto_auto_auto] gap-3 items-end">
           <Field label="시작일">
             <DateInput value={filter.startDate} onChange={(v) => setFilter({ ...filter, startDate: v })} />
           </Field>
@@ -258,6 +368,9 @@ function RevenuePayoutView() {
             <input value={filter.keyword} onChange={(e) => setFilter({ ...filter, keyword: e.target.value })} placeholder="계약자명 검색" className={inputCls} />
           </Field>
           <button onClick={reset} className="h-[38px] rounded-[8px] border border-border px-5 text-sm font-semibold text-[#c2cde0] hover:bg-hover">초기화</button>
+          <button onClick={onExcelExport} className="inline-flex h-[38px] items-center gap-1.5 rounded-[8px] border border-border px-4 text-sm font-bold text-[#c2cde0] hover:bg-hover">
+            <Download size={14} /> 엑셀 다운로드
+          </button>
           <button onClick={onExport} className="h-[38px] rounded-[8px] bg-primary px-5 text-sm font-bold text-white hover:brightness-110">출력</button>
         </div>
       </div>
@@ -278,6 +391,7 @@ function RevenuePayoutView() {
                   ['계약자명', ''],
                   ['보증금액', 'right'],
                   ['수당', 'right'],
+                  ['소득구분', 'center'],
                   ['지급금액', 'right'],
                   ['은행명', ''],
                   ['계좌번호', ''],
@@ -294,14 +408,26 @@ function RevenuePayoutView() {
               </tr>
             </thead>
             <tbody>
-              {targets.map(({ s, payBaseDate }, i) => (
+              {payoutRows.map(({ s, payBaseDate, calc }, i) => (
                 <tr key={`${s.historyId}-${i}`} className="border-b border-border hover:bg-hover">
                   <td className="px-3 py-1.5 text-center whitespace-nowrap text-[#94a3b8]">정기</td>
                   <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(payBaseDate)}</td>
                   <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{s.contractorName}</td>
                   <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(s.deposit)} 원</td>
                   <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(s.allowance)} 원</td>
-                  <td className="px-3 py-1.5 tabular text-right font-bold text-text-strong whitespace-nowrap">{comma(payout(s.allowance))} 원</td>
+                  {/* 소득 분리 상세는 엑셀·보고서에서 보고, 목록엔 구분 배지만 둔다 */}
+                  <td className="px-3 py-1.5 text-center whitespace-nowrap">
+                    <span
+                      className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10.5px] font-bold ${
+                        calc.incomeType === '근로소득'
+                          ? 'bg-[#e0edff] text-[#2563eb]'
+                          : 'bg-[#e2f7ec] text-[#16a34a]'
+                      }`}
+                    >
+                      {calc.incomeType}
+                    </span>
+                  </td>
+                  <td className="px-3 py-1.5 tabular text-right font-bold text-text-strong whitespace-nowrap">{comma(calc.totalNet)} 원</td>
                   <td className="px-3 py-1.5 whitespace-nowrap">{s.bankName}</td>
                   <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{maskAccount(s.accountNo)}</td>
                   <td className="px-3 py-1.5 whitespace-nowrap">{s.accountOwner}</td>
@@ -320,6 +446,10 @@ function RevenuePayoutView() {
                   <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{e.name}</td>
                   <td className="px-3 py-1.5 tabular text-right whitespace-nowrap text-[#64748b]">-</td>
                   <td className="px-3 py-1.5 tabular text-right whitespace-nowrap text-[#64748b]">-</td>
+                  {/* 추가지급은 계약 파생이 아니라 소득 분리 대상이 아니다 */}
+                  <td className="px-3 py-1.5 text-center whitespace-nowrap">
+                    <span className="inline-flex items-center rounded-md bg-[#e2f7ec] px-1.5 py-0.5 text-[10.5px] font-bold text-[#16a34a]">사업소득</span>
+                  </td>
                   <td className="px-3 py-1.5 tabular text-right font-bold text-text-strong whitespace-nowrap">{comma(e.amount)} 원</td>
                   <td className="px-3 py-1.5 whitespace-nowrap">{e.bankName}</td>
                   <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{maskAccount(e.accountNo)}</td>
@@ -340,7 +470,7 @@ function RevenuePayoutView() {
               ))}
               {totalCount === 0 && (
                 <tr>
-                  <td colSpan={13} className="px-3 py-10 text-center text-[#64748b]">
+                  <td colSpan={14} className="px-3 py-10 text-center text-[#64748b]">
                     조건에 맞는 수익금지급 대상자가 없습니다.
                   </td>
                 </tr>
@@ -646,6 +776,63 @@ function SalaryPayoutView() {
     URL.revokeObjectURL(url)
   }
 
+  /**
+   * 엑셀 다운로드 — 급여명세서(PayslipDrawer)와 동일한 항목을 한 사람당 한 행으로 펼친다.
+   * 계좌번호는 이체에 쓰이므로 화면 마스킹과 달리 전체 번호를 내보낸다.
+   * 국민연금 면제(60세 이상)는 명세서가 '해당없음' 텍스트로 보여주지만, 엑셀은 합계·집계에
+   * 쓰이므로 금액 열은 0으로 두고 면제 여부를 별도 열로 표기한다.
+   */
+  const onExcelExport = () => {
+    if (rows.length === 0) {
+      alert('출력할 데이터가 없습니다.')
+      return
+    }
+    const headers = [
+      // 인적사항
+      '번호', '소속', '성명', '주민등록번호', '직급', '소득구분', '연봉(원)', '월환산(원)',
+      // 근로소득
+      '근로소득(원)', '국민연금(원)', '국민연금 면제', '건강.요양(원)', '고용보험(원)',
+      '소득세(근로,원)', '소득공제 합계(원)', '실지급액(근로,원)',
+      // 사업소득
+      '사업소득(원)', '활동비(원)', '소득세(3.3%,원)', '실지급액(사업,원)',
+      // 총액·계좌
+      '지급총액(원)', '은행명', '계좌번호', '예금주',
+    ]
+    const data: (string | number)[][] = rows.map((r, i) => [
+      i + 1,
+      r.org || '-',
+      r.name,
+      r.residentNo || '-',
+      r.position || '-',
+      r.incomeType,
+      r.annualSalary,
+      r.monthly,
+      r.laborIncome,
+      r.insurance.pension,
+      r.pensionExempt ? '면제 (60세 이상)' : '-',
+      r.insurance.healthCare,
+      r.insurance.employment,
+      r.insurance.laborTax,
+      r.insuranceDeduction,
+      r.laborNet,
+      r.businessIncome,
+      r.activity,
+      r.incomeTax,
+      r.businessNet,
+      r.totalNet,
+      r.bankName || '-',
+      r.accountNo || '-',
+      r.accountOwner || '-',
+    ])
+    downloadListAsExcel(
+      `급여지급목록_${payBaseDate}.xlsx`,
+      headers,
+      data,
+      undefined,
+      [6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], // 금액 열 (국민연금 면제 열 제외)
+    )
+  }
+
   return (
     <div>
       <div className="mb-4">
@@ -663,7 +850,7 @@ function SalaryPayoutView() {
 
       {/* 필터 · 출력 */}
       <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
-        <div className="grid grid-cols-[1fr_1fr_1fr_2fr_auto_auto] gap-3 items-end">
+        <div className="grid grid-cols-[1fr_1fr_1fr_2fr_auto_auto_auto] gap-3 items-end">
           <Field label="급여월">
             <input
               type="month"
@@ -693,6 +880,9 @@ function SalaryPayoutView() {
             <input value={filter.keyword} onChange={(e) => setFilterField({ keyword: e.target.value })} placeholder="계약자명 검색" className={inputCls} />
           </Field>
           <button onClick={reset} className="h-[38px] rounded-[8px] border border-border px-5 text-sm font-semibold text-[#c2cde0] hover:bg-hover">초기화</button>
+          <button onClick={onExcelExport} className="inline-flex h-[38px] items-center gap-1.5 rounded-[8px] border border-border px-4 text-sm font-bold text-[#c2cde0] hover:bg-hover">
+            <Download size={14} /> 엑셀 다운로드
+          </button>
           <button onClick={onExport} className="h-[38px] rounded-[8px] bg-primary px-5 text-sm font-bold text-white hover:brightness-110">출력</button>
         </div>
       </div>

@@ -304,6 +304,7 @@ function SnapshotCard({
     ['계약일', dateText(s.contractDate)],
     ['보증금', comma(s.deposit)],
     ['수당', comma(s.allowance)],
+    ['소득구분', s.incomeType],
     ['수당지급일', s.allowancePayDay ? `매월 ${s.allowancePayDay}일` : '-'],
     ['수당지급기준일', dateText(s.firstAllowancePayDate)],
     ['계약종료일', dateText(s.contractEndDate)],

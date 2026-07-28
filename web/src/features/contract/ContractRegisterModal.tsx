@@ -177,6 +177,7 @@ export default function ContractRegisterModal({
         historyId: '',
         status: '신규', // 신규계약등록 페이지 — 상태는 항상 신규
         isDraft,
+        incomeType: '사업소득', // 신규는 사업소득으로 시작 — 4대보험은 계약상세에서 전환한다
         eventDate: f.contractDate,
         org: f.org,
         businessUnit: f.businessUnit,
