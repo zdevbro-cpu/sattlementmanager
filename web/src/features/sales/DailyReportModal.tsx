@@ -159,7 +159,7 @@ export default function DailyReportModal({
           <button
             onClick={onDownload}
             disabled={busy !== ''}
-            className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-success px-4 text-sm font-bold text-white hover:brightness-110 disabled:opacity-60"
+            className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-border px-4 text-sm font-bold text-[#c2cde0] hover:bg-hover disabled:opacity-60"
           >
             {busy === 'excel' ? '생성 중…' : (<><Download size={15} /> 엑셀 양식 다운로드</>)}
           </button>

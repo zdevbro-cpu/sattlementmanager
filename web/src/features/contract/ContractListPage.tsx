@@ -418,7 +418,7 @@ export default function ContractListPage() {
           </span>
           <button
             onClick={onExcelDownload}
-            className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-success px-4 text-sm font-bold text-white hover:brightness-110"
+            className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-border px-4 text-sm font-bold text-[#c2cde0] hover:bg-hover"
           >
             <Download size={15} /> 엑셀 다운로드
           </button>
