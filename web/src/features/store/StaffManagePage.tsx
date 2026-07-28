@@ -7,6 +7,7 @@ import {
   approveStaffRequest,
   deleteStaff,
   linkAllStaffPhones,
+  linkStaffPhone,
   listStaff,
   listStaffRequests,
   rejectStaffRequest,
@@ -115,6 +116,27 @@ export default function StaffManagePage() {
       alert((e as Error).message)
     } finally {
       setLinking(false)
+    }
+  }
+
+  /**
+   * 계정 1건만 문자 로그인용 전화번호를 연결한다.
+   * 일괄 연결과 동작은 같고 대상만 다르다 — 계정을 새로 만들지 않고 로그인 수단만 더하므로
+   * 기존 이메일 로그인은 그대로 유지된다.
+   */
+  const onLinkPhone = async (s: Staff) => {
+    if (!confirm(`${s.name}님의 휴대폰 번호(${s.phone || '없음'})를 연결할까요?\n연결되면 문자로도 로그인할 수 있고, 기존 이메일 로그인도 그대로 됩니다.`))
+      return
+    setBusyId(s.id)
+    try {
+      const r = await linkStaffPhone(s.id)
+      alert(`${r.name}님 연결 완료 — ${r.phone}`)
+      setRefresh((n) => n + 1)
+    } catch (e) {
+      // 번호 형식 오류·중복은 사람이 고쳐야 하는 문제라 서버 사유를 그대로 보여준다
+      alert((e as Error).message)
+    } finally {
+      setBusyId(null)
     }
   }
 
@@ -268,6 +290,14 @@ export default function StaffManagePage() {
                           className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover hover:text-white"
                         >
                           <Eye size={16} />
+                        </button>
+                        <button
+                          onClick={() => onLinkPhone(s)}
+                          disabled={busyId === s.id}
+                          title={`휴대폰 번호 연결 (${s.phone || '번호 없음'})`}
+                          className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover hover:text-white disabled:opacity-60"
+                        >
+                          <Smartphone size={16} />
                         </button>
                         <button
                           onClick={() => onResetPassword(s)}

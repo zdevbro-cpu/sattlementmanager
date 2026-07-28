@@ -19,6 +19,9 @@ import { useCodes } from '../../lib/codeStore'
 
 const inputCls =
   'h-11 w-full rounded-[8px] bg-input border border-border pl-9 pr-3 text-[14px] text-input-text outline-none focus:border-primary'
+/** 검색창 아래 2x2 필터 공통 스타일 (검색창과 달리 좌측 아이콘 여백이 없다) */
+const filterCls =
+  'h-11 w-full rounded-[8px] bg-input border border-border px-3 text-[14px] text-input-text outline-none focus:border-primary'
 
 /** 오늘 날짜(KST, YYYY-MM-DD) — 서버의 상태변경일 계산과 동일한 기준(KST 달력일)을 쓴다 */
 function todayIsoKst(): string {
@@ -137,25 +140,24 @@ export default function MobileStoreListPage() {
         />
       </div>
 
-      <select
-        value={status}
-        onChange={(e) => setStatus(e.target.value)}
-        className="mb-3 h-11 w-full rounded-[8px] bg-input border border-border px-3 text-[14px] text-input-text outline-none focus:border-primary"
-      >
-        <option value="전체">상태 전체</option>
-        {STORE_STATUSES.map((s) => (
-          <option key={s} value={s}>
-            {s}
-          </option>
-        ))}
-        <option value={RELEASED_FILTER_VALUE}>{RELEASED_FILTER_VALUE}</option>
-      </select>
-
+      {/* 사업부 · 선점파트 · 선점담당자 · 상태 순으로 2x2 배치 */}
       <div className="mb-3 grid grid-cols-2 gap-2">
+        <select
+          value={businessUnit}
+          onChange={(e) => setBusinessUnit(e.target.value)}
+          className={filterCls}
+        >
+          <option value="">사업부 전체</option>
+          {codes.businessUnits.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
+        </select>
         <select
           value={claimedPart}
           onChange={(e) => setClaimedPart(e.target.value)}
-          className="h-11 w-full rounded-[8px] bg-input border border-border px-3 text-[14px] text-input-text outline-none focus:border-primary"
+          className={filterCls}
         >
           <option value="">선점 파트 전체</option>
           {partLeaders.map((name) => (
@@ -168,22 +170,18 @@ export default function MobileStoreListPage() {
           value={claimedStaff}
           onChange={(e) => setClaimedStaff(e.target.value)}
           placeholder="선점 담당자명"
-          className="h-11 w-full rounded-[8px] bg-input border border-border px-3 text-[14px] text-input-text outline-none focus:border-primary"
+          className={filterCls}
         />
+        <select value={status} onChange={(e) => setStatus(e.target.value)} className={filterCls}>
+          <option value="전체">상태 전체</option>
+          {STORE_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+          <option value={RELEASED_FILTER_VALUE}>{RELEASED_FILTER_VALUE}</option>
+        </select>
       </div>
-
-      <select
-        value={businessUnit}
-        onChange={(e) => setBusinessUnit(e.target.value)}
-        className="mb-3 h-11 w-full rounded-[8px] bg-input border border-border px-3 text-[14px] text-input-text outline-none focus:border-primary"
-      >
-        <option value="">사업부 전체</option>
-        {codes.businessUnits.map((b) => (
-          <option key={b} value={b}>
-            {b}
-          </option>
-        ))}
-      </select>
 
       <div className="mb-2 text-[12.5px] text-[#94a3b8]">
         총 <span className="font-bold text-text-strong">{filtered.length}</span>건
