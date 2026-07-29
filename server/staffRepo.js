@@ -51,7 +51,28 @@ function mapRequest(r) {
 
 async function listStaff() {
   const { rows } = await pool.query(`SELECT * FROM staff_accounts ORDER BY created_at DESC`)
-  return rows.map(mapStaff)
+  const list = rows.map(mapStaff)
+
+  // 문자 로그인 연결 여부 — DB의 phone 은 단순 연락처라 연결 상태를 알 수 없고,
+  // Firebase Auth 계정에 phoneNumber 가 붙어 있는지로 판정해야 한다.
+  // getUsers 는 한 번에 100건까지 조회되므로 호출 부담이 없다.
+  try {
+    for (let i = 0; i < list.length; i += 100) {
+      const chunk = list.slice(i, i + 100)
+      const { users } = await auth.getUsers(chunk.map((s) => ({ uid: s.id })))
+      const linked = new Set(users.filter((u) => u.phoneNumber).map((u) => u.uid))
+      chunk.forEach((s) => {
+        s.phoneLinked = linked.has(s.id)
+      })
+    }
+  } catch (e) {
+    // 조회에 실패해도 계정 목록 자체는 보여야 한다 — 상태만 미상(false)으로 둔다
+    console.error('[staff] 문자 로그인 연결상태 조회 실패:', e.message)
+    list.forEach((s) => {
+      s.phoneLinked = false
+    })
+  }
+  return list
 }
 
 /** 가입 요청 목록 (대기중이 기본, all=true면 전체) */

@@ -32,6 +32,8 @@ export interface Staff {
   branch?: string
   lasCode?: string
   status: 'active' | 'inactive'
+  /** 문자 로그인 연결 여부 — Firebase 계정에 전화번호가 붙어 있는지 (서버가 조회해 채운다) */
+  phoneLinked?: boolean
   /** 매장섭외관리 신규 매장 등록 권한 — 본부 담당자로 지정된 계정만 true */
   canRegisterStore: boolean
   createdAt: string

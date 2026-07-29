@@ -291,11 +291,20 @@ export default function StaffManagePage() {
                         >
                           <Eye size={16} />
                         </button>
+                        {/* 연결됨/미연결을 색으로 구분한다 — 눌러서 확인하지 않아도 상태가 보이도록 */}
                         <button
                           onClick={() => onLinkPhone(s)}
                           disabled={busyId === s.id}
-                          title={`휴대폰 번호 연결 (${s.phone || '번호 없음'})`}
-                          className="h-8 w-8 rounded-lg border border-border inline-flex items-center justify-center text-[#94a3b8] hover:bg-hover hover:text-white disabled:opacity-60"
+                          title={
+                            s.phoneLinked
+                              ? `문자 로그인 연결됨 (${s.phone || '-'}) — 다시 누르면 재연결`
+                              : `문자 로그인 미연결 — 누르면 ${s.phone || '번호 없음'} 연결`
+                          }
+                          className={`h-8 w-8 rounded-lg border inline-flex items-center justify-center hover:bg-hover disabled:opacity-60 ${
+                            s.phoneLinked
+                              ? 'border-success text-success'
+                              : 'border-border text-[#94a3b8] hover:text-white'
+                          }`}
                         >
                           <Smartphone size={16} />
                         </button>
