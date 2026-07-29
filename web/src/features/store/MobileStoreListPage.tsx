@@ -101,7 +101,7 @@ export default function MobileStoreListPage() {
       </div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="flex items-center gap-1.5 text-[18px] font-extrabold text-text-strong">
-          <StoreIcon size={18} /> 매장섭외관리
+          <StoreIcon size={18} /> 매장진행관리
         </h1>
         <div className="flex items-center gap-2">
           <span className="max-w-[140px] truncate text-[11px] text-[#64748b]">{user?.email}</span>

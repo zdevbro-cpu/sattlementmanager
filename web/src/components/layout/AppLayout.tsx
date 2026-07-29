@@ -46,7 +46,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: '/base', label: '임용관리', icon: Users, enabled: true },
       { to: '/textbook', label: '교재구매관리', icon: BookOpen, enabled: true },
       { to: '/delivery', label: '배송관리', icon: Truck, enabled: true },
-      { to: '/stores', label: '매장섭외관리', icon: Building2, enabled: true },
+      { to: '/stores', label: '매장진행관리', icon: Building2, enabled: true },
     ],
   },
   {

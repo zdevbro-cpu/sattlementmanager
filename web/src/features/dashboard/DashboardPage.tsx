@@ -213,7 +213,7 @@ export default function DashboardPage() {
           <Stat label="배송중" value={`${shipmentSummary?.shipping ?? 0}건`} sub={`완료 ${shipmentSummary?.done ?? 0}건`} />
         </ModuleBlock>
 
-        <ModuleBlock title="매장섭외관리" to={mobile ? undefined : '/stores'} tint="#e2f7ec" fg="#16a34a" icon={Building2}>
+        <ModuleBlock title="매장진행관리" to={mobile ? undefined : '/stores'} tint="#e2f7ec" fg="#16a34a" icon={Building2}>
           <Stat label="전체 매장" value={`${storeSummary.total}건`} sub={`진행중 ${storeSummary.active}건`} />
           <Stat label="계약완료(오픈)" value={`${storeSummary.contracted}건`} sub={`선점만료임박 ${storeSummary.expiringSoon}건`} />
         </ModuleBlock>

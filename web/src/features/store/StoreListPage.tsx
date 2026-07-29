@@ -122,10 +122,10 @@ export default function StoreListPage() {
   }
 
   return (
-    <AppLayout title="매장섭외관리">
+    <AppLayout title="매장진행관리">
       <div className="mb-4">
         <h1 className="text-[22px] font-extrabold tracking-[-0.5px] text-text-strong">
-          매장섭외관리
+          매장진행관리
         </h1>
       </div>
 
