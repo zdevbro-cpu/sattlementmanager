@@ -71,7 +71,7 @@ export default function MobileHomePage() {
         />
         <MenuCard
           icon={Store}
-          title="매장진행관리"
+          title="매장등록관리"
           sub="라스온 매장 섭외 현황 조회 (매장 목록 검색 → 상세 확인)"
           tint="#f3e8ff"
           fg="#a855f7"
