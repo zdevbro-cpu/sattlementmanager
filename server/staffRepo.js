@@ -235,22 +235,30 @@ async function rejectRequest(id) {
   return mapRequest(rows[0])
 }
 
-/** 등록정보 수정 — 이름/전화번호/사업부/역할/소속 파트
+/** 등록정보 수정 — 이름/전화번호/사업부/역할/소속 파트/매장 전체 관리 권한
  *  role 변경 시 roles 의 '섭외축'만 교체하고 다른 축(store_owner 등)은 보존한다.
- *  매장 등록 권한(can_register_store)은 더 이상 화면에서 개별 부여하지 않는다(승인된 섭외조직 전원 등록 가능) —
- *  기존 값은 그대로 둔다. */
-async function updateStaff(id, { name, phone, businessUnit, role, part, branch }) {
-  const { rows: cur } = await pool.query(`SELECT roles, role FROM staff_accounts WHERE id = $1`, [id])
+ *
+ *  can_register_store 는 원래 "신규 매장 등록 권한"이었으나, 등록은 승인된 섭외조직 전원에게
+ *  열렸으므로 지금은 "매장 전체 관리 권한"(사업부·선점파트와 무관하게 모든 매장 수정·상태변경)
+ *  으로 의미를 바꿔 쓴다. 컬럼을 새로 만들지 않아 마이그레이션이 필요 없다.
+ *  값이 넘어오지 않으면 기존 값을 유지한다(다른 화면에서 저장할 때 권한이 꺼지지 않도록). */
+async function updateStaff(id, { name, phone, businessUnit, role, part, branch, canRegisterStore }) {
+  const { rows: cur } = await pool.query(
+    `SELECT roles, role, can_register_store FROM staff_accounts WHERE id = $1`,
+    [id],
+  )
   if (!cur.length) return null
   const prev = Array.isArray(cur[0].roles) && cur[0].roles.length ? cur[0].roles : [cur[0].role]
   // role 이 속한 축만 교체한다 → 다른 축(섭외조직↔매장운영)의 겸직 역할은 그대로 유지
   const axis = FIELD_AXIS_ROLES.includes(role) ? FIELD_AXIS_ROLES : STORE_AXIS_ROLES
   const nextRoles = [...new Set([...prev.filter((r) => !axis.includes(r)), role])]
+  const nextManageAll =
+    canRegisterStore === undefined ? !!cur[0].can_register_store : !!canRegisterStore
 
   const { rows } = await pool.query(
-    `UPDATE staff_accounts SET name = $2, phone = $3, business_unit = $4, role = $5, roles = $6, part = $7, branch = $8
+    `UPDATE staff_accounts SET name = $2, phone = $3, business_unit = $4, role = $5, roles = $6, part = $7, branch = $8, can_register_store = $9
        WHERE id = $1 RETURNING *`,
-    [id, name, phone || '', businessUnit || '', role, nextRoles, part || '', branch || ''],
+    [id, name, phone || '', businessUnit || '', role, nextRoles, part || '', branch || '', nextManageAll],
   )
   if (!rows.length) return null
   if (name) await auth.updateUser(id, { displayName: name }).catch(() => {})

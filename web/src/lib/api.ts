@@ -402,6 +402,8 @@ export function updateStaffApi(
     role: string
     part: string
     branch?: string
+    /** 매장 전체 관리 권한 — 사업부·선점파트와 무관하게 모든 매장 수정 가능 */
+    canRegisterStore?: boolean
   },
 ): Promise<Staff> {
   return sendJson(`/api/staff/${encodeURIComponent(id)}`, 'PATCH', data)

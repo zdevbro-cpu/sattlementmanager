@@ -407,9 +407,29 @@ app.post('/api/stores', async (req, res) => {
   }
 })
 
+/**
+ * 이 매장을 수정할 수 있는지 — 화면(StoreDetailDrawer)과 동일한 기준을 서버에서도 검사한다.
+ * 지금까지는 버튼만 비활성화하는 UI 가드여서 API 를 직접 부르면 누구나 수정할 수 있었다.
+ *
+ * 허용: 관리자 / 매장 전체 관리 권한 보유자 / 이 매장의 선점담당자 / 소속 파트장
+ */
+function canEditStore(user, store) {
+  if (!user) return true // 관찰 모드(AUTH_ENFORCE=false)에서는 기존 동작을 유지한다
+  if (!user.isStaff) return true // staff_accounts 에 없는 계정 = 관리자
+  if ((user.roles || []).includes('admin')) return true
+  if (user.canRegisterStore) return true // 사업부·파트 무관 전체 관리 권한
+  return user.name === store.claimedStaff || user.name === store.claimedPart
+}
+
 app.patch('/api/stores/:id', async (req, res) => {
   try {
     const before = await storeRepo.getStore(req.params.id)
+    if (before && !canEditStore(req.user, before)) {
+      return res.status(403).json({
+        ok: false,
+        error: '이 매장의 선점담당자 또는 선점파트만 수정할 수 있습니다.',
+      })
+    }
     const s = await storeRepo.updateStore(req.params.id, req.body)
     if (!s) return res.status(404).json({ ok: false, error: 'not found' })
     // 주소가 바뀌었거나 아직 좌표가 없을 때만 다시 지오코딩한다(불필요한 API 호출 방지)

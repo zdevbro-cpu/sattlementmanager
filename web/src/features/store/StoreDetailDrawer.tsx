@@ -27,6 +27,8 @@ export default function StoreDetailDrawer({
   const [editOpen, setEditOpen] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
   const [myName, setMyName] = useState<string | null>(null)
+  /** 매장 전체 관리 권한 — 계정관리에서 부여하며, 사업부·선점파트 무관하게 수정할 수 있다 */
+  const [manageAll, setManageAll] = useState(false)
   const { user } = useAuth()
 
   useEffect(() => {
@@ -46,6 +48,7 @@ export default function StoreDetailDrawer({
     fetchMe().then((me) => {
       if (!alive) return
       setMyName(me.isStaff ? me.name : null)
+      setManageAll(!!me.canRegisterStore)
     })
     return () => {
       alive = false
@@ -56,8 +59,11 @@ export default function StoreDetailDrawer({
 
   // 파트너 계정으로 로그인했을 때만 "이 매장의 선점담당자 또는 선점파트(파트장) 본인"으로 제한한다.
   // staff_accounts에 없는 계정(기존 관리자 로그인)은 제한 없이 변경 가능하다.
+  // '매장 전체 관리 권한'(계정관리에서 부여)을 가진 계정도 사업부·파트와 무관하게 수정할 수 있다.
+  // 같은 기준을 서버(PATCH /api/stores/:id)에서도 검사하므로 화면만 우회해도 통하지 않는다.
   const isStaffAccount = myName !== null
-  const canChangeStatus = !isStaffAccount || myName === store.claimedStaff || myName === store.claimedPart
+  const canChangeStatus =
+    !isStaffAccount || manageAll || myName === store.claimedStaff || myName === store.claimedPart
 
   const refresh = () => {
     setTick((n) => n + 1)

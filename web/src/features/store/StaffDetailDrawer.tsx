@@ -39,6 +39,8 @@ export default function StaffDetailDrawer({
   const [role, setRole] = useState(staff.roles.find((r) => (axisRoles as string[]).includes(r)) ?? axisRoles[0])
   const [part, setPart] = useState(staff.part)
   const [branch, setBranch] = useState(staff.branch ?? '')
+  // 매장 전체 관리 권한 — 사업부·선점파트와 무관하게 모든 매장을 수정할 수 있다
+  const [manageAllStores, setManageAllStores] = useState(!!staff.canRegisterStore)
   const [partLeaders, setPartLeaders] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
@@ -71,6 +73,8 @@ export default function StaffDetailDrawer({
         role,
         part: isStoreAxis ? '' : part,
         branch: isStoreAxis ? branch : '',
+        // 매장운영(점주·점장)은 매장등록관리를 쓰지 않으므로 이 권한을 주지 않는다
+        canRegisterStore: isStoreAxis ? false : manageAllStores,
       })
       onSaved()
     } catch (e) {
@@ -152,6 +156,23 @@ export default function StaffDetailDrawer({
                   ))}
                 </select>
               </Field>
+              <div className="rounded-[8px] border border-border px-3 py-2.5">
+                <label className="flex items-start gap-2 text-[13px] text-[#c2cde0]">
+                  <input
+                    type="checkbox"
+                    checked={manageAllStores}
+                    onChange={(e) => setManageAllStores(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                  />
+                  <span>
+                    매장 전체 관리 권한
+                    <span className="mt-0.5 block text-[11.5px] text-[#64748b]">
+                      사업부·선점파트와 무관하게 모든 매장을 수정·상태변경할 수 있습니다. 본부 담당자 등
+                      소수에게만 부여하세요.
+                    </span>
+                  </span>
+                </label>
+              </div>
             </>
           )}
           <Field label="등록일">
