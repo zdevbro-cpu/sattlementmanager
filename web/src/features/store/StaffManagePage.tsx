@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Eye, KeyRound, Smartphone, Trash2, UserCheck, UserX, X } from 'lucide-react'
+import { Check, Eye, KeyRound, Link as LinkIcon, Smartphone, Trash2, UserCheck, UserX, X } from 'lucide-react'
 import Badge, { branchTone, type Tone } from '../../components/ui/Badge'
 import { dateText } from '../../lib/format'
 import { FIELD_ROLES, STAFF_ROLE_LABEL, STORE_ROLES, type Staff, type StaffRequest, type StaffRole } from '../../types/staff'
@@ -7,6 +7,7 @@ import {
   approveStaffRequest,
   deleteStaff,
   linkAllStaffPhones,
+  createStaffLoginToken,
   linkStaffPhone,
   listStaff,
   listStaffRequests,
@@ -134,6 +135,31 @@ export default function StaffManagePage() {
       setRefresh((n) => n + 1)
     } catch (e) {
       // 번호 형식 오류·중복은 사람이 고쳐야 하는 문제라 서버 사유를 그대로 보여준다
+      alert((e as Error).message)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  /**
+   * 즉시 로그인 링크 발급 — 문자 한도(Firebase 는 번호 단위로 하루 제한)나 비밀번호 문제로
+   * 막힌 사용자를 바로 복구시킨다. 링크를 카톡·문자로 전달하면 사용자는 열기만 하면 된다.
+   */
+  const onLoginLink = async (s: Staff) => {
+    if (!confirm(`${s.name}님의 즉시 로그인 링크를 만들까요?\n링크를 아는 사람은 이 계정으로 로그인할 수 있으니 본인에게만 전달하세요.`))
+      return
+    setBusyId(s.id)
+    try {
+      const r = await createStaffLoginToken(s.id)
+      const link = `${window.location.origin}/?t=${encodeURIComponent(r.token)}`
+      // 클립보드가 막힌 환경(비보안 컨텍스트 등)에서도 링크를 볼 수 있게 실패 시 창으로 보여준다
+      try {
+        await navigator.clipboard.writeText(link)
+        alert(`${r.name}님 로그인 링크를 복사했습니다.\n카톡·문자로 전달하세요. (1시간 이내 사용)`)
+      } catch {
+        prompt(`${r.name}님 로그인 링크 — 복사해서 전달하세요 (1시간 이내 사용)`, link)
+      }
+    } catch (e) {
       alert((e as Error).message)
     } finally {
       setBusyId(null)
@@ -307,6 +333,14 @@ export default function StaffManagePage() {
                           }`}
                         >
                           <Smartphone size={16} />
+                        </button>
+                        <button
+                          onClick={() => onLoginLink(s)}
+                          disabled={busyId === s.id}
+                          title="즉시 로그인 링크 발급 — 문자·비밀번호가 막혔을 때 바로 복구"
+                          className="h-8 w-8 rounded-lg border border-primary inline-flex items-center justify-center text-primary hover:bg-hover disabled:opacity-60"
+                        >
+                          <LinkIcon size={16} />
                         </button>
                         <button
                           onClick={() => onResetPassword(s)}

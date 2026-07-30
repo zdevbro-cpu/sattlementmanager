@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import {
   RecaptchaVerifier,
   onAuthStateChanged,
+  signInWithCustomToken,
   signInWithEmailAndPassword,
   signInWithPhoneNumber,
   signOut as fbSignOut,
@@ -14,6 +15,8 @@ interface AuthState {
   user: User | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<void>
+  /** 관리자가 발급한 즉시 로그인 토큰으로 로그인 — 문자·비밀번호를 거치지 않는다 */
+  signInWithToken: (token: string) => Promise<void>
   /** 문자 인증 1단계 — 번호로 인증문자를 보낸다. 돌려받은 값으로 2단계를 진행한다 */
   sendPhoneCode: (phone: string, containerId: string) => Promise<ConfirmationResult>
   signOut: () => Promise<void>
@@ -93,10 +96,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const signInWithToken = async (token: string) => {
+    await signInWithCustomToken(auth, token)
+  }
+
   const signOut = () => fbSignOut(auth)
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, sendPhoneCode, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signInWithToken, sendPhoneCode, signOut }}>
       {children}
     </AuthContext.Provider>
   )

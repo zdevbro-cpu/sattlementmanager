@@ -261,6 +261,26 @@ async function updateStaff(id, { name, phone, businessUnit, role, part, branch }
  * 비밀번호 초기화 — 관리자는 새 비밀번호를 모르고, 본인 이메일로 재설정 링크만 발송한다.
  * 실제 이메일 발송은 index.js에서 mailer로 처리한다(레포지토리는 링크 생성만 담당).
  */
+/**
+ * 즉시 로그인 토큰 발급 — 문자·비밀번호를 거치지 않고 해당 계정으로 로그인시킨다.
+ *
+ * Firebase 는 짧은 시간에 인증문자 요청이 몰리면 그 번호를 하루 단위로 제한한다.
+ * 한번 걸리면 계정을 지우고 다시 만들어도 풀리지 않는다(제한이 계정이 아니라 번호에 걸린다).
+ * 그때 사용자를 하루 동안 못 쓰게 두면 안 되므로, 관리자가 즉시 복구할 수 있는 경로를 둔다.
+ *
+ * 커스텀 토큰은 Firebase 가 발급 후 1시간 동안 유효하다.
+ * 링크를 아는 사람은 그 계정으로 로그인할 수 있으므로 관리자만 발급할 수 있고,
+ * 전달 후에는 사용자가 바로 쓰도록 안내해야 한다.
+ */
+async function createLoginToken(id) {
+  const { rows } = await pool.query(`SELECT * FROM staff_accounts WHERE id = $1`, [id])
+  if (!rows.length) return null
+  const staff = mapStaff(rows[0])
+  if (staff.status !== 'active') throw new Error('비활성화된 계정입니다. 먼저 활성화해 주세요.')
+  const token = await auth.createCustomToken(staff.id)
+  return { staff, token }
+}
+
 async function resetStaffPassword(id) {
   const { rows } = await pool.query(`SELECT * FROM staff_accounts WHERE id = $1`, [id])
   if (!rows.length) return null
@@ -297,6 +317,7 @@ module.exports = {
   rejectRequest,
   setStaffStatus,
   updateStaff,
+  createLoginToken,
   resetStaffPassword,
   deleteStaff,
 }

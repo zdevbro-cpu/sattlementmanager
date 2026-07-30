@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ConfirmationResult } from 'firebase/auth'
 import { phoneFmt } from '../../lib/format'
 import { useAuth } from './AuthContext'
@@ -61,8 +61,67 @@ type Mode = 'phone' | 'email'
 
 const RECAPTCHA_ID = 'recaptcha-container'
 
+/* ══════════════════════════════════════════════════════════
+ * 문자 로그인 재시도 제한
+ *
+ * Firebase 는 짧은 시간에 요청이 몰리면 그 번호·기기를 남용 방지로 차단한다
+ * (auth/too-many-requests). 한번 걸리면 수십 분~수 시간 풀리지 않고, 그 사이
+ * 재시도할수록 차단이 연장된다. 사용법에 익숙하지 않은 사용자가 문자가 안 오면
+ * 버튼을 연달아 누르므로, 차단에 닿기 전에 앱에서 먼저 간격을 둔다.
+ *
+ * 5회까지는 자유롭게 시도하고, 그 다음부터 30초 → 1분으로 대기를 늘린다.
+ * 새로고침으로 초기화되면 의미가 없어 번호별로 localStorage 에 남긴다.
+ * ══════════════════════════════════════════════════════════ */
+
+/** 이 횟수까지는 대기 없이 시도할 수 있다 */
+const FREE_ATTEMPTS = 5
+/** 5회 초과 시 첫 대기(초) → 그 다음부터는 60초 */
+const COOLDOWN_SECONDS = [30, 60]
+
+interface Throttle {
+  fails: number
+  until: number // 이 시각(ms)까지 대기
+}
+
+const throttleKey = (phone: string) => `phoneLoginThrottle:${phone.replace(/\D/g, '')}`
+
+function readThrottle(phone: string): Throttle {
+  try {
+    const raw = localStorage.getItem(throttleKey(phone))
+    if (raw) return JSON.parse(raw) as Throttle
+  } catch {
+    /* 저장값이 깨졌으면 초기 상태로 본다 */
+  }
+  return { fails: 0, until: 0 }
+}
+
+function writeThrottle(phone: string, t: Throttle) {
+  try {
+    localStorage.setItem(throttleKey(phone), JSON.stringify(t))
+  } catch {
+    /* 저장 실패는 기능을 막지 않는다 */
+  }
+}
+
+/** 대기 안내 문구 — 남은 시간을 분·초로 읽어준다 */
+function waitText(sec: number): string {
+  if (sec >= 60) {
+    const m = Math.ceil(sec / 60)
+    return `시도가 많아 잠시 제한되었습니다. ${m}분 후에 다시 시도하세요.`
+  }
+  return `시도가 많아 잠시 제한되었습니다. ${sec}초 후에 다시 시도하세요.`
+}
+
+function clearThrottle(phone: string) {
+  try {
+    localStorage.removeItem(throttleKey(phone))
+  } catch {
+    /* 무시 */
+  }
+}
+
 export default function LoginPage() {
-  const { signIn, sendPhoneCode } = useAuth()
+  const { signIn, signInWithToken, sendPhoneCode } = useAuth()
   // 파트너가 훨씬 많으므로 문자 로그인을 기본으로 연다. 관리자는 이메일 탭으로 넘어간다.
   const [mode, setMode] = useState<Mode>('phone')
   const [email, setEmail] = useState('')
@@ -73,6 +132,61 @@ export default function LoginPage() {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const codeRef = useRef<HTMLInputElement>(null)
+  /** 남은 대기 시간(초) — 0이면 바로 시도할 수 있다 */
+  const [wait, setWait] = useState(0)
+
+  /**
+   * 즉시 로그인 링크 처리 — 관리자가 발급한 토큰(?t=)이 있으면 바로 로그인한다.
+   * 문자 한도 등으로 막힌 사용자를 하루 기다리게 하지 않기 위한 복구 경로다.
+   * 토큰이 주소창·기록에 남지 않도록 사용 직후 URL 에서 지운다.
+   */
+  const [tokenBusy, setTokenBusy] = useState(false)
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('t')
+    if (!t) return
+    window.history.replaceState(null, '', window.location.pathname)
+    setTokenBusy(true)
+    signInWithToken(t)
+      .catch((e) => {
+        const c = (e as { code?: string }).code || ''
+        console.error('[login:token]', c, e)
+        setErr(
+          c === 'auth/invalid-custom-token' || c === 'auth/custom-token-mismatch'
+            ? '로그인 링크가 올바르지 않습니다. 관리자에게 다시 요청해 주세요.'
+            : '로그인 링크가 만료되었습니다. 관리자에게 다시 요청해 주세요.',
+        )
+      })
+      .finally(() => setTokenBusy(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 번호를 바꿔 입력하면 그 번호의 저장된 대기 상태를 반영한다
+  useEffect(() => {
+    const t = readThrottle(phone)
+    setWait(Math.max(0, Math.ceil((t.until - Date.now()) / 1000)))
+  }, [phone])
+
+  // 대기 시간 카운트다운
+  useEffect(() => {
+    if (wait <= 0) return
+    const id = setInterval(() => setWait((n) => (n <= 1 ? 0 : n - 1)), 1000)
+    return () => clearInterval(id)
+  }, [wait])
+
+  /** 문자 로그인 실패 1회 기록 — 5회를 넘기면 대기를 걸어 Firebase 차단에 닿지 않게 한다 */
+  const registerPhoneFail = () => {
+    const t = readThrottle(phone)
+    const fails = t.fails + 1
+    if (fails <= FREE_ATTEMPTS) {
+      writeThrottle(phone, { fails, until: 0 })
+      return 0
+    }
+    const idx = Math.min(fails - FREE_ATTEMPTS - 1, COOLDOWN_SECONDS.length - 1)
+    const sec = COOLDOWN_SECONDS[idx]
+    writeThrottle(phone, { fails, until: Date.now() + sec * 1000 })
+    setWait(sec)
+    return sec
+  }
 
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true)
@@ -97,26 +211,42 @@ export default function LoginPage() {
 
   const submitPhone = (e: React.FormEvent) => {
     e.preventDefault()
+    if (wait > 0) return setErr(waitText(wait))
+
     // 1단계 — 인증문자 발송
     if (!confirmation) {
       if (!phone.trim()) return setErr('휴대폰 번호를 입력하세요.')
       return run(async () => {
-        const c = await sendPhoneCode(phone, RECAPTCHA_ID)
-        setConfirmation(c)
-        setCode('')
-        // 문자가 오면 바로 입력할 수 있게 커서를 옮겨 준다
-        setTimeout(() => codeRef.current?.focus(), 50)
+        try {
+          const c = await sendPhoneCode(phone, RECAPTCHA_ID)
+          setConfirmation(c)
+          setCode('')
+          // 문자가 오면 바로 입력할 수 있게 커서를 옮겨 준다
+          setTimeout(() => codeRef.current?.focus(), 50)
+        } catch (e2) {
+          const sec = registerPhoneFail()
+          if (sec > 0) throw new Error(waitText(sec))
+          throw e2
+        }
       })
     }
     // 2단계 — 6자리 확인
     if (code.trim().length < 6) return setErr('문자로 받은 6자리를 입력하세요.')
     run(async () => {
-      const cred = await confirmation.confirm(code.trim())
-      // 등록되지 않은 번호면 Firebase 가 새 계정을 만들어 버린다.
-      // 그 계정은 staff_accounts 에 없어 권한 판정이 어긋나므로 즉시 지우고 되돌린다.
-      if (!cred.user.email) {
-        await cred.user.delete().catch(() => {})
-        throw new Error(UNREGISTERED)
+      try {
+        const cred = await confirmation.confirm(code.trim())
+        // 등록되지 않은 번호면 Firebase 가 새 계정을 만들어 버린다.
+        // 그 계정은 staff_accounts 에 없어 권한 판정이 어긋나므로 즉시 지우고 되돌린다.
+        if (!cred.user.email) {
+          await cred.user.delete().catch(() => {})
+          throw new Error(UNREGISTERED)
+        }
+        clearThrottle(phone) // 성공했으면 기록을 지운다
+      } catch (e2) {
+        if ((e2 as Error).message === UNREGISTERED) throw e2
+        const sec = registerPhoneFail()
+        if (sec > 0) throw new Error(waitText(sec))
+        throw e2
       }
     })
   }
@@ -216,20 +346,31 @@ export default function LoginPage() {
 
         {err && <div className="mt-3 text-[12.5px] text-danger">{err}</div>}
 
+        {tokenBusy && (
+          <div className="mt-4 rounded-[8px] border border-primary/40 bg-primary/10 px-3 py-2 text-center text-[12.5px] text-primary">
+            로그인 링크로 접속 중…
+          </div>
+        )}
+
         <button
           type="submit"
-          disabled={busy}
+          disabled={busy || tokenBusy || (mode === 'phone' && wait > 0)}
           className="mt-5 h-11 w-full rounded-[10px] bg-primary text-[14px] font-bold text-white hover:brightness-110 disabled:opacity-60"
         >
           {busy
             ? mode === 'phone' && !confirmation
               ? '문자 보내는 중…'
               : '로그인 중…'
-            : mode === 'phone'
-              ? confirmation
-                ? '로그인'
-                : '인증문자 받기'
-              : '로그인'}
+            : mode === 'phone' && wait > 0
+              ? // 남은 시간을 버튼에 직접 보여줘 무엇을 기다리는지 알 수 있게 한다
+                wait >= 60
+                ? `${Math.floor(wait / 60)}분 ${wait % 60}초 후 가능`
+                : `${wait}초 후 가능`
+              : mode === 'phone'
+                ? confirmation
+                  ? '로그인'
+                  : '인증문자 받기'
+                : '로그인'}
         </button>
 
         {mode === 'phone' && confirmation && (

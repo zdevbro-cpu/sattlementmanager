@@ -414,6 +414,11 @@ export function linkStaffPhoneApi(id: string): Promise<{ id: string; name: strin
   return sendJson(`/api/staff/${encodeURIComponent(id)}/link-phone`, 'POST')
 }
 
+/** 즉시 로그인 토큰 발급 — 문자 한도 등으로 막힌 사용자를 관리자가 바로 복구시킨다 */
+export function createStaffLoginTokenApi(id: string): Promise<{ name: string; token: string }> {
+  return sendJson(`/api/staff/${encodeURIComponent(id)}/login-token`, 'POST')
+}
+
 /** 전체 일괄 연결 — 실패 건은 사유와 함께 돌아온다 */
 export function linkAllStaffPhonesApi(): Promise<{
   linked: { name: string; phone: string }[]

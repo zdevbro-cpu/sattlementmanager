@@ -5,6 +5,7 @@ import {
   fetchStaff,
   fetchStaffRequests,
   rejectStaffRequestApi,
+  createStaffLoginTokenApi,
   linkAllStaffPhonesApi,
   linkStaffPhoneApi,
   resetStaffPasswordApi,
@@ -73,6 +74,11 @@ export function rejectStaffRequest(id: string): Promise<StaffRequest> {
 /** 문자 로그인 준비 — 계정에 전화번호를 연결한다. 이메일 로그인은 그대로 유지된다 */
 export function linkStaffPhone(id: string) {
   return linkStaffPhoneApi(id)
+}
+
+/** 즉시 로그인 토큰 발급 — 관리자가 링크를 만들어 사용자에게 전달한다 */
+export function createStaffLoginToken(id: string) {
+  return createStaffLoginTokenApi(id)
 }
 
 /** 전체 일괄 연결 — 실패 건은 사유와 함께 돌아온다 */

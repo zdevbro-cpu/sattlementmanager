@@ -634,6 +634,26 @@ app.patch('/api/staff/:id/status', async (req, res) => {
   }
 })
 
+/**
+ * 즉시 로그인 링크 발급 (관리자 전용 — 인가 정책 기본값이 admin 이라 별도 명시 불필요).
+ *
+ * 문자 인증은 Firebase 가 번호 단위로 하루 한도를 걸기 때문에, 한번 막히면
+ * 계정을 다시 만들어도 그날은 문자로 로그인할 수 없다. 사용자를 하루 동안
+ * 못 쓰게 두지 않으려면 문자·비밀번호와 무관한 복구 경로가 반드시 있어야 한다.
+ */
+app.post('/api/staff/:id/login-token', async (req, res) => {
+  try {
+    const r = await staffRepo.createLoginToken(req.params.id)
+    if (!r) return res.status(404).json({ ok: false, error: 'not found' })
+    console.warn(
+      `[staff] 즉시 로그인 링크 발급 대상=${r.staff.email} 발급자=${req.user?.email || '(미확인)'}`,
+    )
+    res.json({ ok: true, data: { name: r.staff.name, token: r.token } })
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message })
+  }
+})
+
 app.post('/api/staff/:id/reset-password', async (req, res) => {
   try {
     const result = await staffRepo.resetStaffPassword(req.params.id)
