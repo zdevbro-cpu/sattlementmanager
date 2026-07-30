@@ -30,6 +30,15 @@ export interface RecruitmentLog {
 export const STORE_PHOTO_KINDS = ['건물외관', '라스온설치공간', '겨냥도', '완성이미지'] as const
 export type StorePhotoKind = (typeof STORE_PHOTO_KINDS)[number]
 
+/**
+ * 사진 열람 URL — 서버가 Drive 파일을 중계해 내려주는 경로.
+ * driveViewUrl(Drive 뷰어 링크)을 직접 열면 서비스 계정 소유 파일이라 사용자에게
+ * "액세스 요청" 화면이 뜨므로, 우리 서버 경로로 연다.
+ */
+export function storePhotoUrl(driveFileId: string): string {
+  return `/api/stores/photo/${encodeURIComponent(driveFileId)}`
+}
+
 export interface StorePhoto {
   id: string
   driveFileId: string

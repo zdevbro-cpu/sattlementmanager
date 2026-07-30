@@ -22,13 +22,24 @@ const PUBLIC_ROUTES = [
   { method: 'POST', path: '/api/owner/verify' },
 ]
 
+/**
+ * 경로 접두사로 허용하는 공개 경로 (경로에 id 가 들어가 정확히 일치시킬 수 없는 것).
+ *
+ * 매장 사진 중계 — 새 탭으로 링크를 열면 브라우저가 Authorization 헤더를 붙이지 않아
+ * 인가를 걸면 무조건 401 이 된다. 사진은 기밀이 아니어서(건물외관·겨냥도 등) 링크를 아는
+ * 사람만 열 수 있는 수준으로 공개한다 — Drive 의 "링크가 있는 모든 사용자" 공유와 같은 수준이며,
+ * 파일 id 가 33자 난수라 추측으로는 접근할 수 없다.
+ */
+const PUBLIC_PREFIXES = [{ method: 'GET', prefix: '/api/stores/photo/' }]
+
 /** /api/cron/* 와 /api/admin/migrate 는 기존 CRON_SECRET 헤더로 보호된다(사용자 토큰 아님) */
 function isSecretProtected(req) {
   return req.path.startsWith('/api/cron/') || req.path === '/api/admin/migrate'
 }
 
 function isPublic(req) {
-  return PUBLIC_ROUTES.some((r) => r.method === req.method && r.path === req.path)
+  if (PUBLIC_ROUTES.some((r) => r.method === req.method && r.path === req.path)) return true
+  return PUBLIC_PREFIXES.some((r) => r.method === req.method && req.path.startsWith(r.prefix))
 }
 
 /**

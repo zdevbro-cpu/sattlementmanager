@@ -474,6 +474,30 @@ app.post('/api/stores/:id/log', async (req, res) => {
 })
 
 // 매장 사진 → Google Drive 업로드 + DB 기록 (JSON base64 방식)
+/**
+ * 매장 사진 중계 — Drive 파일을 서버가 받아서 그대로 내려준다.
+ * Drive 링크를 직접 열면 서비스 계정 소유 파일이라 사용자에게 "액세스 요청" 화면이 뜬다.
+ * 파일을 공개로 전환하는 대신, 로그인한 사용자만 호출할 수 있는 이 경로로 중계한다.
+ */
+app.get('/api/stores/photo/:driveFileId', async (req, res) => {
+  try {
+    const { stream, mimeType, name } = await drive.downloadFile(req.params.driveFileId)
+    if (mimeType) res.setHeader('Content-Type', mimeType)
+    // 새 탭에서 바로 보이도록 inline (다운로드 강제하지 않는다)
+    res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(name)}`)
+    res.setHeader('Cache-Control', 'private, max-age=3600')
+    stream.on('error', (e) => {
+      console.error('[stores/photo] 스트림 오류', e.message)
+      if (!res.headersSent) res.status(500).end()
+      else res.end()
+    })
+    stream.pipe(res)
+  } catch (e) {
+    console.error('[stores/photo] 실패', req.params.driveFileId, e.message)
+    res.status(404).json({ ok: false, error: e.message })
+  }
+})
+
 app.post('/api/stores/:id/photo', async (req, res) => {
   try {
     const { filename, data, mimeType, kind } = req.body || {}

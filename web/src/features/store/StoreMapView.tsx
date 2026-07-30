@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { MapPin } from 'lucide-react'
-import { STORE_PHOTO_KINDS, type Store } from '../../types/store'
+import { STORE_PHOTO_KINDS, storePhotoUrl, type Store } from '../../types/store'
 
 /**
  * 매장 지도 — 구축된 라스온 매장을 전국 지도에 표시한다.
@@ -78,7 +78,7 @@ function infoHtml(s: Store): string {
     const list = s.photos.filter((x) => (x.kind || '건물외관') === kind)
     if (list.length === 0) return ''
     const label = list.length > 1 ? `${kind} ${list.length}` : kind
-    return `<a href="${esc(list[0].driveViewUrl)}" target="_blank" rel="noreferrer"
+    return `<a href="${esc(storePhotoUrl(list[0].driveFileId))}" target="_blank" rel="noreferrer"
       style="display:inline-block;margin:0 5px 5px 0;padding:3px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:11px;color:#2563eb;text-decoration:none">${esc(label)}</a>`
   }
   const links = STORE_PHOTO_KINDS.map(photoLink).filter(Boolean).join('')

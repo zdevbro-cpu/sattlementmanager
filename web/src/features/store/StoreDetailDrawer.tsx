@@ -3,7 +3,7 @@ import { ExternalLink, Paperclip, Pencil, X } from 'lucide-react'
 import Badge, { storeStatusTone } from '../../components/ui/Badge'
 import { dateText } from '../../lib/format'
 import { phoneFmt } from '../../lib/format'
-import { STORE_PHOTO_KINDS, STORE_STATUSES, type Store } from '../../types/store'
+import { STORE_PHOTO_KINDS, STORE_STATUSES, storePhotoUrl, type Store } from '../../types/store'
 import { addRecruitmentLog, getStore, updateStore, uploadPhoto } from './storeStore'
 import { fetchMe, fetchPartLeaders } from '../../lib/api'
 import DateTextInput from '../../components/ui/DateTextInput'
@@ -210,7 +210,7 @@ export default function StoreDetailDrawer({
                         {kindPhotos.map((p) => (
                           <a
                             key={p.id}
-                            href={p.driveViewUrl}
+                            href={storePhotoUrl(p.driveFileId)}
                             target="_blank"
                             rel="noreferrer"
                             className="flex items-center gap-1 rounded-[8px] border border-border px-2 py-1.5 text-[11.5px] text-primary hover:bg-hover"

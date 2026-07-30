@@ -10,6 +10,7 @@ import {
   RELEASED_FILTER_VALUE,
   STORE_PHOTO_KINDS,
   STORE_STATUSES,
+  storePhotoUrl,
   type Store,
 } from '../../types/store'
 import { fetchPartLeaders } from '../../lib/api'
@@ -101,7 +102,7 @@ export default function MobileStoreListPage() {
       </div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="flex items-center gap-1.5 text-[18px] font-extrabold text-text-strong">
-          <StoreIcon size={18} /> 매장진행관리
+          <StoreIcon size={18} /> 매장등록관리
         </h1>
         <div className="flex items-center gap-2">
           <span className="max-w-[140px] truncate text-[11px] text-[#64748b]">{user?.email}</span>
@@ -312,7 +313,7 @@ function MobileStoreDetail({ store, onClose }: { store: Store; onClose: () => vo
                       {kindPhotos.map((p) => (
                         <a
                           key={p.id}
-                          href={p.driveViewUrl}
+                          href={storePhotoUrl(p.driveFileId)}
                           target="_blank"
                           rel="noreferrer"
                           className="rounded-[8px] border border-border px-2 py-1.5 text-center text-[11px] text-primary hover:bg-hover"

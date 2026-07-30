@@ -114,4 +114,39 @@ async function uploadFile({ filename, buffer, mimeType, year }) {
   }
 }
 
-module.exports = { uploadFile, getDriveClient, LOCAL_DIR }
+/**
+ * 파일 내용을 스트림으로 읽어온다 — 서버가 대신 받아 사용자에게 넘겨주기 위한 것.
+ *
+ * Drive 파일은 서비스 계정 소유라 사용자의 구글 계정에는 권한이 없다.
+ * webViewLink 를 그대로 열면 "액세스 요청" 화면이 뜨므로, 파일을 공개로 바꾸는 대신
+ * 서버가 서비스 계정 권한으로 받아서 중계한다(로그인한 사용자만 우리 API를 호출할 수 있다).
+ *
+ * 로컬 폴백으로 저장된 파일(driveFileId = 'local_...')은 디스크에서 읽는다.
+ */
+async function downloadFile(fileId) {
+  const id = String(fileId || '')
+  if (!id) throw new Error('파일 id가 없습니다.')
+
+  if (id.startsWith('local_')) {
+    const localName = id.slice('local_'.length)
+    const full = path.join(LOCAL_DIR, localName)
+    if (!fs.existsSync(full)) throw new Error('파일을 찾을 수 없습니다.')
+    return { stream: fs.createReadStream(full), mimeType: '', name: localName }
+  }
+
+  const drive = getDriveClient()
+  if (!drive) throw new Error('Drive 자격증명이 설정되지 않았습니다.')
+
+  const meta = await drive.files.get({
+    fileId: id,
+    fields: 'name, mimeType',
+    supportsAllDrives: true,
+  })
+  const res = await drive.files.get(
+    { fileId: id, alt: 'media', supportsAllDrives: true },
+    { responseType: 'stream' },
+  )
+  return { stream: res.data, mimeType: meta.data.mimeType || '', name: meta.data.name || id }
+}
+
+module.exports = { uploadFile, downloadFile, getDriveClient, LOCAL_DIR }
