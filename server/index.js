@@ -88,6 +88,32 @@ app.get('/api/me', async (req, res) => {
   }
 })
 
+// 계약 라우트 공통 오류 처리 — 예전에는 e.message 만 응답에 담고 끝냈던 탓에
+// Cloud Run 로그에는 "500이 났다"는 사실만 남고 원인이 전혀 남지 않았다(실제로 추적 불가였음).
+// 여기서 원문을 stderr 로 남기고, 화면에는 담당자가 조치할 수 있는 문구로 바꿔 돌려준다.
+const CONTRACT_FK_HINT = {
+  contract_history_parent_contract_id_fkey: '선택한 소속 파트장 계약을 찾을 수 없습니다. 파트장을 다시 선택해 주세요.',
+  contract_history_contract_id_fkey: '계약 정보를 찾을 수 없습니다. 목록을 새로고침한 뒤 다시 시도해 주세요.',
+  contract_history_linked_contract_id_fkey: '연결된 계약을 찾을 수 없습니다. 양도인 계약을 다시 선택해 주세요.',
+  payment_installments_contract_id_fkey: '계약 정보를 찾을 수 없습니다. 목록을 새로고침한 뒤 다시 시도해 주세요.',
+  payment_installments_history_id_fkey: '결제 회차를 연결할 계약 이력을 찾을 수 없습니다.',
+  contract_documents_contract_id_fkey: '첨부문서를 연결할 계약을 찾을 수 없습니다.',
+}
+
+function contractError(res, tag, req, e) {
+  console.error(
+    `[contract] ${tag} 실패 — code=${e.code || '-'} constraint=${e.constraint || '-'} column=${e.column || '-'}` +
+      ` table=${e.table || '-'}\n  message: ${e.message}\n  detail : ${e.detail || '-'}\n  params : ${req.params && JSON.stringify(req.params)}` +
+      `\n  body   : ${JSON.stringify(req.body || {}).slice(0, 2000)}`,
+  )
+  let msg = e.message
+  if (e.code === '23503') msg = CONTRACT_FK_HINT[e.constraint] || '연결된 정보를 찾을 수 없습니다. 선택 항목을 다시 확인해 주세요.'
+  else if (e.code === '23502') msg = `필수 항목이 비어 있습니다 (${e.column || '알 수 없음'}). 입력값을 확인해 주세요.`
+  else if (e.code === '23505') msg = '이미 등록된 계약입니다. 목록을 새로고침한 뒤 확인해 주세요.'
+  else if (e.code === '22001') msg = '입력값이 허용 길이를 초과했습니다. 내용을 줄여 주세요.'
+  res.status(500).json({ ok: false, error: msg })
+}
+
 // ── 계약 목록 ─────────────────────────────
 app.get('/api/contracts', async (req, res) => {
   try {
@@ -121,7 +147,7 @@ app.post('/api/contracts', async (req, res) => {
     const c = await repo.createContract(req.body)
     res.status(201).json({ ok: true, data: c })
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message })
+    contractError(res, '신규 등록', req, e)
   }
 })
 
@@ -141,7 +167,7 @@ app.post('/api/contracts/:id/history', async (req, res) => {
     if (!c) return res.status(404).json({ ok: false, error: 'not found' })
     res.json({ ok: true, data: c })
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message })
+    contractError(res, '이력 추가', req, e)
   }
 })
 
@@ -154,7 +180,7 @@ app.post('/api/contracts/:id/transfer-in', async (req, res) => {
     if (!c) return res.status(404).json({ ok: false, error: 'not found' })
     res.json({ ok: true, data: c })
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message })
+    contractError(res, '양수 처리', req, e)
   }
 })
 
@@ -166,7 +192,7 @@ app.patch('/api/contracts/:id/history/:historyId', async (req, res) => {
     if (!c) return res.status(404).json({ ok: false, error: 'not found' })
     res.json({ ok: true, data: c })
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message })
+    contractError(res, '이력 수정', req, e)
   }
 })
 

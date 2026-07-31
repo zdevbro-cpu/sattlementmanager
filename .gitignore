@@ -18,6 +18,7 @@ web/dist/
 *.backup
 *.backup[0-9]*
 *.bk-*
+*.bk_*
 *.bak_*
 
 # 잔재 프론트 환경파일
