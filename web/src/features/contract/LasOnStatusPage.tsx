@@ -16,7 +16,7 @@ import ContractDetailDrawer from './ContractDetailDrawer'
 const HEADERS = [
   '번호', '계약일자', '이름', '주민번호', '구분', '상태',
   '합계', '현금입금', '카드결제', '카드사', '승인번호', '단말기NO', '입금은행',
-  '유치자', '은행명', '계좌번호', '예금주', '비고', '관리',
+  '은행명', '계좌번호', '예금주', '유치자', '비고', '관리',
 ]
 
 // 등록구간·계약구간 종료일은 오늘 날짜를 기본값으로 사용 (시작은 비워둠 = 전체 이력 포함) — 계약조회와 동일
@@ -402,10 +402,10 @@ export default function LasOnStatusPage() {
                     <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{approvalNo(r.c)}</td>
                     <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{terminalNo(r.c)}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{depositBank(r.c)}</td>
-                    <td className="px-3 py-1.5 whitespace-nowrap">{s.recruiter}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{s.bankName || '-'}</td>
                     <td className="px-3 py-1.5 tabular whitespace-nowrap">{s.accountNo || '-'}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{s.accountOwner || '-'}</td>
+                    <td className="px-3 py-1.5 whitespace-nowrap">{s.recruiter}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap text-[#94a3b8]">{s.memo || '-'}</td>
                     <td className="px-3 py-1.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">

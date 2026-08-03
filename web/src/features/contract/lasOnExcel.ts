@@ -182,10 +182,11 @@ export async function downloadLasOnStatusReport(rows: LasOnRow[], businessUnitLa
     row.getCell(11).value = p.approvalNo ?? ''
     row.getCell(12).value = p.terminalNo ?? ''
     row.getCell(13).value = p.depositBank ?? ''
-    row.getCell(14).value = p.recruiter
-    row.getCell(15).value = p.bankName
-    row.getCell(16).value = p.accountNo
-    row.getCell(17).value = p.accountOwner
+    // 유치자는 예금주 오른쪽(17열) — 템플릿 헤더 순서와 동일하게 맞춘다
+    row.getCell(14).value = p.bankName
+    row.getCell(15).value = p.accountNo
+    row.getCell(16).value = p.accountOwner
+    row.getCell(17).value = p.recruiter
     row.getCell(18).value = p.memo
 
     for (let c = 1; c <= COL_COUNT; c++) {
