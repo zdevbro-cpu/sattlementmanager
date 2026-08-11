@@ -69,7 +69,9 @@ export default function ContractListPage() {
   const [rows, setRows] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
   const [loadErr, setLoadErr] = useState('')
-  const [sum, setSum] = useState(() => summarize([]))
+  // 카드는 '지금 화면에 보이는 것'을 센다. 전체값은 비교용으로 함께 표기한다
+  // (필터를 좁혔는데 카드가 안 바뀌면 표와 카드가 서로 다른 말을 하게 된다).
+  const [totalSum, setTotalSum] = useState(() => summarize([]))
   const [sortKey, setSortKey] = useState<SortKey>('createdAt')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [perPage, setPerPage] = useState(20)
@@ -129,6 +131,10 @@ export default function ContractListPage() {
     return true
   })
 
+  const sum = summarize(visibleRows)
+  // 조건이 하나라도 걸렸는지 — 걸렸을 때만 전체값을 함께 보여준다(안 그러면 같은 숫자가 두 번 나온다)
+  const isFiltered = JSON.stringify(filter) !== JSON.stringify(DEFAULT_CONTRACT_FILTER) || includeDiscarded
+
   // 관리자·유치자 자동완성 목록 — 현재 불러온 계약에 실제로 입력된 값 기준 (하드코딩 목록 아님)
   const managerOptions = Array.from(new Set(rows.map((c) => c.current.manager).filter(Boolean))).sort()
   const recruiterOptions = Array.from(new Set(rows.map((c) => c.current.recruiter).filter(Boolean))).sort()
@@ -146,7 +152,7 @@ export default function ContractListPage() {
   useEffect(() => {
     let alive = true
     listContracts(EMPTY_FILTER).then((list) => {
-      if (alive) setSum(summarize(list))
+      if (alive) setTotalSum(summarize(list))
     })
     return () => {
       alive = false
@@ -243,6 +249,7 @@ export default function ContractListPage() {
           label="계약총액"
           value={won(sum.depositTotal)}
           sub={`총 ${sum.active}건 (해지·폐기·임시저장 제외)`}
+          total={isFiltered ? `${won(totalSum.depositTotal)} · ${totalSum.active}건` : undefined}
           tint="#e0edff"
           fg="#2563eb"
           icon={FileText}
@@ -252,6 +259,7 @@ export default function ContractListPage() {
           label="임시저장"
           value={won(sum.draftTotal)}
           sub={`${sum.draftCount}건 (계약등록 확정 전)`}
+          total={isFiltered ? `${won(totalSum.draftTotal)} · ${totalSum.draftCount}건` : undefined}
           tint="#f1f5f9"
           fg="#64748b"
           icon={Clock}
@@ -260,6 +268,7 @@ export default function ContractListPage() {
           label="이번달 계약총액"
           value={won(sum.monthTotal)}
           sub={`이번주 ${won(sum.weekTotal)}`}
+          total={isFiltered ? won(totalSum.monthTotal) : undefined}
           tint="#fff1e0"
           fg="#f59e0b"
           icon={PlusCircle}
@@ -267,6 +276,7 @@ export default function ContractListPage() {
         <SummaryCard
           label="진행중"
           value={sum.active}
+          total={isFiltered ? `${totalSum.active}건` : undefined}
           tint="#e2f7ec"
           fg="#16a34a"
           icon={FileText}
@@ -274,6 +284,7 @@ export default function ContractListPage() {
         <SummaryCard
           label="해지·폐기"
           value={sum.terminated}
+          total={isFiltered ? `${totalSum.terminated}건` : undefined}
           tint="#fee2e2"
           fg="#ef4444"
           icon={XCircle}
@@ -589,6 +600,7 @@ function SummaryCard({
   label,
   value,
   sub,
+  total,
   tint,
   fg,
   icon: Icon,
@@ -596,6 +608,8 @@ function SummaryCard({
   label: string
   value: number | string
   sub?: string
+  /** 검색조건이 걸렸을 때 비교용으로 보여주는 전체값 */
+  total?: string
   tint: string
   fg: string
   icon: ComponentType<{ size?: number }>
@@ -614,6 +628,7 @@ function SummaryCard({
           {value}
         </div>
         {sub && <div className="text-[12.5px] font-semibold text-[#94a3b8] mt-0.5 whitespace-nowrap">{sub}</div>}
+        {total && <div className="text-[11.5px] text-[#64748b] mt-0.5 whitespace-nowrap">전체 {total}</div>}
       </div>
     </div>
   )

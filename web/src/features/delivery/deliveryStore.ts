@@ -62,3 +62,20 @@ export function deleteShipment(id: string) {
 export function listBookNames(): Promise<string[]> {
   return fetchShipmentBooks()
 }
+
+/**
+ * 화면에 보이는 목록만으로 요약을 낸다 — 검색조건이 걸린 상태의 집계용.
+ * 서버 summarize()(전체 기준)와 같은 규칙으로 묶어야 두 값을 나란히 놓고 비교할 수 있다.
+ */
+export function summarizeRows(list: Shipment[]): ShipmentSummary {
+  const by: Record<string, number> = {}
+  for (const s of list) by[s.status] = (by[s.status] || 0) + 1
+  return {
+    total: list.length,
+    deferred: by['추후배송'] || 0,
+    waitingSend: (by['접수'] || 0) + (by['목록확정'] || 0),
+    shipping: by['배송중'] || 0,
+    done: (by['배송완료'] || 0) + (by['완료확인'] || 0),
+    byStatus: by,
+  }
+}

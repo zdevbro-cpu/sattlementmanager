@@ -49,6 +49,9 @@ export default function SalesListPage() {
   const [loadErr, setLoadErr] = useState('')
   // 요약 카드는 검색조건이 반영된 현재 목록(rows) 기준으로 집계한다.
   const sum = summarizeSales(rows)
+  // 비교용 전체값 — 조건이 바뀔 때마다 다시 받으면 목록 조회가 두 배가 되므로 최초 1회만 받는다
+  const [totalSum, setTotalSum] = useState(() => summarizeSales([]))
+  const isFiltered = JSON.stringify(filter) !== JSON.stringify(DEFAULT_SALES_FILTER)
   const [sortKey, setSortKey] = useState<SortKey>('createdAt')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [perPage, setPerPage] = useState(20)
@@ -83,6 +86,18 @@ export default function SalesListPage() {
       alive = false
     }
   }, [filter, refresh])
+
+  useEffect(() => {
+    let alive = true
+    listSales(EMPTY_SALES_FILTER)
+      .then((list) => {
+        if (alive) setTotalSum(summarizeSales(list))
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [refresh])
 
   useEffect(() => {
     setPage(1)
@@ -168,10 +183,10 @@ export default function SalesListPage() {
 
           {/* 요약 카드 */}
           <div className="grid grid-cols-4 gap-4 mb-4">
-            <SummaryCard label="전체 건수" value={`${won(sum.cardTotal + sum.cashTotal)} / ${sum.total}건`} sub="기간 내 매출총액 / 전체건수" tint="#e0edff" fg="#2563eb" icon={<Layers size={18} />} />
-            <SummaryCard label="카드매출" value={won(sum.cardTotal)} sub="기간 내 카드 매출 합계" tint="#e0edff" fg="#2563eb" icon={<CreditCard size={18} />} />
-            <SummaryCard label="현금매출" value={won(sum.cashTotal)} sub="기간 내 현금 매출 합계" tint="#e2f7ec" fg="#16a34a" icon={<Banknote size={18} />} />
-            <SummaryCard label="분할 / 미검증" value={`${sum.splitCount} / ${sum.unverified}`} sub="분할결제 / 미검증 건수" tint="#fff1e0" fg="#f59e0b" icon={<AlertTriangle size={18} />} />
+            <SummaryCard label="검색결과" value={`${won(sum.cardTotal + sum.cashTotal)} / ${sum.total}건`} sub="매출총액 / 건수" total={isFiltered ? `${won(totalSum.cardTotal + totalSum.cashTotal)} / ${totalSum.total}건` : undefined} tint="#e0edff" fg="#2563eb" icon={<Layers size={18} />} />
+            <SummaryCard label="카드매출" value={won(sum.cardTotal)} sub="카드 매출 합계" total={isFiltered ? won(totalSum.cardTotal) : undefined} tint="#e0edff" fg="#2563eb" icon={<CreditCard size={18} />} />
+            <SummaryCard label="현금매출" value={won(sum.cashTotal)} sub="현금 매출 합계" total={isFiltered ? won(totalSum.cashTotal) : undefined} tint="#e2f7ec" fg="#16a34a" icon={<Banknote size={18} />} />
+            <SummaryCard label="분할 / 미검증" value={`${sum.splitCount} / ${sum.unverified}`} sub="분할결제 / 미검증 건수" total={isFiltered ? `${totalSum.splitCount} / ${totalSum.unverified}` : undefined} tint="#fff1e0" fg="#f59e0b" icon={<AlertTriangle size={18} />} />
           </div>
 
           {/* 필터 바 — 계약시작 ~ 입력자 성명 + 초기화 모두 1줄 */}
@@ -383,6 +398,7 @@ function SummaryCard({
   tint,
   fg,
   sub,
+  total,
   icon,
 }: {
   label: string
@@ -390,6 +406,8 @@ function SummaryCard({
   tint: string
   fg: string
   sub?: string
+  /** 검색조건이 걸렸을 때 비교용으로 보여주는 전체값 */
+  total?: string
   icon?: React.ReactNode
 }) {
   return (
@@ -401,6 +419,7 @@ function SummaryCard({
         <div className="text-[13px] font-semibold text-[#64748b]">{label}</div>
         <div className="text-[18px] font-extrabold text-text-strong leading-tight tabular">{value}</div>
         {sub && <div className="text-[11px] text-[#64748b] mt-0.5">{sub}</div>}
+        {total && <div className="text-[11px] text-[#4b5a70] mt-0.5">전체 {total}</div>}
       </div>
     </div>
   )
