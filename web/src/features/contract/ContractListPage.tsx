@@ -125,7 +125,7 @@ export default function ContractListPage() {
     const s = c.current
     if (filter.branch !== '전체' && s.branch !== filter.branch) return false
     if (filter.manager && !s.manager.includes(filter.manager)) return false
-    if (filter.recruiter && !s.recruiter.includes(filter.recruiter)) return false
+    if (filter.contractType !== '전체' && s.contractType !== filter.contractType) return false
     if (filter.regStartDate && s.createdAt && s.createdAt < filter.regStartDate) return false
     if (filter.regEndDate && s.createdAt && s.createdAt > filter.regEndDate) return false
     return true
@@ -137,7 +137,6 @@ export default function ContractListPage() {
 
   // 관리자·유치자 자동완성 목록 — 현재 불러온 계약에 실제로 입력된 값 기준 (하드코딩 목록 아님)
   const managerOptions = Array.from(new Set(rows.map((c) => c.current.manager).filter(Boolean))).sort()
-  const recruiterOptions = Array.from(new Set(rows.map((c) => c.current.recruiter).filter(Boolean))).sort()
 
   const sortedRows = [...visibleRows].sort((a, b) => {
     const av = sortKey === 'createdAt' ? a.current.createdAt : a.current.contractDate
@@ -301,6 +300,21 @@ export default function ContractListPage() {
               onChange={(v) => setFilter({ ...filter, org: v })}
             />
           </Field>
+          <Field label="계약구분">
+            <SelectFilter
+              value={filter.contractType}
+              options={codes.contractTypes}
+              onChange={(v) => setFilter({ ...filter, contractType: v })}
+            />
+          </Field>
+          <Field label="계약자명">
+            <input
+              value={filter.keyword}
+              onChange={(e) => setFilter({ ...filter, keyword: e.target.value })}
+              placeholder="계약자명 또는 계약ID(예: C180) 검색"
+              className={inputCls}
+            />
+          </Field>
           <div className="col-span-2">
             <span className="mb-1 block text-[11.5px] font-semibold text-[#94a3b8]">
               등록구간
@@ -321,14 +335,6 @@ export default function ContractListPage() {
               />
             </div>
           </div>
-          <Field label="계약자명">
-            <input
-              value={filter.keyword}
-              onChange={(e) => setFilter({ ...filter, keyword: e.target.value })}
-              placeholder="계약자명 또는 계약ID(예: C180) 검색"
-              className={inputCls}
-            />
-          </Field>
           <div className="col-span-2">
             <span className="mb-1 block text-[11.5px] font-semibold text-[#94a3b8]">
               계약구간
@@ -367,20 +373,6 @@ export default function ContractListPage() {
             <datalist id="manager-filter-list">
               {managerOptions.map((m) => (
                 <option key={m} value={m} />
-              ))}
-            </datalist>
-          </Field>
-          <Field label="유치자">
-            <input
-              value={filter.recruiter}
-              onChange={(e) => setFilter({ ...filter, recruiter: e.target.value })}
-              placeholder="유치자 검색"
-              list="recruiter-filter-list"
-              className={inputCls}
-            />
-            <datalist id="recruiter-filter-list">
-              {recruiterOptions.map((r) => (
-                <option key={r} value={r} />
               ))}
             </datalist>
           </Field>
