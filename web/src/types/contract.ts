@@ -180,6 +180,7 @@ export interface ContractFilter {
   regEndDate: string // 등록종료 (등록일 이전)
   recruiter: string // 유치자 (자유입력 부분일치 검색, 빈 문자열 = 전체)
   org: string // 소속 ('전체' 포함)
+  contractType: string // 계약구분 ('전체' 포함)
 }
 
 export const EMPTY_FILTER: ContractFilter = {
@@ -193,4 +194,5 @@ export const EMPTY_FILTER: ContractFilter = {
   regEndDate: '',
   recruiter: '',
   org: '전체',
+  contractType: '전체',
 }

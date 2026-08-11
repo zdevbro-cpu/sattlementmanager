@@ -14,7 +14,7 @@ import {
   type ShipmentFilter,
   type ShipmentSummary,
 } from '../../types/delivery'
-import { deleteShipment, listBookNames, listShipments, sendShipmentList, summarizeShipments } from './deliveryStore'
+import { deleteShipment, listBookNames, listShipments, sendShipmentList, summarizeRows, summarizeShipments } from './deliveryStore'
 import DeliveryDetailDrawer from './DeliveryDetailDrawer'
 import DeliveryCreateModal from './DeliveryCreateModal'
 import TrackingBatchModal from './TrackingBatchModal'
@@ -33,7 +33,8 @@ const inputCls =
 export default function DeliveryAdminPage() {
   const [filter, setFilter] = useState<ShipmentFilter>(EMPTY_SHIPMENT_FILTER)
   const [rows, setRows] = useState<Shipment[]>([])
-  const [sum, setSum] = useState<ShipmentSummary | null>(null)
+  // 서버 집계는 전체 기준이라 비교용으로만 쓴다. 카드 본값은 화면에 보이는 목록에서 낸다
+  const [totalSum, setTotalSum] = useState<ShipmentSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadErr, setLoadErr] = useState('')
   const [refresh, setRefresh] = useState(0)
@@ -56,7 +57,7 @@ export default function DeliveryAdminPage() {
       .then(([list, s]) => {
         if (!alive) return
         setRows(list)
-        setSum(s)
+        setTotalSum(s)
         setLoading(false)
       })
       .catch((e) => {
@@ -129,6 +130,10 @@ export default function DeliveryAdminPage() {
       alive = false
     }
   }, [refresh])
+
+  const sum = summarizeRows(rows)
+  // 조건이 하나라도 걸렸는지 — 걸렸을 때만 전체값을 함께 보여준다
+  const isFiltered = JSON.stringify(filter) !== JSON.stringify(EMPTY_SHIPMENT_FILTER)
 
   const targetRows = sortByBook(selected.size > 0 ? rows.filter((r) => selected.has(r.id)) : rows)
 
@@ -256,10 +261,10 @@ export default function DeliveryAdminPage() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
-        <SummaryCard label="전체 배송" value={sum?.total ?? 0} sub="누적 건수" tint="#e0edff" fg="#2563eb" icon={PackageCheck} />
-        <SummaryCard label="추후배송" value={sum?.deferred ?? 0} sub="배송지 미확정" tint="#fff1e0" fg="#f59e0b" icon={Clock} />
-        <SummaryCard label="전송대기" value={sum?.waitingSend ?? 0} sub="접수 + 목록확정" tint="#e2f7ec" fg="#16a34a" icon={Truck} />
-        <SummaryCard label="배송중" value={sum?.shipping ?? 0} sub={`완료 ${sum?.done ?? 0}건`} tint="#f3e8ff" fg="#7c3aed" icon={CheckCircle2} />
+        <SummaryCard label="배송 건수" value={sum.total} sub="조회된 건수" total={isFiltered ? `${totalSum?.total ?? 0}건` : undefined} tint="#e0edff" fg="#2563eb" icon={PackageCheck} />
+        <SummaryCard label="추후배송" value={sum.deferred} sub="배송지 미확정" total={isFiltered ? `${totalSum?.deferred ?? 0}건` : undefined} tint="#fff1e0" fg="#f59e0b" icon={Clock} />
+        <SummaryCard label="전송대기" value={sum.waitingSend} sub="접수 + 목록확정" total={isFiltered ? `${totalSum?.waitingSend ?? 0}건` : undefined} tint="#e2f7ec" fg="#16a34a" icon={Truck} />
+        <SummaryCard label="배송중" value={sum.shipping} sub={`완료 ${sum.done}건`} total={isFiltered ? `${totalSum?.shipping ?? 0}건` : undefined} tint="#f3e8ff" fg="#7c3aed" icon={CheckCircle2} />
       </div>
 
       <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
@@ -422,6 +427,7 @@ function SummaryCard({
   label,
   value,
   sub,
+  total,
   tint,
   fg,
   icon: Icon,
@@ -429,6 +435,8 @@ function SummaryCard({
   label: string
   value: number
   sub: string
+  /** 검색조건이 걸렸을 때 비교용으로 보여주는 전체값 */
+  total?: string
   tint: string
   fg: string
   icon: ComponentType<{ size?: number }>
@@ -446,6 +454,7 @@ function SummaryCard({
       </div>
       <div className="text-[21px] font-extrabold text-text-strong leading-tight tabular">{value}건</div>
       <div className="text-[12px] font-semibold text-[#94a3b8] mt-0.5 whitespace-nowrap">{sub}</div>
+      {total && <div className="text-[11.5px] text-[#64748b] mt-0.5 whitespace-nowrap">전체 {total}</div>}
     </div>
   )
 }
