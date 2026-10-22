@@ -150,6 +150,8 @@ export function buildLasOnBonusRows(contracts: Contract[], today: string): LasOn
   for (const c of contracts) {
     const cur = c.current
     if (cur.status !== '신규' || cur.isDraft) continue
+    // 미국라스온 계약은 15% 유치보너스 대상이 아니다 — 수익금은 지급관리 '미국라스온' 탭에서 따로 지급한다.
+    if (cur.region === '미국라스온') continue
     // 유치보너스는 "LAS-On파트장/파트너가 새 LAS-On파트너를 유치"했을 때만 발생한다 —
     // LAS매장점주 등 다른 계약구분은 유치자 이름이 우연히 일치해도 대상이 아니다.
     if (cur.contractType !== 'LAS-On파트너') continue

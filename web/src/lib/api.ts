@@ -1,7 +1,15 @@
 // 백엔드(Firebase Functions / Express) 호출 클라이언트.
 // - OCR: POST /api/ocr (Gemini) 규격
 // - Drive 업로드: contractmanager POST /api/contracts/:id/pdf (base64) 규격
-import type { Contract, ContractFilter, ContractSnapshot } from '../types/contract'
+import type {
+  Contract,
+  ContractFilter,
+  ContractReceipt,
+  ContractSnapshot,
+  ExchangeRate,
+  PayoutCurrency,
+  PayoutCurrencyChange,
+} from '../types/contract'
 import type { Appointment, AppointmentFilter } from '../types/appointment'
 import type { Sale, SalesFilter } from '../types/sales'
 import type { ExtraPayee } from '../types/payout'
@@ -232,6 +240,7 @@ export async function uploadToDrive(
   file: File,
   reason: string,
   historyId?: string,
+  kind?: '계약서' | '카드전표' | '현금입금증',
 ): Promise<{ driveFileId: string; driveViewUrl: string }> {
   const data = await fileToBase64(file)
   const res = await authFetch(`/api/contracts/${contractId}/pdf`, {
@@ -243,6 +252,7 @@ export async function uploadToDrive(
       mimeType: file.type || 'application/pdf',
       reason,
       historyId,
+      kind,
     }),
   })
   if (!res.ok) throw new Error(`Drive 업로드 실패 (${res.status})`)
@@ -339,6 +349,54 @@ export function correctContractHistoryApi(
     'PATCH',
     snapshot,
   )
+}
+
+// ── 미국라스온 입금장부 · 수령통화 · 환율 ─────────────────────
+export function addReceiptApi(id: string, r: Omit<ContractReceipt, 'id'>): Promise<ContractReceipt> {
+  return sendJson(`/api/contracts/${encodeURIComponent(id)}/receipts`, 'POST', r)
+}
+export function deleteReceiptApi(id: string, receiptId: string): Promise<void> {
+  return sendJson(
+    `/api/contracts/${encodeURIComponent(id)}/receipts/${encodeURIComponent(receiptId)}`,
+    'DELETE',
+  )
+}
+export function addPayoutCurrencyApi(
+  id: string,
+  effectiveDate: string,
+  currency: PayoutCurrency,
+): Promise<PayoutCurrencyChange> {
+  return sendJson(`/api/contracts/${encodeURIComponent(id)}/payout-currency`, 'POST', {
+    effectiveDate,
+    currency,
+  })
+}
+export function deletePayoutCurrencyApi(id: string, changeId: string): Promise<void> {
+  return sendJson(
+    `/api/contracts/${encodeURIComponent(id)}/payout-currency/${encodeURIComponent(changeId)}`,
+    'DELETE',
+  )
+}
+export function fetchExchangeRates(): Promise<ExchangeRate[]> {
+  return getData('/api/exchange-rates')
+}
+export async function upsertExchangeRateApi(date: string, rate: number): Promise<ExchangeRate> {
+  const res = await authFetch('/api/exchange-rates', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date, rate }),
+  })
+  if (!res.ok) throw new Error(`요청 실패 (${res.status})`)
+  const json = await res.json()
+  if (!json.ok) throw new Error(json.error || '요청 실패')
+  return json.data
+}
+/** 거래일 환율 확보 — 환율표에 없으면 서버가 하나은행 1회차 매매기준율을 조회해 저장한다 */
+export function ensureExchangeRateApi(date: string, force = false): Promise<ExchangeRate> {
+  return sendJson('/api/exchange-rates/fetch', 'POST', { date, force })
+}
+export function deleteExchangeRateApi(date: string): Promise<void> {
+  return sendJson(`/api/exchange-rates/${encodeURIComponent(date)}`, 'DELETE')
 }
 
 // ── LAS-ON 매장선정관리 ────────────────────────────────────

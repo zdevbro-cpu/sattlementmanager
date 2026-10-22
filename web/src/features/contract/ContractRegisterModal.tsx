@@ -5,7 +5,7 @@ import type {
   DriveDocument,
   PaymentInfo,
 } from '../../types/contract'
-import { EMPTY_FILTER } from '../../types/contract'
+import { EMPTY_FILTER, US_REGION, type PayoutCurrency } from '../../types/contract'
 import { BRANCHES, MANAGERS, RECRUITERS } from '../../data/mockContracts'
 import { useCodes } from '../../lib/codeStore'
 import { createContract, listContracts } from './contractStore'
@@ -14,7 +14,9 @@ import type { Sale } from '../../types/sales'
 
 const LAS_ON_TYPES = ['LAS-On파트장', 'LAS-On파트너']
 import PaymentEditor, { emptyPayment } from './PaymentEditor'
-import { uploadToDrive } from '../../lib/api'
+import { addPayoutCurrencyApi, uploadToDrive } from '../../lib/api'
+import UsLasOnFields from './UsLasOnFields'
+import { usFieldsOf, type UsFields } from './usLasOn'
 import DropZone from '../../components/ui/DropZone'
 import DateTextInput from '../../components/ui/DateTextInput'
 import { CheckCircle2, Paperclip, X, XCircle } from 'lucide-react'
@@ -97,6 +99,9 @@ export default function ContractRegisterModal({
     recipientResidentNo: '',
   })
   const [payment, setPayment] = useState<PaymentInfo>(initialSale?.payment ?? emptyPayment())
+  // 지역 / 미국라스온 전용 입력 — 국내면 지역 값만 저장된다
+  const [us, setUs] = useState<UsFields>(usFieldsOf())
+  const [payoutCurrency, setPayoutCurrency] = useState<PayoutCurrency>('USD')
   const [contractFile, setContractFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
@@ -159,13 +164,16 @@ export default function ContractRegisterModal({
   const isPartner = f.contractType === 'LAS-On파트너'
   const isLasOn = f.contractType === 'LAS-On파트너' || f.contractType === 'LAS-On파트장'
   const partnerLocked = isPartner && !f.parentContractId
+  // 미국라스온은 계약금(달러)을 날짜 간격을 두고 나눠 받으므로 등록 시 결재합계 일치를 요구하지 않는다 —
+  // 입금은 계약상세의 입금장부에서 관리하고, 완납은 사업부 담당자가 판정한다.
+  const isUs = us.region === US_REGION
 
   const submit = async (isDraft: boolean) => {
     if (!f.contractorName.trim()) return setErr('계약자명을 입력하세요.')
     if (!f.contractDate) return setErr('계약일을 입력하세요.')
     if (partnerLocked) return setErr('소속 파트장을 먼저 선택하세요.')
     // 임시저장은 결재정보가 아직 미완성일 수 있으므로 보증금 일치 검증을 생략한다
-    if (!isDraft && !depositMatched)
+    if (!isDraft && !isUs && !depositMatched)
       return setErr(
         `결재합계(카드+현금 ${payTotal.toLocaleString('ko-KR')}원)가 보증금(${f.deposit.toLocaleString('ko-KR')}원)과 일치해야 등록할 수 있습니다.`,
       )
@@ -204,12 +212,22 @@ export default function ContractRegisterModal({
         recipientAccountNo: isLasOn ? f.recipientAccountNo : '',
         recipientAccountOwner: isLasOn ? f.recipientAccountOwner.trim() || f.recipientName.trim() : '',
         recipientResidentNo: isLasOn ? f.recipientResidentNo : '',
-        payment,
+        payment: isUs ? emptyPayment() : payment,
         documents,
         memo: f.memo,
         createdAt: f.contractDate,
+        ...(isUs ? { ...us, fullyPaidDate: '' } : { region: '국내' as const }),
       }
       const created = await createContract(snapshot)
+
+      // 미국라스온 — 최초 수령통화를 계약일 기준 이력으로 남긴다(이후 변경은 계약상세에서 적용일과 함께 추가)
+      if (isUs) {
+        try {
+          await addPayoutCurrencyApi(created.id, f.contractDate, payoutCurrency)
+        } catch {
+          /* 수령통화 저장 실패해도 계약 등록은 유지 — 계약상세에서 다시 지정 가능 */
+        }
+      }
 
       if (selectedSale) {
         try {
@@ -281,10 +299,10 @@ export default function ContractRegisterModal({
               </Field>
 
               {/* 2행 */}
-              <Field label="보증금">
+              <Field label={isUs ? '보증금($)' : '보증금'}>
                 <NumInput value={f.deposit} onChange={(v) => set('deposit', v)} disabled={partnerLocked} />
               </Field>
-              <Field label="수당">
+              <Field label={isUs ? '수당($)' : '수당'}>
                 <NumInput value={f.allowance} onChange={(v) => set('allowance', v)} disabled={partnerLocked} />
               </Field>
               <Field label="수당지급기준일">
@@ -416,6 +434,32 @@ export default function ContractRegisterModal({
             </div>
           </section>
 
+          {/* ── 지역 / 미국라스온 정보 ── */}
+          <section className={partnerLocked ? 'pointer-events-none opacity-40' : ''}>
+            <SectionTitle>지역 / 미국라스온 정보</SectionTitle>
+            <UsLasOnFields
+              value={us}
+              onChange={setUs}
+              inputCls={inputCls}
+              disabled={partnerLocked}
+              rateBaseDate={f.contractDate}
+            />
+            {isUs && (
+              <div className="mt-3 grid grid-cols-5 gap-3">
+                <Field label="수령통화 (최초)">
+                  <select
+                    value={payoutCurrency}
+                    onChange={(e) => setPayoutCurrency(e.target.value as PayoutCurrency)}
+                    className={inputCls}
+                  >
+                    <option value="USD">달러 (BOA 계좌)</option>
+                    <option value="KRW">원화 (한국 계좌)</option>
+                  </select>
+                </Field>
+              </div>
+            )}
+          </section>
+
           {/* ── 미연동 매출 검색·연결 (모바일 카드/입금증 등록분과 매칭) ── */}
           <section className={partnerLocked ? 'pointer-events-none opacity-40' : ''}>
             <SectionTitle>미연동 매출 검색·연결 (선택)</SectionTitle>
@@ -471,7 +515,15 @@ export default function ContractRegisterModal({
             )}
           </section>
 
-          {/* ── 결재정보 ── */}
+          {/* ── 결재정보 (미국라스온은 입금장부로 관리) ── */}
+          {isUs ? (
+            <section>
+              <SectionTitle>결재정보</SectionTitle>
+              <div className="rounded-[8px] border border-dashed border-border px-3 py-4 text-center text-[12px] text-[#94a3b8]">
+                미국라스온 계약은 등록 후 계약상세의 <b className="text-text-strong">입금장부</b>에서 입금을 1건씩 기록하고 완납 처리합니다.
+              </div>
+            </section>
+          ) : (
           <section className={partnerLocked ? 'pointer-events-none opacity-40' : ''}>
             <div className="mb-2.5 flex items-center justify-between">
               <SectionTitle>결재정보</SectionTitle>
@@ -490,6 +542,7 @@ export default function ContractRegisterModal({
             </div>
             <PaymentEditor value={payment} onChange={setPayment} />
           </section>
+          )}
 
           {/* ── 계약서 등록 ── */}
           <section className={partnerLocked ? 'pointer-events-none opacity-40' : ''}>
@@ -530,8 +583,8 @@ export default function ContractRegisterModal({
           </button>
           <button
             onClick={() => submit(false)}
-            disabled={saving || !depositMatched}
-            title={depositMatched ? '' : '결재합계와 보증금이 일치해야 등록 가능'}
+            disabled={saving || (!isUs && !depositMatched)}
+            title={isUs || depositMatched ? '' : '결재합계와 보증금이 일치해야 등록 가능'}
             className="h-10 rounded-[10px] bg-primary px-5 text-sm font-bold text-white hover:brightness-110 disabled:opacity-60"
           >
             {saving ? '저장 중…' : '계약 등록'}

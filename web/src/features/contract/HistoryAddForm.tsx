@@ -9,6 +9,7 @@ import DropZone from '../../components/ui/DropZone'
 import IncomeTypeToggle, { LABOR_INCOME_MIN } from '../../components/ui/IncomeTypeToggle'
 import { uploadToDrive } from '../../lib/api'
 import { comma } from '../../lib/format'
+import RateInput, { type RateValue } from './RateInput'
 
 const inputCls =
   'h-9 w-full rounded-[8px] bg-input border border-border px-2.5 text-[13px] text-input-text outline-none focus:border-primary'
@@ -45,6 +46,9 @@ export default function HistoryAddForm({
   const [memo, setMemo] = useState('')
   const [payment, setPayment] = useState<PaymentInfo>(base.payment)
   const [contractFile, setContractFile] = useState<File | null>(null)
+  // 미국라스온 — 이 이벤트(변경일) 시점 환율. 변경일을 넣으면 하나은행 1회차 매매기준율로 자동 채움, 수정 가능
+  const isUs = base.region === '미국라스온'
+  const [rate, setRate] = useState<RateValue>({ rate: 0, date: '', source: '' })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
@@ -169,6 +173,14 @@ export default function HistoryAddForm({
         memo,
         createdAt: eventDate,
         documents: [],
+        // 미국라스온 증액은 신규와 같은 규칙 — 증액분 완납을 담당자가 다시 판정하기 전까지는
+        // 새 스냅샷의 수당이 지급되지 않도록 완납일·수당지급기준일을 비운다(이전 스냅샷 기준 지급은 유지).
+        ...(base.region === '미국라스온' && status === '증액'
+          ? { fullyPaidDate: '', firstAllowancePayDate: '' }
+          : {}),
+        ...(isUs
+          ? { exchangeRate: rate.rate, exchangeRateDate: rate.date, exchangeRateSource: rate.source }
+          : {}),
         ...(isPartner
           ? {
               parentContractId,
@@ -222,10 +234,10 @@ export default function HistoryAddForm({
         <Field label="계약번호">
           <input value={contractNo} onChange={(e) => setContractNo(e.target.value)} className={inputCls} placeholder="계약번호" />
         </Field>
-        <Field label="보증금">
+        <Field label={base.region === '미국라스온' ? '보증금($)' : '보증금'}>
           <NumInput value={deposit} onChange={setDeposit} />
         </Field>
-        <Field label="수당">
+        <Field label={base.region === '미국라스온' ? '수당($)' : '수당'}>
           <NumInput value={allowance} onChange={setAllowance} />
         </Field>
         <Field label="수당지급일 (매월)">
@@ -243,6 +255,11 @@ export default function HistoryAddForm({
         <Field label="계약종료일">
           <DateTextInput value={contractEndDate} onChange={setContractEndDate} className={inputCls} />
         </Field>
+        {isUs && (
+          <Field label="적용환율 (변경일, 원/달러)">
+            <RateInput baseDate={eventDate} value={rate} onChange={setRate} inputCls={inputCls} />
+          </Field>
+        )}
         {isPartner && (
           <Field label="소속 파트장 변경">
             <select value={parentContractId} onChange={(e) => selectLeader(e.target.value)} className={inputCls}>

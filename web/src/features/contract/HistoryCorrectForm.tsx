@@ -8,6 +8,8 @@ import PaymentEditor from './PaymentEditor'
 import DateTextInput from '../../components/ui/DateTextInput'
 import IncomeTypeToggle, { LABOR_INCOME_MIN } from '../../components/ui/IncomeTypeToggle'
 import { comma, phoneFmt, residentNoFmt } from '../../lib/format'
+import UsLasOnFields from './UsLasOnFields'
+import { usFieldsOf, type UsFields } from './usLasOn'
 
 const inputCls =
   'h-9 w-full rounded-[8px] bg-input border border-border px-2.5 text-[13px] text-input-text outline-none focus:border-primary'
@@ -74,6 +76,8 @@ export default function HistoryCorrectForm({
   const [recipientResidentNo, setRecipientResidentNo] = useState(base.recipientResidentNo ?? '')
   const [memo, setMemo] = useState(base.memo ?? '')
   const [payment, setPayment] = useState<PaymentInfo>(base.payment)
+  const [us, setUs] = useState<UsFields>(usFieldsOf(base))
+  const isUs = us.region === '미국라스온'
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
@@ -114,6 +118,7 @@ export default function HistoryCorrectForm({
         recipientResidentNo,
         memo,
         payment,
+        ...us,
       }
       await correctHistory(contractId, base.historyId, snap)
       onSaved()
@@ -155,10 +160,10 @@ export default function HistoryCorrectForm({
           <DateTextInput value={contractDate} onChange={setContractDate} className={inputCls} />
         </Field>
 
-        <Field label="보증금">
+        <Field label={isUs ? '보증금($)' : '보증금'}>
           <NumInput value={deposit} onChange={setDeposit} />
         </Field>
-        <Field label="수당">
+        <Field label={isUs ? '수당($)' : '수당'}>
           <NumInput value={allowance} onChange={setAllowance} />
         </Field>
         <Field label="수당지급기준일">
@@ -270,6 +275,15 @@ export default function HistoryCorrectForm({
             </Field>
           </>
         )}
+      </div>
+      <div>
+        <div className="mb-1.5 text-[12px] font-bold text-text-strong">지역 / 미국라스온 정보</div>
+        <UsLasOnFields
+          value={us}
+          onChange={setUs}
+          inputCls={inputCls}
+          rateBaseDate={base.status === '신규' ? contractDate : base.eventDate}
+        />
       </div>
       <Field label="비고">
         <input value={memo} onChange={(e) => setMemo(e.target.value)} className={inputCls} />

@@ -4,6 +4,12 @@ export function won(n: number | null | undefined): string {
   return n.toLocaleString('ko-KR') + '원'
 }
 
+/** 숫자 → 달러 표기 ($1,234) — 미국라스온 금액(정수 달러) */
+export function usd(n: number | null | undefined): string {
+  if (n == null || Number.isNaN(n)) return '-'
+  return '$' + n.toLocaleString('en-US')
+}
+
 /** 숫자 → 천단위 콤마 (단위 없음) */
 export function comma(n: number | null | undefined): string {
   if (n == null || Number.isNaN(n)) return '-'

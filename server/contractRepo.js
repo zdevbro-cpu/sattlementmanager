@@ -1,5 +1,6 @@
 // 계약 도메인 DB 레포지토리 (Cloud SQL / PostgreSQL)
 const { pool } = require('./db')
+const { fetchHanaFirstUsdRate } = require('./services/hanaRateService')
 
 /** history row → 프론트 ContractSnapshot 형태로 매핑 */
 function mapSnapshot(h, installments, documents) {
@@ -67,6 +68,26 @@ function mapSnapshot(h, installments, documents) {
     transferAmount: Number(h.transfer_amount || 0),
     // 소득구분 — 이력 시점의 값을 그대로 유지한다(과거 지급건 소급 변경 방지)
     incomeType: h.income_type === '근로소득' ? '근로소득' : '사업소득',
+    // 지역 — 미국라스온이면 금액은 달러 단위, 아래 미국라스온 전용 항목을 함께 쓴다
+    region: h.region === '미국라스온' ? '미국라스온' : '국내',
+    depositAccount: h.deposit_account || '',
+    fullyPaidDate: isoDate(h.fully_paid_date),
+    residency: h.residency || '',
+    withholdingRate: h.withholding_rate == null ? 3.3 : Number(h.withholding_rate),
+    boaBankName: h.boa_bank_name || '',
+    boaAccountNo: h.boa_account_no || '',
+    boaRoutingNo: h.boa_routing_no || '',
+    boaSwiftCode: h.boa_swift_code || '',
+    boaAccountOwner: h.boa_account_owner || '',
+    boaAddress: h.boa_address || '',
+    taxIdType: h.tax_id_type || '',
+    taxIdNo: h.tax_id_no || '',
+    taxNameEn: h.tax_name_en || '',
+    taxNationality: h.tax_nationality || '',
+    taxAddress: h.tax_address || '',
+    exchangeRate: h.exchange_rate == null ? 0 : Number(h.exchange_rate),
+    exchangeRateDate: isoDate(h.exchange_rate_date),
+    exchangeRateSource: h.exchange_rate_source || '',
     payment: {
       method,
       totalAmount: Number(h.payment_total || 0),
@@ -85,6 +106,57 @@ function mapSnapshot(h, installments, documents) {
     isDraft: !!h.is_draft,
     createdAt: isoDate(h.created_at),
   }
+}
+
+/** contract_receipts row → 프론트 ContractReceipt */
+function mapReceipt(r) {
+  return {
+    id: String(r.id),
+    receiptDate: isoDate(r.receipt_date),
+    account: r.account,
+    exchangeRate: Number(r.exchange_rate || 0),
+    rateSource: r.rate_source || '',
+    krwAmount: Number(r.krw_amount || 0),
+    usdAmount: Number(r.usd_amount || 0),
+    memo: r.memo || '',
+    driveFileId: r.drive_file_id || undefined,
+    driveViewUrl: r.drive_view_url || undefined,
+  }
+}
+
+/** payout_currency_changes row → 프론트 PayoutCurrencyChange */
+function mapCurrencyChange(r) {
+  return {
+    id: String(r.id),
+    effectiveDate: isoDate(r.effective_date),
+    currency: r.currency === 'KRW' ? 'KRW' : 'USD',
+  }
+}
+
+/** 미국라스온 입금장부·수령통화 이력 — 계약 id 목록 기준 일괄 조회 */
+async function loadUsLedgers(ids) {
+  const receipts = new Map()
+  const currencies = new Map()
+  if (!ids.length) return { receipts, currencies }
+  const [{ rows: rr }, { rows: cr }] = await Promise.all([
+    pool.query(
+      `SELECT * FROM contract_receipts WHERE contract_id = ANY($1) ORDER BY contract_id, receipt_date, id`,
+      [ids],
+    ),
+    pool.query(
+      `SELECT * FROM payout_currency_changes WHERE contract_id = ANY($1) ORDER BY contract_id, effective_date, id`,
+      [ids],
+    ),
+  ])
+  for (const r of rr) {
+    if (!receipts.has(r.contract_id)) receipts.set(r.contract_id, [])
+    receipts.get(r.contract_id).push(mapReceipt(r))
+  }
+  for (const r of cr) {
+    if (!currencies.has(r.contract_id)) currencies.set(r.contract_id, [])
+    currencies.get(r.contract_id).push(mapCurrencyChange(r))
+  }
+  return { receipts, currencies }
 }
 
 /** DATE/TIMESTAMPTZ 값 → YYYY-MM-DD (KST 기준). UTC로 바로 slice하면 자정~오전9시 사이 값이 하루 전으로 표시된다. */
@@ -137,6 +209,7 @@ async function listContracts(filter = {}) {
       if (!instByHistory.has(i.history_id)) instByHistory.set(i.history_id, [])
       instByHistory.get(i.history_id).push(i)
     }
+    const ledgers = await loadUsLedgers(ids)
 
     for (const c of contracts) {
       const hist = histByContract.get(c.id) || []
@@ -150,7 +223,14 @@ async function listContracts(filter = {}) {
         )
         return mapSnapshot(h, inst, docs)
       })
-      result.push({ id: c.id, contractorId: c.contractor_id || '', current: history[0], history })
+      result.push({
+        id: c.id,
+        contractorId: c.contractor_id || '',
+        current: history[0],
+        history,
+        receipts: ledgers.receipts.get(c.id) || [],
+        payoutCurrencyChanges: ledgers.currencies.get(c.id) || [],
+      })
     }
   }
   // 필터
@@ -206,11 +286,14 @@ async function getContract(id) {
     )
     history.push(mapSnapshot(h, inst, docs))
   }
+  const ledgers = await loadUsLedgers([id])
   return {
     id: cr[0].id,
     contractorId: cr[0].contractor_id || '',
     current: history[0],
     history,
+    receipts: ledgers.receipts.get(id) || [],
+    payoutCurrencyChanges: ledgers.currencies.get(id) || [],
   }
 }
 
@@ -225,8 +308,10 @@ async function insertHistory(client, contractId, snap) {
         bank_name,account_no,account_owner,resident_no,phone,
         payment_method,payment_total,memo,is_draft,
         recipient_name,recipient_bank_name,recipient_account_no,recipient_account_owner,recipient_resident_no,
-        linked_contract_id,transfer_amount,income_type)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35)
+        linked_contract_id,transfer_amount,income_type,
+        ${US_COLUMNS.join(',')})
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,
+             ${US_COLUMNS.map((_, i) => `$${36 + i}`).join(',')})
      RETURNING id`,
     [
       contractId,
@@ -264,6 +349,7 @@ async function insertHistory(client, contractId, snap) {
       snap.linkedContractId || null,
       snap.transferAmount || 0,
       snap.incomeType === '근로소득' ? '근로소득' : '사업소득',
+      ...usValues(snap),
     ],
   )
   const historyId = rows[0].id
@@ -316,6 +402,39 @@ async function insertHistory(client, contractId, snap) {
 
 function nn(v) {
   return v === '' || v === undefined ? null : v
+}
+
+/** 미국라스온 전용 컬럼 — insertHistory/correctHistory 가 같은 순서로 쓴다 (usValues 와 1:1) */
+const US_COLUMNS = [
+  'region', 'deposit_account', 'fully_paid_date', 'residency', 'withholding_rate',
+  'boa_bank_name', 'boa_account_no', 'boa_routing_no', 'boa_swift_code', 'boa_account_owner', 'boa_address',
+  'tax_id_type', 'tax_id_no', 'tax_name_en', 'tax_nationality', 'tax_address',
+  'exchange_rate', 'exchange_rate_date', 'exchange_rate_source',
+]
+
+function usValues(snap) {
+  const rate = Number(snap.withholdingRate)
+  return [
+    snap.region === '미국라스온' ? '미국라스온' : '국내',
+    snap.depositAccount || '',
+    nn(snap.fullyPaidDate),
+    snap.residency || '',
+    Number.isFinite(rate) && snap.withholdingRate !== '' && snap.withholdingRate != null ? rate : 3.3,
+    snap.boaBankName || '',
+    snap.boaAccountNo || '',
+    snap.boaRoutingNo || '',
+    snap.boaSwiftCode || '',
+    snap.boaAccountOwner || '',
+    snap.boaAddress || '',
+    snap.taxIdType || '',
+    snap.taxIdNo || '',
+    snap.taxNameEn || '',
+    snap.taxNationality || '',
+    snap.taxAddress || '',
+    Number(snap.exchangeRate) > 0 ? Number(snap.exchangeRate) : null,
+    nn(snap.exchangeRateDate),
+    snap.exchangeRateSource === 'manual' ? 'manual' : snap.exchangeRateSource === 'auto' ? 'auto' : '',
+  ]
 }
 
 /** 신규 계약 생성 */
@@ -379,7 +498,8 @@ async function correctHistory(historyId, snap) {
          payment_method=$22, payment_total=$23, memo=$24, is_draft=$25,
          recipient_name=$26, recipient_bank_name=$27, recipient_account_no=$28,
          recipient_account_owner=$29, recipient_resident_no=$30,
-         linked_contract_id=$31, transfer_amount=$32, income_type=$33
+         linked_contract_id=$31, transfer_amount=$32, income_type=$33,
+         ${US_COLUMNS.map((c, i) => `${c}=$${34 + i}`).join(', ')}
        WHERE id=$1`,
       [
         historyId,
@@ -415,6 +535,7 @@ async function correctHistory(historyId, snap) {
         snap.linkedContractId || null,
         snap.transferAmount || 0,
         snap.incomeType === '근로소득' ? '근로소득' : '사업소득',
+        ...usValues(snap),
       ],
     )
     if (rowCount === 0) throw new Error('이력을 찾을 수 없습니다.')
@@ -509,10 +630,22 @@ async function transferIn(contractId, transferorContractId, transferAmount, snap
       deposit: remainingDeposit,
       memo: `${snap.contractorName}에게 ${
         transferAmount >= transferorSnap.deposit ? '전체' : '일부'
-      } 양도 (${transferAmount.toLocaleString('ko-KR')}원)`,
+      } 양도 (${
+        transferorSnap.region === '미국라스온'
+          ? `$${transferAmount.toLocaleString('en-US')}`
+          : `${transferAmount.toLocaleString('ko-KR')}원`
+      })`,
       linkedContractId: contractId,
       transferAmount,
       createdAt: snap.eventDate,
+      // 미국라스온 — 양도 이력도 같은 이벤트일 환율을 쓴다(양수 이력에 입력된 값)
+      ...(transferorSnap.region === '미국라스온' && Number(snap.exchangeRate) > 0
+        ? {
+            exchangeRate: snap.exchangeRate,
+            exchangeRateDate: snap.exchangeRateDate,
+            exchangeRateSource: snap.exchangeRateSource,
+          }
+        : {}),
     })
 
     await client.query('COMMIT')
@@ -549,7 +682,130 @@ async function deleteContract(id) {
   await pool.query(`DELETE FROM contracts WHERE id = $1`, [id])
 }
 
+// ── 미국라스온 입금장부 ──────────────────────────────
+
+/** 입금 1건 추가 — 환산 금액은 화면에서 계산해 넘기지만, 비어 있으면 서버에서 반올림 환산한다 */
+async function addReceipt(contractId, r) {
+  const rate = Number(r.exchangeRate) || 0
+  if (!r.receiptDate) throw new Error('입금일을 입력하세요.')
+  if (!(rate > 0)) throw new Error('입금일 환율이 없습니다. 시스템관리에서 환율을 먼저 등록하세요.')
+  const account = r.account === 'BOA달러' ? 'BOA달러' : '한국원화'
+  let krw = Math.round(Number(r.krwAmount) || 0)
+  let usd = Math.round(Number(r.usdAmount) || 0)
+  if (account === '한국원화' && !usd) usd = Math.round(krw / rate)
+  if (account === 'BOA달러' && !krw) krw = Math.round(usd * rate)
+  const { rows } = await pool.query(
+    `INSERT INTO contract_receipts
+       (contract_id, receipt_date, account, exchange_rate, krw_amount, usd_amount, memo, drive_file_id, drive_view_url, rate_source)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+    [
+      contractId,
+      r.receiptDate,
+      account,
+      rate,
+      krw,
+      usd,
+      r.memo || '',
+      r.driveFileId || null,
+      r.driveViewUrl || null,
+      r.rateSource === 'manual' ? 'manual' : 'auto',
+    ],
+  )
+  return mapReceipt(rows[0])
+}
+
+async function deleteReceipt(contractId, receiptId) {
+  await pool.query(`DELETE FROM contract_receipts WHERE id = $1 AND contract_id = $2`, [receiptId, contractId])
+}
+
+// ── 미국라스온 수령통화 변경 이력 ─────────────────────
+
+async function addCurrencyChange(contractId, effectiveDate, currency) {
+  if (!effectiveDate) throw new Error('적용일을 입력하세요.')
+  const { rows } = await pool.query(
+    `INSERT INTO payout_currency_changes (contract_id, effective_date, currency)
+     VALUES ($1,$2,$3) RETURNING *`,
+    [contractId, effectiveDate, currency === 'KRW' ? 'KRW' : 'USD'],
+  )
+  return mapCurrencyChange(rows[0])
+}
+
+async function deleteCurrencyChange(contractId, changeId) {
+  await pool.query(`DELETE FROM payout_currency_changes WHERE id = $1 AND contract_id = $2`, [changeId, contractId])
+}
+
+// ── 환율표 (하나은행 최초 매매기준율) ─────────────────
+
+function mapRate(r) {
+  return {
+    date: isoDate(r.rate_date),
+    rate: Number(r.usd_krw),
+    source: r.source === 'auto' ? 'auto' : 'manual',
+    noticeDate: isoDate(r.notice_date) || isoDate(r.rate_date),
+    noticedAt: r.noticed_at || '',
+  }
+}
+
+async function listExchangeRates() {
+  const { rows } = await pool.query(`SELECT * FROM exchange_rates ORDER BY rate_date DESC`)
+  return rows.map(mapRate)
+}
+
+/** 수동 입력·수정 — 출처를 manual 로 남겨 이후 자동 조회가 덮어쓰지 않게 한다 */
+async function upsertExchangeRate(date, rate) {
+  const n = Number(rate)
+  if (!date) throw new Error('날짜를 입력하세요.')
+  if (!(n > 0)) throw new Error('환율을 입력하세요.')
+  const { rows } = await pool.query(
+    `INSERT INTO exchange_rates (rate_date, usd_krw, source, notice_date, noticed_at) VALUES ($1,$2,'manual',$1,'')
+     ON CONFLICT (rate_date) DO UPDATE SET usd_krw = $2, source = 'manual', updated_at = now()
+     RETURNING *`,
+    [date, n],
+  )
+  return mapRate(rows[0])
+}
+
+/** 오늘 날짜(KST, YYYY-MM-DD) */
+function todayKst() {
+  return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
+}
+
+/**
+ * 거래일 환율 확보 — 환율표에 그 날짜 값이 있으면 그대로(수동 수정값 우선), 없으면 하나은행 1회차
+ * 매매기준율을 조회해 '그 날짜' 행으로 저장한다(휴일이면 직전 영업일 고시분, 고시일을 함께 남김).
+ * force=true(시스템관리 '하나은행에서 가져오기')면 기존 값이 있어도 다시 조회해 덮어쓴다.
+ */
+async function ensureExchangeRate(date, force = false) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) throw new Error('날짜를 입력하세요.')
+  if (date > todayKst()) throw new Error('미래 날짜의 환율은 조회할 수 없습니다.')
+  if (!force) {
+    const { rows } = await pool.query(`SELECT * FROM exchange_rates WHERE rate_date = $1`, [date])
+    if (rows.length) return mapRate(rows[0])
+  }
+  const hana = await fetchHanaFirstUsdRate(date)
+  const { rows } = await pool.query(
+    `INSERT INTO exchange_rates (rate_date, usd_krw, source, notice_date, noticed_at) VALUES ($1,$2,'auto',$3,$4)
+     ON CONFLICT (rate_date) DO UPDATE
+       SET usd_krw = $2, source = 'auto', notice_date = $3, noticed_at = $4, updated_at = now()
+     RETURNING *`,
+    [date, hana.rate, hana.noticeDate, hana.noticedAt],
+  )
+  return mapRate(rows[0])
+}
+
+async function deleteExchangeRate(date) {
+  await pool.query(`DELETE FROM exchange_rates WHERE rate_date = $1`, [date])
+}
+
 module.exports = {
+  addReceipt,
+  deleteReceipt,
+  addCurrencyChange,
+  deleteCurrencyChange,
+  listExchangeRates,
+  upsertExchangeRate,
+  ensureExchangeRate,
+  deleteExchangeRate,
   listContracts,
   getContract,
   createContract,

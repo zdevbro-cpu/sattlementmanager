@@ -53,6 +53,9 @@ import {
   useSettlementSettings,
 } from './settlementSettingsStore'
 import StaffManagePage from '../store/StaffManagePage'
+import DateTextInput from '../../components/ui/DateTextInput'
+import { ensureExchangeRate, removeExchangeRate, saveExchangeRate, useExchangeRates } from '../contract/usLasOn'
+import { todayIso } from '../../lib/format'
 
 const GROUPS: { kind: CodeKind; title: string; desc: string }[] = [
   { kind: 'orgs', title: '소속', desc: '계약 소속 구분 (예: A, B)' },
@@ -166,6 +169,7 @@ function CommonCodeAdmin() {
         <SalesCategoryCard />
         <PositionSalaryCard />
         <SettlementFeeCard />
+        <ExchangeRateCard />
         {Array.from({ length: Math.max(0, 10 - GROUPS.length - 6) }).map(
           (_, i) => (
             <EmptySlot key={`empty-${i}`} />
@@ -473,6 +477,114 @@ function SettlementFeeCard() {
         />
         <span className="text-[13px] text-[#94a3b8]">%</span>
       </div>
+    </div>
+  )
+}
+
+/**
+ * 환율 (하나은행 최초 매매기준율, 원/달러) — 미국라스온 입금·지급·해지 반환 등 모든 거래에
+ * 그 거래일 값을 쓴다. 휴일 등으로 그날 값이 없으면 직전 영업일 값이 적용된다.
+ */
+function ExchangeRateCard() {
+  const rates = useExchangeRates()
+  const [date, setDate] = useState(todayIso())
+  const [rate, setRate] = useState('')
+  const [err, setErr] = useState('')
+  const submit = async () => {
+    const n = Number(rate.replace(/[^\d.]/g, ''))
+    if (!date || !(n > 0)) {
+      setErr('날짜와 환율을 입력하세요.')
+      return
+    }
+    try {
+      await saveExchangeRate(date, n)
+      setRate('')
+      setErr('')
+    } catch (e) {
+      setErr((e as Error).message)
+    }
+  }
+  // 하나은행 1회차 매매기준율을 다시 조회해 덮어쓴다(수동 수정값도 자동값으로 되돌림)
+  const [fetching, setFetching] = useState(false)
+  const fetchHana = async () => {
+    if (!date) {
+      setErr('날짜를 입력하세요.')
+      return
+    }
+    setFetching(true)
+    try {
+      await ensureExchangeRate(date, true)
+      setErr('')
+    } catch (e) {
+      setErr(`자동 조회 실패 — 직접 입력하세요 (${(e as Error).message})`)
+    } finally {
+      setFetching(false)
+    }
+  }
+  return (
+    <div className="col-span-2 rounded-[14px] border border-border bg-card p-4">
+      <h3 className="text-[15px] font-extrabold text-text-strong mb-1">환율 (미국라스온)</h3>
+      <p className="text-[12px] text-[#94a3b8] mb-3">
+        하나은행 1회차(최초) 매매기준율(원/달러). 거래일에 값이 없으면 자동으로 조회해 저장되며, 직접 입력하면
+        수정값(수동)으로 남아 자동 조회가 덮어쓰지 않습니다.
+      </p>
+      <div className="flex gap-2 mb-3">
+        <DateTextInput
+          value={date}
+          onChange={setDate}
+          className="h-9 w-[130px] rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary"
+        />
+        <input
+          value={rate}
+          onChange={(e) => setRate(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          inputMode="decimal"
+          placeholder="예: 1385.50"
+          className="h-9 flex-1 min-w-0 rounded-[8px] bg-input border border-border px-3 text-right text-[13px] text-input-text outline-none focus:border-primary tabular"
+        />
+        <button
+          onClick={submit}
+          className="h-9 shrink-0 whitespace-nowrap rounded-[8px] bg-primary px-3 text-[13px] font-bold text-white hover:brightness-110"
+        >
+          저장
+        </button>
+        <button
+          onClick={fetchHana}
+          disabled={fetching}
+          className="h-9 shrink-0 whitespace-nowrap rounded-[8px] border border-border px-3 text-[13px] font-semibold text-[#c2cde0] hover:bg-hover disabled:opacity-60"
+        >
+          {fetching ? '조회 중…' : '하나은행에서 가져오기'}
+        </button>
+      </div>
+      {err && <div className="mb-2 text-[11.5px] text-danger">{err}</div>}
+      <ul className="space-y-1.5 max-h-[280px] overflow-y-auto">
+        {rates.map((r) => (
+          <li
+            key={r.date}
+            className="flex items-center justify-between rounded-[8px] border border-border px-3 py-1.5 text-[13px]"
+          >
+            <span className="tabular text-[#c2cde0]">
+              {r.date}
+              <span className={`ml-2 text-[11px] ${r.source === 'auto' ? 'text-[#64748b]' : 'text-warning'}`}>
+                {r.source === 'auto'
+                  ? `자동${r.noticeDate && r.noticeDate !== r.date ? ` · ${r.noticeDate} 고시` : ''}`
+                  : '수동'}
+              </span>
+            </span>
+            <span className="flex items-center gap-3">
+              <span className="tabular font-bold text-text-strong">{r.rate.toFixed(2)}원</span>
+              <DeleteBtn
+                onClick={() => {
+                  if (confirm(`${r.date} 환율을 삭제할까요?`)) removeExchangeRate(r.date)
+                }}
+              />
+            </span>
+          </li>
+        ))}
+        {rates.length === 0 && (
+          <li className="text-center text-[12px] text-[#64748b] py-3">등록된 환율이 없습니다.</li>
+        )}
+      </ul>
     </div>
   )
 }
