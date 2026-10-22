@@ -15,6 +15,7 @@ export function countLasOnPartners(contracts: Contract[]): { leaders: number; pa
   let partners = 0
   for (const c of contracts) {
     if (c.current.isDraft) continue
+    if (c.current.region === '미국라스온') continue // 미국라스온은 별개 조직 — 국내 라스온 인원에서 제외
     if (c.current.contractType === 'LAS-On파트장') leaders++
     else if (c.current.contractType === 'LAS-On파트너') partners++
   }

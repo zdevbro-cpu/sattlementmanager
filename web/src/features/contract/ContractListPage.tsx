@@ -19,10 +19,11 @@ import { addHistory, listContracts, summarize } from './contractStore'
 import ContractRegisterModal from './ContractRegisterModal'
 import ContractDetailDrawer from './ContractDetailDrawer'
 import LasOnStatusPage from './LasOnStatusPage'
+import UsLasOnStatusPage from './UsLasOnStatusPage'
 import { downloadListAsExcel } from '../../lib/excelExport'
 import { isUsContract } from './usLasOn'
 
-type Tab = 'list' | 'lason'
+type Tab = 'list' | 'lason' | 'us-lason'
 
 // 목록 컬럼 정의 (결재구분은 유치자 다음, 보증금/수당은 우측 정렬 + 폭 고정)
 const COLS: { label: string; align?: 'center' | 'right'; w?: number }[] = [
@@ -222,10 +223,15 @@ export default function ContractListPage() {
         <TabButton active={tab === 'lason'} onClick={() => setTab('lason')}>
           라스온현황
         </TabButton>
+        <TabButton active={tab === 'us-lason'} onClick={() => setTab('us-lason')}>
+          미국라스온현황
+        </TabButton>
       </div>
 
       {tab === 'lason' ? (
         <LasOnStatusPage />
+      ) : tab === 'us-lason' ? (
+        <UsLasOnStatusPage />
       ) : (
         <>
           {/* 섹션 소제목 + 액션 버튼 */}

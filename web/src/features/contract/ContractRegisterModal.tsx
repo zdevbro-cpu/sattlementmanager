@@ -187,6 +187,11 @@ export default function ContractRegisterModal({
     if (!f.contractorName.trim()) return setErr('계약자명을 입력하세요.')
     if (!f.contractDate) return setErr('계약일을 입력하세요.')
     if (partnerLocked) return setErr('소속 파트장을 먼저 선택하세요.')
+    if (isPartner) {
+      const leader = leaders.find((l) => l.id === f.parentContractId)
+      if (leader && (leader.current.region === US_REGION) !== isUs)
+        return setErr('소속 파트장과 지역이 다릅니다. 국내 라스온과 미국라스온은 별개 조직이라 같은 지역 파트장만 지정할 수 있습니다.')
+    }
     // 임시저장은 결재정보가 아직 미완성일 수 있으므로 보증금 일치 검증을 생략한다
     if (!isDraft && !isUs && !depositMatched)
       return setErr(
@@ -461,6 +466,11 @@ export default function ContractRegisterModal({
                           recipientAccountOwner: leader.current.accountOwner || '',
                           recipientResidentNo: leader.current.residentNo || '',
                         })
+                        // 국내·미국라스온은 별개 조직 — 파트너의 지역은 소속 파트장의 지역을 따른다
+                        setUs((prev) => ({
+                          ...prev,
+                          region: leader.current.region === US_REGION ? US_REGION : '국내',
+                        }))
                       } else {
                         set('parentContractId', id)
                       }
@@ -470,7 +480,7 @@ export default function ContractRegisterModal({
                     <option value="">선택 안 함</option>
                     {leaders.map((l) => (
                       <option key={l.id} value={l.id}>
-                        {l.current.contractorName} ({l.id})
+                        {l.current.contractorName} ({l.id}){l.current.region === US_REGION ? ' · 미국라스온' : ''}
                       </option>
                     ))}
                   </select>
