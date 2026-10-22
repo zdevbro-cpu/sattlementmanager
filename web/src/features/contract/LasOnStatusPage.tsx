@@ -74,8 +74,11 @@ export default function LasOnStatusPage() {
     listContracts(EMPTY_FILTER).then((list) => {
       if (alive) {
         setContracts(
+          // 국내 라스온만 — 미국라스온은 별개 조직이라 '미국라스온현황' 탭에서 따로 본다
           list.filter(
-            (c) => c.current.contractType === 'LAS-On파트장' || c.current.contractType === 'LAS-On파트너',
+            (c) =>
+              (c.current.contractType === 'LAS-On파트장' || c.current.contractType === 'LAS-On파트너') &&
+              c.current.region !== '미국라스온',
           ),
         )
         setLoading(false)

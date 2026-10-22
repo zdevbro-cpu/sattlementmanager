@@ -47,14 +47,19 @@ export default function HistoryCorrectForm({
       if (alive)
         setLeaders(
           list.filter(
-            (c) => c.current.contractType === 'LAS-On파트장' && c.current.status !== '폐기' && c.id !== contractId,
+            (c) =>
+              c.current.contractType === 'LAS-On파트장' &&
+              c.current.status !== '폐기' &&
+              c.id !== contractId &&
+              // 국내·미국라스온은 별개 조직 — 같은 지역 파트장만 지정할 수 있다
+              (c.current.region === '미국라스온') === (base.region === '미국라스온'),
           ),
         )
     })
     return () => {
       alive = false
     }
-  }, [contractId])
+  }, [contractId, base.region])
   const [deposit, setDeposit] = useState(base.deposit)
   const [allowance, setAllowance] = useState(base.allowance)
   const [allowancePayDay, setAllowancePayDay] = useState(base.allowancePayDay || 25)
