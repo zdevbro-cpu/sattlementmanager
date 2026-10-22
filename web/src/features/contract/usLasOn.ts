@@ -9,7 +9,7 @@ import type {
   PayoutCurrency,
   PayoutCurrencyChange,
 } from '../../types/contract'
-import { US_REGION } from '../../types/contract'
+import { US_RECEIPT_PROOF, US_REGION, US_REQUIRED_DOC_KINDS } from '../../types/contract'
 import {
   deleteExchangeRateApi,
   ensureExchangeRateApi,
@@ -143,6 +143,28 @@ export function calcUsPayout(
   const krwNet = krwGross - tax
   const usdNet = currency === 'USD' ? Math.round(krwNet / r) : 0
   return { currency, rate: r, rateDate: rate!.date, krwGross, tax, krwNet, usdNet }
+}
+
+/** 계약에 올라온 모든 문서 (이력별로 나뉘어 있어 합치고 중복 제거) */
+export function allDocuments(c: Contract) {
+  const seen = new Set<string>()
+  return c.history
+    .flatMap((h) => h.documents)
+    .filter((d) => (seen.has(d.id) ? false : (seen.add(d.id), true)))
+}
+
+/**
+ * 미국라스온 필요서류 충족 여부 — 계약서·통장사본·신분증사본 파일 + 증빙이 첨부된 입금 1건 이상.
+ * 체크박스가 아니라 실제 파일 존재로 판정한다. missing 은 화면 안내용 누락 목록.
+ */
+export function usDocStatus(c: Contract): { items: { label: string; ok: boolean }[]; missing: string[]; complete: boolean } {
+  const kinds = new Set(allDocuments(c).map((d) => d.kind))
+  const items = [
+    ...US_REQUIRED_DOC_KINDS.map((k) => ({ label: k as string, ok: kinds.has(k) })),
+    { label: US_RECEIPT_PROOF, ok: (c.receipts || []).some((r) => !!r.driveViewUrl) },
+  ]
+  const missing = items.filter((i) => !i.ok).map((i) => i.label)
+  return { items, missing, complete: missing.length === 0 }
 }
 
 /** 미국라스온 계약의 원화 환산 계약금액 — 입금장부(입금일 환율) 원화 합계 */

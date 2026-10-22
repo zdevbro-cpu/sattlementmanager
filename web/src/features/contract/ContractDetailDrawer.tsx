@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, ChevronUp, ExternalLink, Paperclip, Pencil, Plus, X } from 'lucide-react'
 import StatusBadge from '../../components/ui/StatusBadge'
 import { comma, dateText, usd, won } from '../../lib/format'
@@ -7,7 +7,8 @@ import { correctHistory, getContract } from './contractStore'
 import HistoryAddForm from './HistoryAddForm'
 import HistoryCorrectForm from './HistoryCorrectForm'
 import UsLedgerPanel from './UsLedgerPanel'
-import { isUsContract } from './usLasOn'
+import UsDocsPanel from './UsDocsPanel'
+import { isUsContract, usDocStatus } from './usLasOn'
 
 export default function ContractDetailDrawer({
   contractId,
@@ -56,8 +57,30 @@ export default function ContractDetailDrawer({
     }
   }, [contract?.current.linkedContractId, tick])
 
+  // 미국라스온 — 임시저장 계약은 필요서류(계약서·통장사본·신분증사본·입금증빙)가 모두 등록되는 순간
+  // 신규 정상등록으로 자동 전환한다. 같은 이력에 대해 한 번만 시도한다.
+  const autoConfirmed = useRef<string>('')
+  useEffect(() => {
+    if (!contract) return
+    const c = contract.current
+    if (!isUsContract(c) || !c.isDraft || !usDocStatus(contract).complete) return
+    if (autoConfirmed.current === c.historyId) return
+    autoConfirmed.current = c.historyId
+    correctHistory(contract.id, c.historyId, { ...c, isDraft: false })
+      .then(() => {
+        setTick((n) => n + 1)
+        onChanged?.()
+      })
+      .catch(() => {
+        autoConfirmed.current = ''
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contract])
+
   if (!contract) return null
   const cur = contract.current
+  // 미국라스온은 필요서류가 모두 갖춰져야 확정할 수 있다(서류 없이 확정되는 길을 막음)
+  const usDocsReady = !isUsContract(cur) || usDocStatus(contract).complete
 
   const confirmDraft = async () => {
     if (!confirm('임시저장 상태를 해제하고 계약등록을 확정할까요?')) return
@@ -96,7 +119,9 @@ export default function ContractDetailDrawer({
             {cur.isDraft && (
               <button
                 onClick={confirmDraft}
-                className="inline-flex h-9 items-center gap-1.5 rounded-[8px] bg-success px-3 text-[13px] font-bold text-white hover:brightness-110"
+                disabled={!usDocsReady}
+                title={usDocsReady ? '' : `필요서류 누락: ${usDocStatus(contract).missing.join(', ')}`}
+                className="inline-flex h-9 items-center gap-1.5 rounded-[8px] bg-success px-3 text-[13px] font-bold text-white hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 계약등록 확정
               </button>
@@ -215,6 +240,15 @@ export default function ContractDetailDrawer({
           </section>
 
           {/* 미국라스온 — 입금장부 · 완납 처리 · 수령통화 이력 */}
+          {isUsContract(cur) && (
+            <UsDocsPanel
+              contract={contract}
+              onChanged={() => {
+                setTick((n) => n + 1)
+                onChanged?.()
+              }}
+            />
+          )}
           {isUsContract(cur) && (
             <UsLedgerPanel
               contract={contract}

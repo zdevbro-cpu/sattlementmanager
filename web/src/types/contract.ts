@@ -83,10 +83,13 @@ export interface PaymentInfo {
   cashInstallments: CashInstallment[]
 }
 
+/** 문서 구분 — 통장사본·신분증사본은 미국라스온 필요서류 */
+export type DocumentKind = '계약서' | '카드전표' | '현금입금증' | '통장사본' | '신분증사본'
+
 /** Google Drive 문서 링크 (계약서/전표/입금증 PDF) */
 export interface DriveDocument {
   id: string
-  kind: '계약서' | '카드전표' | '현금입금증'
+  kind: DocumentKind
   fileName: string
   driveFileId: string
   driveViewUrl: string
@@ -192,6 +195,13 @@ export type RateSource = 'auto' | 'manual'
 export type ContractRegion = '국내' | '미국라스온'
 export const CONTRACT_REGIONS: ContractRegion[] = ['국내', '미국라스온']
 export const US_REGION: ContractRegion = '미국라스온'
+
+/**
+ * 미국라스온 필요서류 — 모두 등록되면 임시저장 → 신규 정상등록으로 자동 전환된다.
+ * 입금증빙은 별도 서류가 아니라 입금장부의 증빙(증빙이 첨부된 입금 1건 이상)으로 판정한다.
+ */
+export const US_REQUIRED_DOC_KINDS: DocumentKind[] = ['계약서', '통장사본', '신분증사본']
+export const US_RECEIPT_PROOF = '입금증빙'
 
 export type DepositAccount = '한국원화' | 'BOA달러'
 export const DEPOSIT_ACCOUNTS: DepositAccount[] = ['한국원화', 'BOA달러']

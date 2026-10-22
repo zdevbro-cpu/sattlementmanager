@@ -8,19 +8,20 @@ import type {
 import { EMPTY_FILTER, US_REGION, type PayoutCurrency } from '../../types/contract'
 import { BRANCHES, MANAGERS, RECRUITERS } from '../../data/mockContracts'
 import { useCodes } from '../../lib/codeStore'
-import { createContract, listContracts } from './contractStore'
+import { correctHistory, createContract, listContracts } from './contractStore'
 import { linkSaleToContract, searchUnlinkedSales } from '../sales/salesStore'
 import type { Sale } from '../../types/sales'
 
 const LAS_ON_TYPES = ['LAS-On파트장', 'LAS-On파트너']
 import PaymentEditor, { emptyPayment } from './PaymentEditor'
-import { addPayoutCurrencyApi, uploadToDrive } from '../../lib/api'
+import { addPayoutCurrencyApi, addReceiptApi, uploadToDrive } from '../../lib/api'
 import UsLasOnFields from './UsLasOnFields'
+import RateInput, { type RateValue } from './RateInput'
 import { usFieldsOf, type UsFields } from './usLasOn'
 import DropZone from '../../components/ui/DropZone'
 import DateTextInput from '../../components/ui/DateTextInput'
 import { CheckCircle2, Paperclip, X, XCircle } from 'lucide-react'
-import { comma, phoneFmt, residentNoFmt } from '../../lib/format'
+import { comma, phoneFmt, residentNoFmt, usd, won } from '../../lib/format'
 
 const inputCls =
   'h-[38px] w-full rounded-[8px] bg-input border border-border px-3 text-[13px] text-input-text outline-none focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed'
@@ -103,6 +104,13 @@ export default function ContractRegisterModal({
   const [us, setUs] = useState<UsFields>(usFieldsOf())
   const [payoutCurrency, setPayoutCurrency] = useState<PayoutCurrency>('USD')
   const [contractFile, setContractFile] = useState<File | null>(null)
+  // 미국라스온 필요서류(통장사본·신분증사본)와 첫 입금(입금장부 첫 줄 + 증빙)
+  const [bankbookFile, setBankbookFile] = useState<File | null>(null)
+  const [idCardFile, setIdCardFile] = useState<File | null>(null)
+  const [receiptDate, setReceiptDate] = useState('')
+  const [receiptAmount, setReceiptAmount] = useState(0)
+  const [receiptRate, setReceiptRate] = useState<RateValue>({ rate: 0, date: '', source: '' })
+  const [receiptProof, setReceiptProof] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
   const [leaders, setLeaders] = useState<Contract[]>([])
@@ -167,6 +175,13 @@ export default function ContractRegisterModal({
   // 미국라스온은 계약금(달러)을 날짜 간격을 두고 나눠 받으므로 등록 시 결재합계 일치를 요구하지 않는다 —
   // 입금은 계약상세의 입금장부에서 관리하고, 완납은 사업부 담당자가 판정한다.
   const isUs = us.region === US_REGION
+  const receiptAccount = us.depositAccount || '한국원화'
+  // 첫 입금일은 따로 넣지 않으면 계약일
+  const firstReceiptDate = receiptDate || f.contractDate
+  const receiptKrw =
+    receiptAccount === '한국원화' ? receiptAmount : receiptRate.rate ? Math.round(receiptAmount * receiptRate.rate) : 0
+  const receiptUsd =
+    receiptAccount === 'BOA달러' ? receiptAmount : receiptRate.rate ? Math.round(receiptAmount / receiptRate.rate) : 0
 
   const submit = async (isDraft: boolean) => {
     if (!f.contractorName.trim()) return setErr('계약자명을 입력하세요.')
@@ -216,7 +231,9 @@ export default function ContractRegisterModal({
         documents,
         memo: f.memo,
         createdAt: f.contractDate,
-        ...(isUs ? { ...us, fullyPaidDate: '' } : { region: '국내' as const }),
+        // 미국라스온은 항상 임시저장으로 먼저 만든다 — 서류 업로드·입금 기록이 모두 성공해
+        // 필요서류가 갖춰졌을 때만 아래에서 신규 정상등록으로 전환한다.
+        ...(isUs ? { ...us, fullyPaidDate: '', isDraft: true } : { region: '국내' as const }),
       }
       const created = await createContract(snapshot)
 
@@ -237,11 +254,70 @@ export default function ContractRegisterModal({
         }
       }
 
+      let contractOk = false
       if (contractFile) {
         try {
           await uploadToDrive(created.id, contractFile, '신규등록', created.current.historyId)
+          contractOk = true
         } catch {
           /* 백엔드 미기동 시에도 계약 등록은 유지 */
+        }
+      }
+
+      if (isUs) {
+        const hid = created.current.historyId
+        const up = async (file: File | null, kind: '통장사본' | '신분증사본') => {
+          if (!file) return false
+          try {
+            await uploadToDrive(created.id, file, kind, hid, kind)
+            return true
+          } catch {
+            return false
+          }
+        }
+        const bankbookOk = await up(bankbookFile, '통장사본')
+        const idCardOk = await up(idCardFile, '신분증사본')
+
+        // 첫 입금 — 금액·환율이 있으면 입금장부 첫 줄로 기록(증빙이 있으면 함께)
+        let proofOk = false
+        if (receiptAmount > 0 && receiptRate.rate > 0) {
+          try {
+            let link: { driveFileId?: string; driveViewUrl?: string } = {}
+            if (receiptProof) {
+              try {
+                link = await uploadToDrive(created.id, receiptProof, '입금증빙', hid, '현금입금증')
+              } catch {
+                /* 증빙 업로드 실패 — 입금은 기록하고 증빙은 계약상세에서 다시 첨부 */
+              }
+            }
+            await addReceiptApi(created.id, {
+              receiptDate: firstReceiptDate,
+              account: receiptAccount,
+              exchangeRate: receiptRate.rate,
+              rateSource: receiptRate.source || 'auto',
+              krwAmount: receiptKrw,
+              usdAmount: receiptUsd,
+              memo: '첫 입금 (계약 등록)',
+              ...link,
+            })
+            proofOk = !!link.driveViewUrl
+          } catch {
+            /* 입금 기록 실패 — 계약은 임시저장으로 남고 계약상세 입금장부에서 다시 추가 */
+          }
+        }
+
+        const missing = [
+          !contractOk && '계약서',
+          !bankbookOk && '통장사본',
+          !idCardOk && '신분증사본',
+          !proofOk && '입금증빙',
+        ].filter(Boolean) as string[]
+        if (!isDraft && missing.length === 0) {
+          await correctHistory(created.id, hid, { ...created.current, isDraft: false })
+        } else if (!isDraft) {
+          alert(
+            `필요서류가 모두 등록되지 않아 임시저장되었습니다.\n누락: ${missing.join(', ')}\n\n계약상세에서 서류를 등록하면 신규로 자동 정상등록됩니다.`,
+          )
         }
       }
       onCreated()
@@ -517,11 +593,35 @@ export default function ContractRegisterModal({
 
           {/* ── 결재정보 (미국라스온은 입금장부로 관리) ── */}
           {isUs ? (
-            <section>
-              <SectionTitle>결재정보</SectionTitle>
-              <div className="rounded-[8px] border border-dashed border-border px-3 py-4 text-center text-[12px] text-[#94a3b8]">
-                미국라스온 계약은 등록 후 계약상세의 <b className="text-text-strong">입금장부</b>에서 입금을 1건씩 기록하고 완납 처리합니다.
+            <section className={partnerLocked ? 'pointer-events-none opacity-40' : ''}>
+              <SectionTitle>결재정보 · 첫 입금 (입금장부에 기록)</SectionTitle>
+              <div className="grid grid-cols-5 gap-3">
+                <Field label="입금일">
+                  <DateTextInput value={firstReceiptDate} onChange={setReceiptDate} className={inputCls} />
+                </Field>
+                <Field label={receiptAccount === '한국원화' ? '입금액(원) · 한국원화' : '입금액($) · BOA달러'}>
+                  <NumInput value={receiptAmount} onChange={setReceiptAmount} />
+                </Field>
+                <Field label="입금일 환율 (원/달러)">
+                  <RateInput baseDate={firstReceiptDate} value={receiptRate} onChange={setReceiptRate} inputCls={inputCls} />
+                </Field>
+                <Field label="환산">
+                  <div className="h-[38px] flex items-center text-[13px] tabular text-[#c2cde0]">
+                    {receiptAmount > 0 && receiptRate.rate > 0
+                      ? receiptAccount === '한국원화'
+                        ? usd(receiptUsd)
+                        : won(receiptKrw)
+                      : '-'}
+                  </div>
+                </Field>
+                <Field label="입금 증빙">
+                  <FilePick file={receiptProof} onFile={setReceiptProof} label="입금증 / BOA 거래내역" />
+                </Field>
               </div>
+              <p className="mt-2 text-[12px] text-[#94a3b8]">
+                두 번째 입금부터는 계약상세의 <b className="text-text-strong">입금장부</b>에서 추가합니다. 계약서·통장사본·신분증사본·입금증빙이
+                모두 등록되면 신규로 정상등록되고, 하나라도 없으면 임시저장됩니다.
+              </p>
             </section>
           ) : (
           <section className={partnerLocked ? 'pointer-events-none opacity-40' : ''}>
@@ -564,6 +664,17 @@ export default function ContractRegisterModal({
                 </div>
               )}
             </DropZone>
+            {/* 미국라스온 필요서류 — 서류별로 따로 저장해 유무를 자동 판정한다 */}
+            {isUs && (
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <Field label="통장사본">
+                  <FilePick file={bankbookFile} onFile={setBankbookFile} label="통장사본 (BOA / 한국 계좌)" />
+                </Field>
+                <Field label="신분증사본">
+                  <FilePick file={idCardFile} onFile={setIdCardFile} label="신분증사본 (여권 등)" />
+                </Field>
+              </div>
+            )}
           </section>
 
           {err && <div className="text-[13px] text-danger">{err}</div>}
@@ -617,6 +728,25 @@ function Field({
       </span>
       {children}
     </label>
+  )
+}
+
+/** 파일 1개 선택 (탐색기) — 미국라스온 서류·증빙용 */
+function FilePick({ file, onFile, label }: { file: File | null; onFile: (f: File | null) => void; label: string }) {
+  return (
+    <span className="flex h-[38px] cursor-pointer items-center gap-1.5 rounded-[8px] border border-dashed border-border px-3 text-[12.5px] text-[#c2cde0] hover:bg-hover">
+      <Paperclip size={13} className="shrink-0" />
+      <span className="truncate">{file ? file.name : label}</span>
+      <input
+        type="file"
+        accept=".pdf,image/*"
+        className="hidden"
+        onChange={(e) => {
+          onFile(e.target.files?.[0] ?? null)
+          e.target.value = ''
+        }}
+      />
+    </span>
   )
 }
 

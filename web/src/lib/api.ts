@@ -6,6 +6,7 @@ import type {
   ContractFilter,
   ContractReceipt,
   ContractSnapshot,
+  DocumentKind,
   ExchangeRate,
   PayoutCurrency,
   PayoutCurrencyChange,
@@ -240,7 +241,7 @@ export async function uploadToDrive(
   file: File,
   reason: string,
   historyId?: string,
-  kind?: '계약서' | '카드전표' | '현금입금증',
+  kind?: DocumentKind,
 ): Promise<{ driveFileId: string; driveViewUrl: string }> {
   const data = await fileToBase64(file)
   const res = await authFetch(`/api/contracts/${contractId}/pdf`, {
