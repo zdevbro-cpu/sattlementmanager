@@ -1,10 +1,21 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Calendar, DollarSign, Download, Eye, Landmark, Plus, Wallet, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import Pagination from '../../components/ui/Pagination'
-import { comma, dateText, won } from '../../lib/format'
-import { EMPTY_FILTER, type Contract } from '../../types/contract'
+import { comma, dateText, usd, won } from '../../lib/format'
+import { EMPTY_FILTER, type Contract, type PayoutCurrency } from '../../types/contract'
+import { useCodes } from '../../lib/codeStore'
+import {
+  DEFAULT_WITHHOLDING_RATE,
+  calcUsPayout,
+  currencyOn,
+  ensureExchangeRate,
+  isUsContract,
+  rateOn,
+  useExchangeRates,
+  type UsPayoutCalc,
+} from '../contract/usLasOn'
 import { listContracts } from '../contract/contractStore'
 import { type ExtraPayee, type PayoutCategory } from '../../types/payout'
 import { EMPTY_APPOINTMENT_FILTER, type Appointment } from '../../types/appointment'
@@ -79,12 +90,17 @@ export default function PaymentListPage() {
         <TabButton active={category === 'LAS-On'} onClick={() => setCategory('LAS-On')}>
           라스온수당지급
         </TabButton>
+        <TabButton active={category === '미국라스온'} onClick={() => setCategory('미국라스온')}>
+          미국라스온
+        </TabButton>
       </div>
 
       {category === '수익금' ? (
         <RevenuePayoutView />
       ) : category === '급여' ? (
         <SalaryPayoutView />
+      ) : category === '미국라스온' ? (
+        <UsLasOnPayoutView />
       ) : (
         <LasOnBonusView />
       )}
@@ -129,6 +145,7 @@ function RevenuePayoutView() {
     for (const c of contracts) {
       const cur = c.current
       if (cur.status === '해지' || cur.status === '폐기' || cur.isDraft) continue
+      if (isUsContract(cur)) continue // 미국라스온은 '미국라스온' 탭에서 따로 지급(달러·환율 기준)
       if (!cur.allowancePayDay) continue // 급여일 미지정 계약은 제외
       const payBaseDate = findPayDate(startDate, endDate, cur.allowancePayDay)
       if (payBaseDate === null) continue
@@ -489,6 +506,323 @@ function RevenuePayoutView() {
           }}
         />
       )}
+    </div>
+  )
+}
+
+/* ── 미국라스온 수익금지급 (완납 후 1개월부터, 지급일 환율 · 원천세 3.3% 기본) ──────────── */
+
+interface UsPayoutFilter {
+  startDate: string
+  endDate: string
+  keyword: string
+  contractType: string
+  currency: '전체' | PayoutCurrency
+  minAmount: number
+  maxAmount: number
+}
+const EMPTY_US_PAYOUT_FILTER: UsPayoutFilter = {
+  startDate: TODAY,
+  endDate: TODAY,
+  keyword: '',
+  contractType: '전체',
+  currency: '전체',
+  minAmount: 0,
+  maxAmount: 0,
+}
+
+function UsLasOnPayoutView() {
+  const codes = useCodes()
+  const rates = useExchangeRates()
+  const [filter, setFilter] = useState<UsPayoutFilter>(EMPTY_US_PAYOUT_FILTER)
+  const [contracts, setContracts] = useState<Contract[]>([])
+
+  useEffect(() => {
+    listContracts(EMPTY_FILTER).then(setContracts)
+  }, [])
+
+  // 지급일(매월 지급일) 기준 — 검색기간 안에 지급일이 도래하는 미국라스온 계약만.
+  // 지급 대상 스냅샷은 '완납 처리되고 첫 지급일(완납 + 1개월)이 지급일 이전에 도래한' 이력 중 가장 최근 것 —
+  // 증액분이 아직 완납 전이면 증액 전 스냅샷 기준으로 계속 지급한다.
+  // 지급기록은 저장하지 않으며, 금액은 해외송금 수수료 공제 전 금액이다.
+  const rows = useMemo(() => {
+    const { startDate, endDate, keyword, contractType, currency, minAmount, maxAmount } = filter
+    const kw = keyword.trim()
+    const out: { c: Contract; s: Contract['current']; payBaseDate: string; calc: UsPayoutCalc }[] = []
+    for (const c of contracts) {
+      const cur = c.current
+      if (!isUsContract(cur)) continue
+      if (cur.status === '해지' || cur.status === '폐기' || cur.isDraft) continue
+      if (!cur.allowancePayDay) continue
+      const payBaseDate = findPayDate(startDate, endDate, cur.allowancePayDay)
+      if (payBaseDate === null) continue
+      const effective = c.history.find(
+        (h) =>
+          isUsContract(h) &&
+          !h.isDraft &&
+          !!h.fullyPaidDate &&
+          !!h.firstAllowancePayDate &&
+          h.firstAllowancePayDate <= payBaseDate,
+      )
+      if (!effective) continue
+      if (!(effective.allowance > 0) || !(effective.deposit > 0)) continue
+      if (kw && !effective.contractorName.includes(kw)) continue
+      if (contractType !== '전체' && effective.contractType !== contractType) continue
+      if (minAmount && effective.allowance < minAmount) continue
+      if (maxAmount && effective.allowance > maxAmount) continue
+      const payCurrency = currencyOn(c.payoutCurrencyChanges, payBaseDate)
+      if (currency !== '전체' && payCurrency !== currency) continue
+      const calc = calcUsPayout(
+        effective.allowance,
+        rateOn(rates, payBaseDate),
+        effective.withholdingRate ?? DEFAULT_WITHHOLDING_RATE,
+        payCurrency,
+      )
+      out.push({ c, s: effective, payBaseDate, calc })
+    }
+    return out.sort((a, b) => a.payBaseDate.localeCompare(b.payBaseDate))
+  }, [contracts, filter, rates])
+
+  // 지급일 환율 자동 확보 — 환율표에 그 지급일 값이 없으면 하나은행 1회차 매매기준율을 받아온다.
+  // 실패한 날짜는 다시 시도하지 않고 '미등록'으로 남긴다(시스템관리 환율 카드에서 직접 입력).
+  const tried = useRef(new Set<string>())
+  const [rateFailCount, setRateFailCount] = useState(0)
+  useEffect(() => {
+    const need = Array.from(new Set(rows.map((r) => r.payBaseDate))).filter(
+      (d) => d <= TODAY && !rates.some((r) => r.date === d) && !tried.current.has(d),
+    )
+    if (!need.length) return
+    need.forEach((d) => tried.current.add(d))
+    ;(async () => {
+      for (const d of need) {
+        try {
+          await ensureExchangeRate(d)
+        } catch {
+          setRateFailCount((n) => n + 1)
+        }
+      }
+    })()
+  }, [rows, rates])
+
+  const krwPayTotal = rows.filter((r) => r.calc.currency === 'KRW').reduce((a, r) => a + r.calc.krwNet, 0)
+  const usdPayTotal = rows.filter((r) => r.calc.currency === 'USD').reduce((a, r) => a + r.calc.usdNet, 0)
+  const taxTotal = rows.reduce((a, r) => a + r.calc.tax, 0)
+  const krwEquivTotal = rows.reduce((a, r) => a + r.calc.krwNet, 0)
+  const noRateCount = rows.filter((r) => !r.calc.rate).length
+
+  // 달러 수령 → BOA 계좌, 원화 수령 → 한국 계좌
+  const payAccount = (s: Contract['current'], currency: PayoutCurrency) =>
+    currency === 'USD'
+      ? { bank: s.boaBankName || 'BOA', no: s.boaAccountNo || '', owner: s.boaAccountOwner || '' }
+      : { bank: s.bankName, no: s.accountNo, owner: s.accountOwner }
+
+  // 엑셀 — 계좌번호는 이체에 쓰이므로 전체 번호, 신고용 인적사항까지 한 행으로 펼친다
+  const onExcelExport = () => {
+    if (rows.length === 0) {
+      alert('출력할 데이터가 없습니다.')
+      return
+    }
+    const headers = [
+      '지급일', '계약자', '계약구분', '보증금($)', '수당($)', '적용환율', '환율기준일',
+      '원화환산(원)', '원천세율(%)', '원천세(원)', '원화실지급(원)', '수령통화', '달러실지급($)',
+      '은행명', '계좌번호', '예금주', 'Routing(ABA)', 'SWIFT', '예금주 주소',
+      '거주자 여부', '신고 식별구분', '신고 식별번호', '영문 성명', '국적', '신고 주소', '완납일', '유치자',
+    ]
+    const data: (string | number)[][] = rows.map(({ s, payBaseDate, calc }) => {
+      const acc = payAccount(s, calc.currency)
+      const isUsd = calc.currency === 'USD'
+      return [
+        dateText(payBaseDate),
+        s.contractorName,
+        s.contractType,
+        s.deposit,
+        s.allowance,
+        calc.rate || '미등록',
+        calc.rateDate || '-',
+        calc.krwGross,
+        s.withholdingRate ?? DEFAULT_WITHHOLDING_RATE,
+        calc.tax,
+        calc.krwNet,
+        isUsd ? '달러' : '원화',
+        isUsd ? calc.usdNet : '-',
+        acc.bank || '-',
+        acc.no || '-',
+        acc.owner || '-',
+        isUsd ? s.boaRoutingNo || '-' : '-',
+        isUsd ? s.boaSwiftCode || '-' : '-',
+        isUsd ? s.boaAddress || '-' : '-',
+        s.residency || '미확인',
+        s.taxIdType || '-',
+        s.taxIdNo || '-',
+        s.taxNameEn || '-',
+        s.taxNationality || '-',
+        s.taxAddress || '-',
+        dateText(s.fullyPaidDate),
+        s.recruiter || '-',
+      ]
+    })
+    downloadListAsExcel(
+      `미국라스온_수익금지급목록_${filter.startDate}_${filter.endDate}.xlsx`,
+      headers,
+      data,
+      undefined,
+      [3, 4, 7, 9, 10, 12],
+    )
+  }
+
+  const numFilter = (v: number, k: 'minAmount' | 'maxAmount', placeholder: string) => (
+    <input
+      inputMode="numeric"
+      value={v ? v.toLocaleString('en-US') : ''}
+      onChange={(e) => setFilter({ ...filter, [k]: Number(e.target.value.replace(/[^\d]/g, '')) || 0 })}
+      placeholder={placeholder}
+      className={`${inputCls} text-right tabular`}
+    />
+  )
+
+  return (
+    <div>
+      <div className="mb-4">
+        <h2 className="text-[18px] font-extrabold text-text-strong">미국라스온 수익금 지급</h2>
+        <p className="text-[13px] text-[#94a3b8] mt-1">
+          완납 후 1개월부터 매월 지급일에 지급합니다. 지급일 환율(하나은행 최초 매매기준율)로 원화 환산 후 원천세를
+          공제하며, 금액은 해외송금 수수료 공제 전 금액입니다.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <SummaryCard label="지급대상 건수" value={`${rows.length} 건`} sub={noRateCount ? `환율 미등록 ${noRateCount}건` : rateFailCount ? `환율 자동조회 실패 ${rateFailCount}일` : '기간 필터 기준'} tint="#e0edff" fg="#2563eb" icon={<Wallet size={18} />} />
+        <SummaryCard label="달러 지급 합계" value={usd(usdPayTotal)} sub="달러 수령자 실지급" tint="#f0eafd" fg="#8b5cf6" icon={<DollarSign size={18} />} />
+        <SummaryCard label="원화 지급 합계" value={won(krwPayTotal)} sub={`전체 원화환산 ${won(krwEquivTotal)}`} tint="#e2f7ec" fg="#16a34a" icon={<Landmark size={18} />} />
+        <SummaryCard label="원천세 합계" value={won(taxTotal)} sub="원화 기준" tint="#fff1e0" fg="#f59e0b" icon={<Landmark size={18} />} />
+      </div>
+
+      {/* 필터 · 출력 */}
+      <div className="rounded-[14px] border border-border bg-card p-4 mb-4">
+        <div className="grid grid-cols-[1fr_1fr_1.5fr_1fr_1fr_1fr_1fr_auto_auto] gap-3 items-end">
+          <Field label="지급일 시작">
+            <DateInput value={filter.startDate} onChange={(v) => setFilter({ ...filter, startDate: v })} />
+          </Field>
+          <Field label="지급일 종료">
+            <DateInput value={filter.endDate} onChange={(v) => setFilter({ ...filter, endDate: v })} />
+          </Field>
+          <Field label="계약자명">
+            <input value={filter.keyword} onChange={(e) => setFilter({ ...filter, keyword: e.target.value })} placeholder="계약자명 검색" className={inputCls} />
+          </Field>
+          <Field label="계약구분">
+            <select value={filter.contractType} onChange={(e) => setFilter({ ...filter, contractType: e.target.value })} className={inputCls}>
+              <option value="전체">전체</option>
+              {codes.contractTypes.map((t) => (
+                <option key={t}>{t}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="수령통화">
+            <select
+              value={filter.currency}
+              onChange={(e) => setFilter({ ...filter, currency: e.target.value as UsPayoutFilter['currency'] })}
+              className={inputCls}
+            >
+              <option value="전체">전체</option>
+              <option value="USD">달러</option>
+              <option value="KRW">원화</option>
+            </select>
+          </Field>
+          <Field label="수당 최소($)">{numFilter(filter.minAmount, 'minAmount', '0')}</Field>
+          <Field label="수당 최대($)">{numFilter(filter.maxAmount, 'maxAmount', '제한 없음')}</Field>
+          <button onClick={() => setFilter(EMPTY_US_PAYOUT_FILTER)} className="h-[38px] rounded-[8px] border border-border px-5 text-sm font-semibold text-[#c2cde0] hover:bg-hover">초기화</button>
+          <button onClick={onExcelExport} className="inline-flex h-[38px] items-center gap-1.5 rounded-[8px] border border-border px-4 text-sm font-bold text-[#c2cde0] hover:bg-hover">
+            <Download size={14} /> 엑셀 다운로드
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-[14px] border border-border bg-card overflow-hidden">
+        <div className="px-4 py-3">
+          <span className="text-[15px] font-extrabold text-text-strong">
+            지급 대상 <span className="text-primary">{rows.length}</span>건
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1400px] text-[13px]">
+            <thead>
+              <tr className="text-left text-[12.5px] text-[#94a3b8] border-y border-border">
+                {[
+                  ['지급일', 'center'],
+                  ['계약자명', ''],
+                  ['계약구분', 'center'],
+                  ['보증금', 'right'],
+                  ['수당', 'right'],
+                  ['적용환율', 'right'],
+                  ['원화환산', 'right'],
+                  ['원천세', 'right'],
+                  ['원화실지급', 'right'],
+                  ['수령통화', 'center'],
+                  ['달러실지급', 'right'],
+                  ['은행명', ''],
+                  ['계좌번호', ''],
+                  ['예금주', ''],
+                  ['거주자', 'center'],
+                ].map(([h, a]) => (
+                  <th key={h} className={`px-3 py-1.5 font-semibold whitespace-nowrap ${a === 'right' ? 'text-right' : a === 'center' ? 'text-center' : ''}`}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(({ c, s, payBaseDate, calc }) => {
+                const acc = payAccount(s, calc.currency)
+                return (
+                  <tr key={`${c.id}-${s.historyId}`} className="border-b border-border hover:bg-hover">
+                    <td className="px-3 py-1.5 tabular text-center whitespace-nowrap">{dateText(payBaseDate)}</td>
+                    <td className="px-3 py-1.5 font-semibold text-text-strong whitespace-nowrap">{s.contractorName}</td>
+                    <td className="px-3 py-1.5 text-center whitespace-nowrap">{s.contractType}</td>
+                    <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{usd(s.deposit)}</td>
+                    <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{usd(s.allowance)}</td>
+                    <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">
+                      {calc.rate ? (
+                        <span title={`${calc.rateDate} 기준`}>{calc.rate.toFixed(2)}</span>
+                      ) : (
+                        <span className="text-danger">미등록</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">{comma(calc.krwGross)} 원</td>
+                    <td className="px-3 py-1.5 tabular text-right whitespace-nowrap">
+                      {comma(calc.tax)} 원{' '}
+                      <span className="text-[#64748b]">({s.withholdingRate ?? DEFAULT_WITHHOLDING_RATE}%)</span>
+                    </td>
+                    <td className="px-3 py-1.5 tabular text-right whitespace-nowrap font-bold text-text-strong">{comma(calc.krwNet)} 원</td>
+                    <td className="px-3 py-1.5 text-center whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10.5px] font-bold ${
+                          calc.currency === 'USD' ? 'bg-[#f0eafd] text-[#8b5cf6]' : 'bg-[#e2f7ec] text-[#16a34a]'
+                        }`}
+                      >
+                        {calc.currency === 'USD' ? '달러' : '원화'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-1.5 tabular text-right whitespace-nowrap font-bold text-text-strong">
+                      {calc.currency === 'USD' ? usd(calc.usdNet) : '-'}
+                    </td>
+                    <td className="px-3 py-1.5 whitespace-nowrap">{acc.bank || '-'}</td>
+                    <td className="px-3 py-1.5 tabular whitespace-nowrap text-[#94a3b8]">{acc.no ? maskAccount(acc.no) : '-'}</td>
+                    <td className="px-3 py-1.5 whitespace-nowrap">{acc.owner || '-'}</td>
+                    <td className="px-3 py-1.5 text-center whitespace-nowrap">{s.residency || '미확인'}</td>
+                  </tr>
+                )
+              })}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={15} className="px-3 py-10 text-center text-[#64748b]">
+                    조건에 맞는 미국라스온 지급 대상자가 없습니다.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }

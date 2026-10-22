@@ -6,8 +6,9 @@ import StatusBadge from '../../components/ui/StatusBadge'
 import Badge, { contractTypeTone, methodTone } from '../../components/ui/Badge'
 import DateTextInput from '../../components/ui/DateTextInput'
 import Pagination from '../../components/ui/Pagination'
-import { comma, dateText, todayIso, won } from '../../lib/format'
+import { comma, dateText, todayIso, usd, won } from '../../lib/format'
 import {
+  CONTRACT_REGIONS,
   EMPTY_FILTER,
   type Contract,
   type ContractFilter,
@@ -19,6 +20,7 @@ import ContractRegisterModal from './ContractRegisterModal'
 import ContractDetailDrawer from './ContractDetailDrawer'
 import LasOnStatusPage from './LasOnStatusPage'
 import { downloadListAsExcel } from '../../lib/excelExport'
+import { isUsContract } from './usLasOn'
 
 type Tab = 'list' | 'lason'
 
@@ -126,6 +128,7 @@ export default function ContractListPage() {
     if (filter.branch !== '전체' && s.branch !== filter.branch) return false
     if (filter.manager && !s.manager.includes(filter.manager)) return false
     if (filter.contractType !== '전체' && s.contractType !== filter.contractType) return false
+    if (filter.region !== '전체' && (s.region || '국내') !== filter.region) return false
     if (filter.regStartDate && s.createdAt && s.createdAt < filter.regStartDate) return false
     if (filter.regEndDate && s.createdAt && s.createdAt > filter.regEndDate) return false
     return true
@@ -243,12 +246,12 @@ export default function ContractListPage() {
           </div>
 
           {/* 요약 카드 */}
-      <div className="grid grid-cols-5 gap-4 mb-4">
+      <div className="grid grid-cols-6 gap-4 mb-4">
         <SummaryCard
           label="계약총액"
           value={won(sum.depositTotal)}
-          sub={`총 ${sum.active}건 (해지·폐기·임시저장 제외)`}
-          total={isFiltered ? `${won(totalSum.depositTotal)} · ${totalSum.active}건` : undefined}
+          sub={`총 ${sum.domesticActive}건 (해지·폐기·임시저장 제외)`}
+          total={isFiltered ? `${won(totalSum.depositTotal)} · ${totalSum.domesticActive}건` : undefined}
           tint="#e0edff"
           fg="#2563eb"
           icon={FileText}
@@ -288,11 +291,21 @@ export default function ContractListPage() {
           fg="#ef4444"
           icon={XCircle}
         />
+        {/* 미국라스온 — 달러 약정 합계와 원화 환산(입금일 환율) 금액을 함께 표기 */}
+        <SummaryCard
+          label="미국라스온 계약총액"
+          value={usd(sum.usDepositTotal)}
+          sub={`원화환산 ${won(sum.usKrwTotal)} · ${sum.usActive}건`}
+          total={isFiltered ? `${usd(totalSum.usDepositTotal)} · ${totalSum.usActive}건` : undefined}
+          tint="#f0eafd"
+          fg="#8b5cf6"
+          icon={FileText}
+        />
       </div>
 
       {/* 필터 바 — 1줄 배치 */}
       <div className="rounded-[14px] border border-border bg-card p-4 mb-4 overflow-x-auto">
-        <div className="grid grid-cols-[repeat(10,minmax(120px,1fr))_auto] gap-2 items-end min-w-[1600px]">
+        <div className="grid grid-cols-[repeat(11,minmax(120px,1fr))_auto] gap-2 items-end min-w-[1760px]">
           <Field label="소속">
             <SelectFilter
               value={filter.org}
@@ -305,6 +318,13 @@ export default function ContractListPage() {
               value={filter.contractType}
               options={codes.contractTypes}
               onChange={(v) => setFilter({ ...filter, contractType: v })}
+            />
+          </Field>
+          <Field label="지역">
+            <SelectFilter
+              value={filter.region}
+              options={CONTRACT_REGIONS}
+              onChange={(v) => setFilter({ ...filter, region: v })}
             />
           </Field>
           <Field label="계약자명">
@@ -643,6 +663,8 @@ function Row({
   onDelete: () => void
 }) {
   const s = c.current
+  // 미국라스온은 보증금·수당이 달러 단위
+  const money = (n: number) => (isUsContract(s) ? usd(n) : comma(n))
   return (
     <tr className="border-b border-border hover:bg-hover">
       <td className="px-2 py-1.5 text-center whitespace-nowrap tabular text-[#c2cde0]">
@@ -662,13 +684,13 @@ function Row({
         className="px-3 py-1.5 tabular text-right whitespace-nowrap"
         style={{ width: 132, minWidth: 132 }}
       >
-        {comma(s.deposit)}
+        {money(s.deposit)}
       </td>
       <td
         className="px-3 py-1.5 tabular text-right whitespace-nowrap"
         style={{ width: 116, minWidth: 116 }}
       >
-        {comma(s.allowance)}
+        {money(s.allowance)}
       </td>
       <td className="px-3 py-1.5 tabular whitespace-nowrap">
         {s.allowancePayDay ? `매월 ${s.allowancePayDay}일` : '-'}

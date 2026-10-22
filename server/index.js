@@ -196,6 +196,77 @@ app.patch('/api/contracts/:id/history/:historyId', async (req, res) => {
   }
 })
 
+// ── 미국라스온 입금장부 ──
+app.post('/api/contracts/:id/receipts', async (req, res) => {
+  try {
+    const r = await repo.addReceipt(req.params.id, req.body || {})
+    res.status(201).json({ ok: true, data: r })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+app.delete('/api/contracts/:id/receipts/:receiptId', async (req, res) => {
+  try {
+    await repo.deleteReceipt(req.params.id, req.params.receiptId)
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// ── 미국라스온 수령통화 변경 이력 ──
+app.post('/api/contracts/:id/payout-currency', async (req, res) => {
+  try {
+    const { effectiveDate, currency } = req.body || {}
+    const c = await repo.addCurrencyChange(req.params.id, effectiveDate, currency)
+    res.status(201).json({ ok: true, data: c })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+app.delete('/api/contracts/:id/payout-currency/:changeId', async (req, res) => {
+  try {
+    await repo.deleteCurrencyChange(req.params.id, req.params.changeId)
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+// ── 환율표 (하나은행 최초 매매기준율, 원/달러) ──
+app.get('/api/exchange-rates', async (_req, res) => {
+  try {
+    res.json({ ok: true, data: await repo.listExchangeRates() })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+app.put('/api/exchange-rates', async (req, res) => {
+  try {
+    const { date, rate } = req.body || {}
+    res.json({ ok: true, data: await repo.upsertExchangeRate(date, rate) })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+// 거래일 환율 확보 — 환율표에 없으면 하나은행 1회차 매매기준율을 조회해 저장 (force=true면 다시 조회)
+app.post('/api/exchange-rates/fetch', async (req, res) => {
+  try {
+    const { date, force } = req.body || {}
+    res.json({ ok: true, data: await repo.ensureExchangeRate(date, !!force) })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+app.delete('/api/exchange-rates/:date', async (req, res) => {
+  try {
+    await repo.deleteExchangeRate(req.params.date)
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 // ── 파일(계약서/전표/입금증) → Google Drive 업로드 ──
 // JSON base64 방식 (프론트 uploadToDrive 규격)
 app.post('/api/contracts/:id/pdf', async (req, res) => {

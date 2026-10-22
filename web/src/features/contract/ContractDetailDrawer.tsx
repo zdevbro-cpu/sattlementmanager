@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { ChevronDown, ChevronUp, ExternalLink, Paperclip, Pencil, Plus, X } from 'lucide-react'
 import StatusBadge from '../../components/ui/StatusBadge'
-import { comma, dateText, won } from '../../lib/format'
+import { comma, dateText, usd, won } from '../../lib/format'
 import type { Contract, ContractSnapshot } from '../../types/contract'
 import { correctHistory, getContract } from './contractStore'
 import HistoryAddForm from './HistoryAddForm'
 import HistoryCorrectForm from './HistoryCorrectForm'
+import UsLedgerPanel from './UsLedgerPanel'
+import { isUsContract } from './usLasOn'
 
 export default function ContractDetailDrawer({
   contractId,
@@ -212,6 +214,17 @@ export default function ContractDetailDrawer({
             <PaymentView s={cur} />
           </section>
 
+          {/* 미국라스온 — 입금장부 · 완납 처리 · 수령통화 이력 */}
+          {isUsContract(cur) && (
+            <UsLedgerPanel
+              contract={contract}
+              onChanged={() => {
+                setTick((n) => n + 1)
+                onChanged?.()
+              }}
+            />
+          )}
+
           {/* 첨부 문서 */}
           <section>
             <h3 className="mb-2.5 text-[13px] font-extrabold text-text-strong">
@@ -294,6 +307,9 @@ function SnapshotCard({
   highlight?: boolean
 }) {
   const isLasOn = s.contractType === 'LAS-On파트너' || s.contractType === 'LAS-On파트장'
+  const isUs = isUsContract(s)
+  // 미국라스온은 보증금·수당이 달러 단위
+  const money = (n: number) => (isUs ? usd(n) : comma(n))
 
   // 계약자 본인 관련 내용 — 상단에 배치
   const contractRows: [string, string][] = [
@@ -302,8 +318,8 @@ function SnapshotCard({
     ['계약구분', s.contractType],
     ...(s.contractType === 'LAS-On파트너' ? [['소속 파트장', s.parentContractId || '-'] as [string, string]] : []),
     ['계약일', dateText(s.contractDate)],
-    ['보증금', comma(s.deposit)],
-    ['수당', comma(s.allowance)],
+    ['보증금', money(s.deposit)],
+    ['수당', money(s.allowance)],
     ['소득구분', s.incomeType],
     ['수당지급일', s.allowancePayDay ? `매월 ${s.allowancePayDay}일` : '-'],
     ['수당지급기준일', dateText(s.firstAllowancePayDate)],
@@ -314,6 +330,32 @@ function SnapshotCard({
     ['예금주', s.accountOwner],
     ['주민등록번호', s.residentNo],
     ['전화번호', s.phone],
+    ...(isUs
+      ? ([
+          ['지역', s.region || '-'],
+          ['입금계좌', s.depositAccount || '-'],
+          ['완납일', dateText(s.fullyPaidDate)],
+          ['거주자 여부', s.residency || '미확인'],
+          ['원천세율', `${s.withholdingRate ?? 3.3}%`],
+          [
+            '적용환율',
+            s.exchangeRate
+              ? `${s.exchangeRate.toFixed(2)}원 (${s.exchangeRateDate || '-'}${s.exchangeRateSource === 'manual' ? ' · 수정됨' : ' 고시'})`
+              : '-',
+          ],
+          ['BOA 은행명', s.boaBankName || '-'],
+          ['BOA 계좌번호', s.boaAccountNo || '-'],
+          ['Routing(ABA)', s.boaRoutingNo || '-'],
+          ['SWIFT', s.boaSwiftCode || '-'],
+          ['영문 예금주명', s.boaAccountOwner || '-'],
+          ['예금주 주소', s.boaAddress || '-'],
+          ['신고 식별구분', s.taxIdType || '-'],
+          ['신고 식별번호', s.taxIdNo || '-'],
+          ['영문 성명', s.taxNameEn || '-'],
+          ['국적', s.taxNationality || '-'],
+          ['신고 주소', s.taxAddress || '-'],
+        ] as [string, string][])
+      : []),
   ]
 
   // 유치자·관리자·수령인 — 계약자 정보와 구분해 한 단에 모아 배치

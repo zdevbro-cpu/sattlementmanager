@@ -1,6 +1,7 @@
 // 계약 데이터 접근 계층 — Cloud SQL(PostgreSQL) 백엔드(server/contractRepo.js)를 통해 조회/저장한다.
 
 import type { Contract, ContractFilter, ContractSnapshot } from '../../types/contract'
+import { isUsContract, usContractKrw } from './usLasOn'
 import {
   addContractHistoryApi,
   correctContractHistoryApi,
@@ -76,8 +77,18 @@ export function summarize(list: Contract[]) {
   const activeList = list.filter((c) => !isEnded(c) && !isDraft(c))
   const draftList = list.filter((c) => !isEnded(c) && isDraft(c))
   const active = activeList.length
+  // 미국라스온은 금액이 달러라 원화 합계와 섞지 않는다 — 원화 합계는 국내 계약만, 미국라스온은 따로 집계한다.
+  const usActiveList = activeList.filter((c) => isUsContract(c.current))
+  const domesticActiveList = activeList.filter((c) => !isUsContract(c.current))
+  const usActive = usActiveList.length
+  const domesticActive = domesticActiveList.length
+  // 달러 약정 합계 + 원화 환산(입금장부의 입금일 환율 기준 원화 합계)
+  const usDepositTotal = usActiveList.reduce((a, c) => a + (c.current.deposit || 0), 0)
+  const usKrwTotal = usActiveList.reduce((a, c) => a + usContractKrw(c), 0)
   const draftCount = draftList.length
-  const draftTotal = draftList.reduce((a, c) => a + (c.current.deposit || 0), 0)
+  const draftTotal = draftList
+    .filter((c) => !isUsContract(c.current))
+    .reduce((a, c) => a + (c.current.deposit || 0), 0)
   const terminated = list.filter(isEnded).length
 
   // 이번달·이번주(월요일 시작) 경계 — 로컬 날짜 기준
@@ -94,17 +105,31 @@ export function summarize(list: Contract[]) {
     (c.current.contractDate ?? '').startsWith(monthPrefix),
   ).length
 
-  // 계약총액 = 보증금 합계 (해지·폐기·임시저장 제외)
-  const depositTotal = activeList.reduce((a, c) => a + (c.current.deposit || 0), 0)
-  const monthTotal = activeList
+  // 계약총액 = 보증금 합계 (해지·폐기·임시저장 제외, 국내 계약만 — 원화)
+  const depositTotal = domesticActiveList.reduce((a, c) => a + (c.current.deposit || 0), 0)
+  const monthTotal = domesticActiveList
     .filter((c) => (c.current.contractDate ?? '').startsWith(monthPrefix))
     .reduce((a, c) => a + (c.current.deposit || 0), 0)
-  const weekTotal = activeList
+  const weekTotal = domesticActiveList
     .filter((c) => {
       const d = c.current.contractDate ?? ''
       return d >= weekStart && d <= weekEnd
     })
     .reduce((a, c) => a + (c.current.deposit || 0), 0)
 
-  return { total, active, newThisMonth, terminated, depositTotal, monthTotal, weekTotal, draftCount, draftTotal }
+  return {
+    total,
+    active,
+    newThisMonth,
+    terminated,
+    depositTotal,
+    monthTotal,
+    weekTotal,
+    draftCount,
+    draftTotal,
+    domesticActive,
+    usActive,
+    usDepositTotal,
+    usKrwTotal,
+  }
 }

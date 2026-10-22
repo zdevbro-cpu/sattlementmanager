@@ -156,6 +156,80 @@ export interface ContractSnapshot {
   /** 임시저장 여부 — true면 "계약등록" 확정 전 상태 */
   isDraft?: boolean
   createdAt: string
+
+  // ── 지역 / 미국라스온 전용 ─────────────────────
+  /** 지역 — 미국라스온이면 보증금·수당은 달러(정수) 단위 */
+  region?: ContractRegion
+  /** 입금계좌 — 한 계약은 한 계좌로 완납 */
+  depositAccount?: DepositAccount | ''
+  /** 완납일 — 사업부 담당자가 판정해 입력. 첫 지급은 완납일 + 1개월 */
+  fullyPaidDate?: string
+  /** 거주자 여부 (거주자/비거주자) */
+  residency?: string
+  /** 원천세율(%) — 기본 3.3, 계약별 차등 적용 가능 */
+  withholdingRate?: number
+  boaBankName?: string
+  boaAccountNo?: string
+  boaRoutingNo?: string // Routing Number(ABA)
+  boaSwiftCode?: string
+  boaAccountOwner?: string // 영문 예금주명
+  boaAddress?: string // 예금주 주소
+  taxIdType?: string // 신고용 식별구분
+  taxIdNo?: string // 신고용 식별번호
+  taxNameEn?: string // 영문 성명
+  taxNationality?: string // 국적
+  taxAddress?: string // 신고용 주소
+  /** 이벤트(신규·증액·양수·양도·해지) 시점 적용 환율 — 하나은행 1회차 매매기준율 자동, 수동 수정 가능 */
+  exchangeRate?: number
+  /** 적용 환율의 고시일 (휴일이면 직전 영업일) */
+  exchangeRateDate?: string
+  exchangeRateSource?: RateSource | ''
+}
+
+/** 환율 출처 — auto(하나은행 자동 조회) / manual(수동 입력·수정) */
+export type RateSource = 'auto' | 'manual'
+
+export type ContractRegion = '국내' | '미국라스온'
+export const CONTRACT_REGIONS: ContractRegion[] = ['국내', '미국라스온']
+export const US_REGION: ContractRegion = '미국라스온'
+
+export type DepositAccount = '한국원화' | 'BOA달러'
+export const DEPOSIT_ACCOUNTS: DepositAccount[] = ['한국원화', 'BOA달러']
+
+export type PayoutCurrency = 'KRW' | 'USD'
+
+export const RESIDENCY_OPTIONS = ['거주자', '비거주자']
+export const TAX_ID_TYPES = ['주민등록번호', '외국인등록번호', '여권번호', '미국 SSN', '기타']
+
+/** 미국라스온 입금장부 1건 (계약 단위 원장) */
+export interface ContractReceipt {
+  id: string
+  receiptDate: string // 입금일 = 환율 기준일
+  account: DepositAccount
+  exchangeRate: number // 입금일 하나은행 최초 매매기준율 (원/달러)
+  rateSource?: RateSource | ''
+  krwAmount: number
+  usdAmount: number
+  memo: string
+  driveFileId?: string
+  driveViewUrl?: string
+}
+
+/** 미국라스온 수령통화 변경 이력 — 적용일 이후 지급분부터 반영 */
+export interface PayoutCurrencyChange {
+  id: string
+  effectiveDate: string
+  currency: PayoutCurrency
+}
+
+/** 날짜별 환율 (하나은행 최초 매매기준율) */
+export interface ExchangeRate {
+  date: string
+  rate: number
+  source?: RateSource
+  /** 실제 고시일 — 휴일 날짜는 직전 영업일 */
+  noticeDate?: string
+  noticedAt?: string
 }
 
 /** 목록에 표시되는 계약 (최신 스냅샷 + 이력 배열) */
@@ -166,6 +240,10 @@ export interface Contract {
   current: ContractSnapshot
   /** 과거 이력 포함 전체 스냅샷 (최신순) */
   history: ContractSnapshot[]
+  /** 미국라스온 입금장부 (입금일순) */
+  receipts?: ContractReceipt[]
+  /** 미국라스온 수령통화 변경 이력 (적용일순) */
+  payoutCurrencyChanges?: PayoutCurrencyChange[]
 }
 
 /** 목록 조회 필터 (contractmanager 계약관리 조건 참고) */
@@ -181,6 +259,7 @@ export interface ContractFilter {
   recruiter: string // 유치자 (자유입력 부분일치 검색, 빈 문자열 = 전체)
   org: string // 소속 ('전체' 포함)
   contractType: string // 계약구분 ('전체' 포함)
+  region: string // 지역 ('전체' 포함)
 }
 
 export const EMPTY_FILTER: ContractFilter = {
@@ -195,4 +274,5 @@ export const EMPTY_FILTER: ContractFilter = {
   recruiter: '',
   org: '전체',
   contractType: '전체',
+  region: '전체',
 }

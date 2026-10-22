@@ -56,6 +56,27 @@ CREATE INDEX IF NOT EXISTS idx_history_date ON contract_history(contract_date);
 -- 4대보험 가입은 시점이 있는 사건이라 계약 단위가 아니라 이력(스냅샷) 단위로 남긴다.
 -- 계약 단위로 두면 오늘 값을 바꿀 때 이미 지급한 과거 건까지 소급 변경되어 보인다.
 ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS income_type TEXT NOT NULL DEFAULT '사업소득';
+-- 지역 — 국내 / 미국라스온. 미국라스온 계약의 금액(보증금·수당)은 달러(정수) 단위다.
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS region TEXT NOT NULL DEFAULT '국내';
+-- 미국라스온 전용 — 입금계좌(한국원화/BOA달러, 한 계약은 한 계좌로 완납), 완납일(사업부 담당자 판정)
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS deposit_account TEXT NOT NULL DEFAULT '';
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS fully_paid_date DATE;
+-- 미국라스온 전용 — 세무 (원천세율 기본 3.3%, 추후 거주자 여부 등에 따라 계약별 차등 적용)
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS residency TEXT NOT NULL DEFAULT '';
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS withholding_rate NUMERIC(6,3) NOT NULL DEFAULT 3.3;
+-- 미국라스온 전용 — BOA(미국) 계좌
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS boa_bank_name     TEXT NOT NULL DEFAULT '';
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS boa_account_no    TEXT NOT NULL DEFAULT '';
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS boa_routing_no    TEXT NOT NULL DEFAULT '';
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS boa_swift_code    TEXT NOT NULL DEFAULT '';
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS boa_account_owner TEXT NOT NULL DEFAULT '';
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS boa_address       TEXT NOT NULL DEFAULT '';
+-- 미국라스온 전용 — 신고용 인적사항
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS tax_id_type     TEXT NOT NULL DEFAULT '';
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS tax_id_no       TEXT NOT NULL DEFAULT '';
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS tax_name_en     TEXT NOT NULL DEFAULT '';
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS tax_nationality TEXT NOT NULL DEFAULT '';
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS tax_address     TEXT NOT NULL DEFAULT '';
 
 -- 결재 분할 (카드 분할결제 / 현금 분할입금, 각 최대 6회)
 CREATE TABLE IF NOT EXISTS payment_installments (
@@ -98,6 +119,53 @@ CREATE TABLE IF NOT EXISTS contract_documents (
   uploaded_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_doc_contract ON contract_documents(contract_id);
+
+-- 미국라스온 입금장부 — 약정금액(보증금, 달러)과 별개로 날짜 간격을 두고 들어오는 입금을 1건씩 기록.
+-- 이력 스냅샷이 아니라 계약 단위 원장이다(증액분 입금도 같은 장부에 이어서 쌓인다).
+CREATE TABLE IF NOT EXISTS contract_receipts (
+  id             BIGSERIAL PRIMARY KEY,
+  contract_id    TEXT NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
+  receipt_date   DATE NOT NULL,          -- 입금일 (환율 기준일)
+  account        TEXT NOT NULL,          -- 한국원화 / BOA달러
+  exchange_rate  NUMERIC(10,2) NOT NULL, -- 입금일 하나은행 최초 매매기준율 (원/달러)
+  krw_amount     BIGINT NOT NULL DEFAULT 0, -- 원화 금액 (BOA달러 입금은 환산값)
+  usd_amount     BIGINT NOT NULL DEFAULT 0, -- 달러 금액 (한국원화 입금은 환산값, 반올림)
+  memo           TEXT NOT NULL DEFAULT '',
+  drive_file_id  TEXT,                   -- 증빙 (한국 입금증 / BOA 거래내역 캡처)
+  drive_view_url TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_receipt_contract ON contract_receipts(contract_id);
+
+-- 미국라스온 수령통화 변경 이력 — 적용일 이후 지급분부터 반영(과거 지급분 금액은 그대로 유지)
+CREATE TABLE IF NOT EXISTS payout_currency_changes (
+  id             BIGSERIAL PRIMARY KEY,
+  contract_id    TEXT NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
+  effective_date DATE NOT NULL,
+  currency       TEXT NOT NULL,          -- KRW / USD
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_currency_contract ON payout_currency_changes(contract_id);
+
+-- 환율표 — 날짜별 하나은행 최초 매매기준율 (원/달러, 시스템관리에서 수기 입력).
+-- 휴일 등 해당일 값이 없으면 직전 영업일(그 이전 가장 최근 날짜) 값을 쓴다.
+CREATE TABLE IF NOT EXISTS exchange_rates (
+  rate_date  DATE PRIMARY KEY,
+  usd_krw    NUMERIC(10,2) NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- 출처 — auto(하나은행 자동 조회) / manual(수동 입력·수정). 수동 값은 자동 조회가 덮어쓰지 않는다.
+ALTER TABLE exchange_rates ADD COLUMN IF NOT EXISTS source      TEXT NOT NULL DEFAULT 'manual';
+-- 실제 고시일·고시시각 — 휴일 날짜는 하나은행이 직전 영업일 고시분을 돌려준다
+ALTER TABLE exchange_rates ADD COLUMN IF NOT EXISTS notice_date DATE;
+ALTER TABLE exchange_rates ADD COLUMN IF NOT EXISTS noticed_at  TEXT NOT NULL DEFAULT '';
+
+-- 미국라스온 이벤트(신규·증액·양수·양도·해지) 시점 적용 환율 — 자동으로 채우고 수동 수정 가능
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS exchange_rate        NUMERIC(10,2);
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS exchange_rate_date   DATE;
+ALTER TABLE contract_history ADD COLUMN IF NOT EXISTS exchange_rate_source TEXT NOT NULL DEFAULT '';
+-- 입금장부 환율 출처 (auto / manual)
+ALTER TABLE contract_receipts ADD COLUMN IF NOT EXISTS rate_source TEXT NOT NULL DEFAULT '';
 
 -- ══════════════════════════════════════════════════════════════
 -- 조직관리(임용계약) 스키마
