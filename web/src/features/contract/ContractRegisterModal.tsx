@@ -595,7 +595,7 @@ export default function ContractRegisterModal({
           {isUs ? (
             <section className={partnerLocked ? 'pointer-events-none opacity-40' : ''}>
               <SectionTitle>결재정보 · 첫 입금 (입금장부에 기록)</SectionTitle>
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 <Field label="입금일">
                   <DateTextInput value={firstReceiptDate} onChange={setReceiptDate} className={inputCls} />
                 </Field>
@@ -614,8 +614,17 @@ export default function ContractRegisterModal({
                       : '-'}
                   </div>
                 </Field>
+              </div>
+              {/* 미국라스온 필요서류 — 서류별로 따로 저장해 유무를 자동 판정한다 (계약서는 맨 아래) */}
+              <div className="mt-3 grid grid-cols-3 gap-3">
                 <Field label="입금 증빙">
                   <FilePick file={receiptProof} onFile={setReceiptProof} label="입금증 / BOA 거래내역" />
+                </Field>
+                <Field label="통장사본">
+                  <FilePick file={bankbookFile} onFile={setBankbookFile} label="통장사본 (BOA / 한국 계좌)" />
+                </Field>
+                <Field label="신분증사본">
+                  <FilePick file={idCardFile} onFile={setIdCardFile} label="신분증사본 (여권 등)" />
                 </Field>
               </div>
               <p className="mt-2 text-[12px] text-[#94a3b8]">
@@ -664,17 +673,6 @@ export default function ContractRegisterModal({
                 </div>
               )}
             </DropZone>
-            {/* 미국라스온 필요서류 — 서류별로 따로 저장해 유무를 자동 판정한다 */}
-            {isUs && (
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <Field label="통장사본">
-                  <FilePick file={bankbookFile} onFile={setBankbookFile} label="통장사본 (BOA / 한국 계좌)" />
-                </Field>
-                <Field label="신분증사본">
-                  <FilePick file={idCardFile} onFile={setIdCardFile} label="신분증사본 (여권 등)" />
-                </Field>
-              </div>
-            )}
           </section>
 
           {err && <div className="text-[13px] text-danger">{err}</div>}
