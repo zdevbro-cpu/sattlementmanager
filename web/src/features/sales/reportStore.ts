@@ -4,14 +4,13 @@ import { useSyncExternalStore } from 'react'
 import { fetchReportEmails, onSignedIn, updateReportEmailsApi } from '../../lib/api'
 
 const KEY = 'sm.reportEmails.v1'
-const DEFAULT =
-  'gospress.dckwak@gmail.com, najulove76@naver.com, eunjooni@naver.com'
 
+// 기본 수신자는 두지 않는다 — 명단이 비어 있으면 일일보고는 발송되지 않는다
 function loadCache(): string {
   try {
-    return localStorage.getItem(KEY) ?? DEFAULT
+    return localStorage.getItem(KEY) ?? ''
   } catch {
-    return DEFAULT
+    return ''
   }
 }
 
@@ -31,7 +30,8 @@ function emit() {
 onSignedIn(() => {
   fetchReportEmails()
     .then((v) => {
-      if (v && v !== state) {
+      // 빈 값(모두 삭제)도 서버 값 그대로 반영한다 — 다른 PC에 예전 명단이 남아 보이지 않게
+      if (typeof v === 'string' && v !== state) {
         state = v
         emit()
       }
