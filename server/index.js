@@ -1254,16 +1254,14 @@ function mailFrom() {
     : process.env.SMTP_FROM || process.env.SMTP_USER
 }
 
-const DEFAULT_REPORT_EMAILS =
-  'gospress.dckwak@gmail.com, najulove76@naver.com, eunjooni@naver.com'
-
 // ── 일일보고 수신 이메일 설정 (DB 저장 — cron에서도 참조) ──
+// 기본 수신자는 두지 않는다 — 명단이 비어 있으면 아무에게도 보내지 않는다(매출 자료가 첨부되는 메일).
 app.get('/api/system/config/daily-report-email', async (_req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT value FROM app_settings WHERE key = 'daily_report_emails'`,
     )
-    res.json({ ok: true, data: rows[0]?.value ?? DEFAULT_REPORT_EMAILS })
+    res.json({ ok: true, data: rows[0]?.value ?? '' })
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message })
   }
@@ -1951,10 +1949,15 @@ app.post('/api/cron/daily-sales-report', async (req, res) => {
     const { rows: cfg } = await pool.query(
       `SELECT value FROM app_settings WHERE key = 'daily_report_emails'`,
     )
-    const emails = (cfg[0]?.value || DEFAULT_REPORT_EMAILS)
+    const emails = (cfg[0]?.value ?? '')
       .split(/[,;\s]+/)
       .map((x) => x.trim())
       .filter(Boolean)
+    // 수신자 명단이 비어 있으면 발송하지 않는다 — 기본 수신자로 대신 보내지 않는다
+    if (emails.length === 0) {
+      console.log('[cron/daily-sales-report] 수신자 없음 — 발송 건너뜀')
+      return res.json({ ok: true, skipped: true, reason: 'no recipients', count: inWindow.length })
+    }
 
     const mailer = getMailer()
     if (!mailer) {
