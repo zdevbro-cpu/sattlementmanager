@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(code --list-extensions --show-versions)"
+      "Bash(code --list-extensions --show-versions)",
+      "Bash(git push origin *)"
     ]
   }
 }
